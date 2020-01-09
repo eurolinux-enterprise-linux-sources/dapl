@@ -1,0 +1,34 @@
+diff -up dapl-2.0.34/Makefile.am.mlx5 dapl-2.0.34/Makefile.am
+--- dapl-2.0.34/Makefile.am.mlx5	2015-06-10 11:15:24.123109671 -0400
++++ dapl-2.0.34/Makefile.am	2015-06-10 11:18:08.393582998 -0400
+@@ -599,22 +599,30 @@ install-exec-hook:
+ 	fi; \
+ 	echo ofa-v2-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-mlx5_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx5_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-mlx5_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx5_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-ib0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"ib0 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-ib1 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"ib1 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mthca0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mthca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mthca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mthca0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-ipath0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ipath0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-ipath0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ipath0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-qib0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"qib0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-qib0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"qib0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-ehca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ehca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-iwarp u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-mlx5_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx5_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-mlx5_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx5_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mthca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth3 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+ 	echo ofa-v2-scm-roe-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; 
++	echo ofa-v2-scm-roe-mlx5_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx5_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
++	echo ofa-v2-scm-roe-mlx5_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx5_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; 
+ 
+ uninstall-hook:
+ 	if test -e $(DESTDIR)$(sysconfdir)/dat.conf; then \
