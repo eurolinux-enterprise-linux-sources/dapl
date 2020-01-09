@@ -1,11 +1,12 @@
 Name: dapl
 Version: 2.1.5
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
 License: GPLv2 or BSD or CPL
 Url: https://www.openfabrics.org/
 Source0: https://www.openfabrics.org/downloads/dapl/dapl-%{version}.tar.gz
+Patch1: 0001-dapltest-dapltest-with-no-argument-not-working-in-pp.patch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -45,6 +46,7 @@ Useful test suites to validate the dapl library API's and operation.
 %setup -q
 #aclocal -I config && libtoolize --force --copy && autoheader && \
 #    automake --foreign --add-missing --copy && autoconf
+%patch1 -p1
 
 %build
 %configure CFLAGS="$CFLAGS -fno-strict-aliasing" --enable-ext-type=ib --sysconfdir=/etc/rdma
@@ -86,6 +88,10 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
+* Thu Apr 21 2016 Honggang Li <honli@redhat.com> - 2.1.5-2
+- Ensure dapltest with no argument working in ppc64 arch.
+- Resolves: bz1056487
+
 * Tue Jun 09 2015 Doug Ledford <dledford@redhat.com> - 2.1.5-1
 - Update to latest upstream release
 - Include support for s390x

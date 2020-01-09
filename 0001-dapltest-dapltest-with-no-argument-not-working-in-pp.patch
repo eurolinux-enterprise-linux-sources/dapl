@@ -1,0 +1,30 @@
+From 5a1d9e7f386335dcae676b372269a061e6f5294b Mon Sep 17 00:00:00 2001
+From: Carol L Soto <clsoto@linux.vnet.ibm.com>
+Date: Mon, 24 Aug 2015 12:58:58 -0700
+Subject: [PATCH] dapltest: dapltest with no argument not working in ppc64 arch
+
+If dapltest is run with no args then the client was getting
+Warning: conn_event_wait DAT_CONNECTION_EVENT_NON_PEER_REJECTED
+Reference to RH1056487- dapltest Read and Write performance
+tests are not working
+
+Signed-off-by: Carol L Soto <clsoto@linux.vnet.ibm.com>
+---
+ test/dapltest/cmd/dapl_params.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/test/dapltest/cmd/dapl_params.c b/test/dapltest/cmd/dapl_params.c
+index f038324..fc4697b 100644
+--- a/test/dapltest/cmd/dapl_params.c
++++ b/test/dapltest/cmd/dapl_params.c
+@@ -72,6 +72,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
+ 			DT_Mdep_printf("can't get default device name\n");
+ 			return false;
+ 		}
++		params_ptr->server_port = Server_Cmd->port;
+ 		return true;
+ 	}
+ 	/* check for a script file */
+-- 
+2.7.3
+
