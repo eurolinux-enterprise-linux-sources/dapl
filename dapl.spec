@@ -1,15 +1,16 @@
 Name: dapl
 Version: 2.0.25
-Release: 5.2%{?dist}
+Release: 5%{?dist}.2
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
 License: GPLv2 or BSD or CPL
 Url: http://openfabrics.org/
 Source0: http://www.openfabrics.org/downloads/dapl/dapl-%{version}.tar.gz
-Patch1: dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
-Patch2: dapl-2.0.25-verbs-cq-completion-channels-leak.patch
-Patch3: dapl-2.0.25-dat_ia_open_hang.patch
-Patch4: dapl-2.0.25-new-providers.patch
+Patch0: dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
+Patch1: dapl-2.0.25-verbs-cq-completion-channels-leak.patch
+
+Patch3: dapl-2.0.25-dat_ia_open_hang.patch                 
+Patch4: dapl-2.0.25-new-providers.patch   
 Patch5: dapl-2.0.25-signal-handler.patch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires(post): /sbin/ldconfig
@@ -47,11 +48,13 @@ Useful test suites to validate the dapl library API's and operation.
 
 %prep
 %setup -q
-%patch1 -p1 -b .bz626541
-%patch2 -p1 -b .bz637980
-%patch3 -p1 -b .bz649360
-%patch4 -p1 -b .bz636596
-%patch5 -p1 -b .bz667742
+%patch0 -p1 -b.bz673989
+%patch1 -p1 -b.bz673993
+
+%patch3 -p1 -b.bz675205
+%patch4 -p1 -b.bz675202
+%patch5 -p1 -b.bz675198
+
 aclocal -I config && libtoolize --force --copy && autoheader && \
     automake --foreign --add-missing --copy && autoconf
 
@@ -94,21 +97,19 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
-* Fri Jan 28 2011 Jay Fenlason <fenlason@redhat.com> 2.0.25-5.2.el6
-- Actually install the signal-handler patch
-  Resolves: bz667742	Error mapping bug in dapls_wait_comp_channel
+* Tue Feb 8 2011 Jay Fenlason <fenlason@redhat.com> - 2.0.25-5.el6_0.2
+- Backport dapl-2.0.25-dat_ia_open_hang.patch
+  Resolves: bz675205
+- Backport dapl-2.0.25-new-providers.patch
+  Resolves: bz675202
+- Backport dapl-2.0.25-signal-handler.patch
+  Resolves: bz675198
 
-* Thu Jan 27 2011 Jay Fenlason <fenlason@redhat.com> 2.0.25-5.1.el6
-- dapl-2.0.25-signal-handler.patch
-  Resolves: bz667742	Error mapping bug in dapls_wait_comp_channel
-- dapl-2.0.25-new-providers.patch
-  Resolves: bz636596
-- dapl-2.0.25-dat_ia_open_hang.patch
-  Resolves: bz649360
-- dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
-  Resolves: bz626541
-- dapl-2.0.25-verbs-cq-completion-channels-leak.patch
-  Resolves: bz637980
+* Mon Jan 31 2011 Jay Fenlason <fenlason@redhat.com> - 2.0.25-5.el6.0.1
+- Backport the dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
+  Resolves: bz673989
+- Backport the dapl-2.0.25-verbs-cq-completion-channels-leak.patch
+  Resolves: bz673993
 
 * Sun Mar 07 2010 Doug Ledford <dledford@redhat.com> - 2.0.25-5.el6
 - I missed that the license was in an invalid form, correct that
