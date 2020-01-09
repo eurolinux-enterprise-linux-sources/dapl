@@ -108,7 +108,8 @@ limit_test(DT_Tdep_Print_Head * phead, Limit_Cmd_t * cmd, Limit_Index depth)
 #undef DFLT_QLEN
 #endif
 
-#   define DFLT_QLEN	  10	/* a small event queue size     */
+#   define DFLT_QLEN	  10	/* a small CM event queue       */
+#   define DFLT_DTO_QLEN 1024	/* a larger DTO event queue     */
 #   define START_COUNT	1024	/* initial # handles            */
 #   define DFLT_BUFFSZ	4096	/* default size for buffer      */
 #   define CONN_QUAL0	0xAffab1e
@@ -456,7 +457,7 @@ limit_test(DT_Tdep_Print_Head * phead, Limit_Cmd_t * cmd, Limit_Index depth)
 		}
 		for (w = 0; w < cmd->width; w++) {
 			ret = DT_Tdep_evd_create(hdl_sets[w].ia_handle,
-						 DFLT_QLEN,
+						 DFLT_DTO_QLEN,
 						 hdl_sets[w].cno_handle,
 						 flags,
 						 &hdl_sets[w].evd_handle);

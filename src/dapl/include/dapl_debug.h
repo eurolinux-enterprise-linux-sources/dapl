@@ -76,6 +76,9 @@ typedef enum
     DAPL_DBG_TYPE_LINK_ERRS	= 0x100000,
     DAPL_DBG_TYPE_LINK_WARN	= 0x200000,
     DAPL_DBG_TYPE_DIAG_ERRS	= 0x400000,
+    DAPL_DBG_TYPE_SYS_WARN	= 0x800000,
+    DAPL_DBG_TYPE_VER		= 0x1000000,
+    DAPL_DBG_TYPE_IA_STATS	= 0x2000000,
 
 } DAPL_DBG_TYPE;
 
@@ -85,15 +88,17 @@ typedef enum
     DAPL_DBG_DEST_SYSLOG  	= 0x0002,
 } DAPL_DBG_DEST;
 
+extern DAPL_DBG_TYPE 	g_dapl_dbg_level;
 extern DAPL_DBG_TYPE 	g_dapl_dbg_type;
 extern DAPL_DBG_DEST 	g_dapl_dbg_dest;
+extern int		g_dapl_dbg_mem;
 
 extern void dapl_internal_dbg_log(DAPL_DBG_TYPE type,  const char *fmt,  ...);
 
-#define dapl_log g_dapl_dbg_type==0 ? (void) 1 : dapl_internal_dbg_log
+#define dapl_log !g_dapl_dbg_type && !g_dapl_dbg_level ? (void) 1 : dapl_internal_dbg_log
 
 #if defined(DAPL_DBG)
-#define dapl_dbg_log g_dapl_dbg_type==0 ? (void) 1 : dapl_internal_dbg_log
+#define dapl_dbg_log !g_dapl_dbg_type && !g_dapl_dbg_level ? (void) 1 : dapl_internal_dbg_log
 #else
 #define dapl_dbg_log(...)
 #endif

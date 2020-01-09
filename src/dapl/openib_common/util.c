@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2009-2014 Intel Corporation.  All rights reserved.
+ *
  * This Software is licensed under one of the following licenses:
  *
  * 1) under the terms of the "Common Public License 1.0" a copy of which is
@@ -31,6 +33,7 @@
 #include <ifaddrs.h>
 
 int g_dapl_loopback_connection = 0;
+
 
 #if defined(_WIN64) || defined(_WIN32)
 #include "..\..\..\..\..\etc\user\comp_channel.cpp"
@@ -228,6 +231,46 @@ retry:
 }
 #endif
 
+#ifdef _OPENIB_MCM_
+static int cpuinfo_atoi(const char *v_str)
+{
+	char r_buf[500];
+	char *f_path = "/proc/cpuinfo";
+	char *token = ":";
+	int i, ii, fd, len, v_len, r_len;
+	int val = 0;
+
+	fd = open(f_path, O_RDONLY);
+	if (fd < 0)
+		return val;
+
+	v_len = strlen(v_str);
+	r_len = sizeof(r_buf) - 1;
+	len = read(fd, r_buf, r_len);
+
+	if (len < 1)
+		return val;
+
+	/* get value pattern followed by : followed by value */
+	for (i=0; i < len; i++) {
+		for (ii=0; ii < v_len && i < len; ii++, i++) {
+			if ((v_str[ii] == r_buf[i]) && (ii == v_len-1))
+				for (; i < len; i++) {
+					if (!strncmp(&r_buf[i], token, 1)) {
+						val = atoi(&r_buf[i+1]);
+						i = len;
+					}
+				}
+			else if (v_str[ii] != r_buf[i])
+				break;
+		}
+	}
+
+	close(fd);
+	return val;
+}
+#endif
+
 enum ibv_mtu dapl_ib_mtu(int mtu)
 {
 	switch (mtu) {
@@ -246,7 +289,7 @@ enum ibv_mtu dapl_ib_mtu(int mtu)
 	}
 }
 
-char *dapl_ib_mtu_str(enum ibv_mtu mtu)
+const char *dapl_ib_mtu_str(enum ibv_mtu mtu)
 {
 	switch (mtu) {
 	case IBV_MTU_256:
@@ -264,7 +307,41 @@ char *dapl_ib_mtu_str(enum ibv_mtu mtu)
 	}
 }
 
+const char *dapl_ib_port_str(enum ibv_port_state state)
+{
+	switch (state) {
+	case IBV_PORT_NOP:
+		return "NOP";
+	case IBV_PORT_DOWN:
+		return "DOWN";
+	case IBV_PORT_INIT:
+		return "INIT";
+	case IBV_PORT_ARMED:
+		return "ARMED";
+	case IBV_PORT_ACTIVE:
+		return "ACTIVE";
+	case IBV_PORT_ACTIVE_DEFER:
+		return "DEFER";
+	default:
+		return "UNKNOWN";
+	}
+}
 
+const char *dapl_ib_port_num_str(unsigned long num)
+{
+	switch (num) {
+	case 1:
+		return "1";
+	case 2:
+		return "2";
+	case 3:
+		return "3";
+	case 4:
+		return "4";
+	default:
+		return "UNKNOWN";
+	}
+}
 
 /*
  * dapls_ib_query_hca
@@ -290,20 +367,46 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 			      OUT DAT_EP_ATTR * ep_attr,
 			      OUT DAT_SOCK_ADDR6 * ip_addr)
 {
+	ib_hca_transport_t *tp = &hca_ptr->ib_trans;
 	struct ibv_device_attr dev_attr;
 	struct ibv_port_attr port_attr;
 
-	if (hca_ptr->ib_hca_handle == NULL) {
-		dapl_dbg_log(DAPL_DBG_TYPE_ERR, " query_hca: BAD handle\n");
-		return (DAT_INVALID_HANDLE);
-	}
-
 	/* local IP address of device, set during ia_open */
-	if (ip_addr != NULL)
+	if (ip_addr)
 		memcpy(ip_addr, &hca_ptr->hca_address, sizeof(DAT_SOCK_ADDR6));
 
 	if (ia_attr == NULL && ep_attr == NULL)
 		return DAT_SUCCESS;
+
+	if (ia_attr != NULL) /* setup address ptr, even with no device */
+		ia_attr->ia_address_ptr = (DAT_IA_ADDRESS_PTR) &hca_ptr->hca_address;
+
+	if (hca_ptr->ib_hca_handle == NULL) /* no open device, query mode */
+		return DAT_SUCCESS;
+
+#ifdef _OPENIB_MCM_
+		if (tp->self.node)
+			tp->na.mode = "PROXY";
+		else
+			tp->na.mode = "DIRECT";
+
+		tp->na.read = "FALSE";
+		sprintf(tp->ver_str, "%d", DAT_MIX_VER);
+
+		if (!tp->pr_attr.cpu_family) {
+			if (tp->self.node) {
+				dapli_mix_get_attr(tp, &tp->pr_attr);
+			} else {
+				tp->pr_attr.cpu_family = cpuinfo_atoi("cpu family");
+				tp->pr_attr.cpu_model = cpuinfo_atoi("model");
+			}
+			sprintf(tp->fam_str, "%d", tp->pr_attr.cpu_family);
+			sprintf(tp->mod_str, "%d", tp->pr_attr.cpu_model);
+		}
+#else
+		tp->na.mode = "DIRECT";
+		tp->na.read = "TRUE";
+#endif
 
 	/* query verbs for this device and port attributes */
 	if (ibv_query_device(hca_ptr->ib_hca_handle, &dev_attr) ||
@@ -311,15 +414,26 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 			   hca_ptr->port_num, &port_attr))
 		return (dapl_convert_errno(errno, "ib_query_hca"));
 
+	dev_attr.max_qp_wr = DAPL_MIN(dev_attr.max_qp_wr,
+				      dapl_os_get_env_val("DAPL_WR_MAX", dev_attr.max_qp_wr));
+
+#ifdef _OPENIB_MCM_
+	/* Adjust for CCL Proxy; limited sge's, no READ support, reduce QP and RDMA limits */
+	dev_attr.max_sge = DAPL_MIN(dev_attr.max_sge, DAT_MIX_SGE_MAX);
+	dev_attr.max_qp_wr = DAPL_MIN(dev_attr.max_qp_wr,
+				      dapl_os_get_env_val("DAPL_MCM_WR_MAX", DAT_MIX_WR_MAX));
+	port_attr.max_msg_sz = DAPL_MIN(port_attr.max_msg_sz,
+					dapl_os_get_env_val("DAPL_MCM_MSG_MAX", DAT_MIX_RDMA_MAX));
+#endif
+
 	if (ia_attr != NULL) {
 		(void)dapl_os_memzero(ia_attr, sizeof(*ia_attr));
 		strncpy(ia_attr->adapter_name,
-		        ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
+		        ibv_get_device_name(tp->ib_dev),
 		        DAT_NAME_MAX_LENGTH - 1);
 		ia_attr->adapter_name[DAT_NAME_MAX_LENGTH - 1] = '\0';
 		ia_attr->vendor_name[DAT_NAME_MAX_LENGTH - 1] = '\0';
-		ia_attr->ia_address_ptr =
-		    (DAT_IA_ADDRESS_PTR) & hca_ptr->hca_address;
+		ia_attr->ia_address_ptr = (DAT_IA_ADDRESS_PTR) &hca_ptr->hca_address;
 
 		dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
 			     " query_hca: %s %s \n",
@@ -334,8 +448,7 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 		ia_attr->max_rdma_read_in = dev_attr.max_qp_rd_atom;
 		ia_attr->max_rdma_read_out = dev_attr.max_qp_init_rd_atom;
 		ia_attr->max_rdma_read_per_ep_in = dev_attr.max_qp_rd_atom;
-		ia_attr->max_rdma_read_per_ep_out =
-		    dev_attr.max_qp_init_rd_atom;
+		ia_attr->max_rdma_read_per_ep_out = dev_attr.max_qp_init_rd_atom;
 		ia_attr->max_rdma_read_per_ep_in_guaranteed = DAT_TRUE;
 		ia_attr->max_rdma_read_per_ep_out_guaranteed = DAT_TRUE;
 		ia_attr->max_evds = dev_attr.max_cq;
@@ -352,12 +465,10 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 		ia_attr->max_message_size = port_attr.max_msg_sz;
 		ia_attr->max_rdma_size = port_attr.max_msg_sz;
 		/* iWARP spec. - 1 sge for RDMA reads */
-		if (hca_ptr->ib_hca_handle->device->transport_type
-		    == IBV_TRANSPORT_IWARP)
+		if (hca_ptr->ib_hca_handle->device->transport_type == IBV_TRANSPORT_IWARP)
 			ia_attr->max_iov_segments_per_rdma_read = 1;
 		else
-			ia_attr->max_iov_segments_per_rdma_read =
-			    dev_attr.max_sge;
+			ia_attr->max_iov_segments_per_rdma_read = dev_attr.max_sge;
 		ia_attr->max_iov_segments_per_rdma_write = dev_attr.max_sge;
 		ia_attr->num_transport_attr = 0;
 		ia_attr->transport_attr = NULL;
@@ -368,30 +479,35 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 		ia_attr->extension_version = DAT_IB_EXTENSION_VERSION;
 #endif
 		/* save key device attributes for CM exchange */
-		hca_ptr->ib_trans.rd_atom_in  = dev_attr.max_qp_rd_atom;
-		hca_ptr->ib_trans.rd_atom_out = dev_attr.max_qp_init_rd_atom;
-		
-		hca_ptr->ib_trans.mtu = DAPL_MIN(port_attr.active_mtu,
-						 hca_ptr->ib_trans.mtu);
-		hca_ptr->ib_trans.ack_timer =
-		    DAPL_MAX(dev_attr.local_ca_ack_delay,
-			     hca_ptr->ib_trans.ack_timer);
+		tp->ib_cm.rd_atom_in  = dev_attr.max_qp_rd_atom;
+		tp->ib_cm.rd_atom_out = dev_attr.max_qp_init_rd_atom;
+		tp->ib_cm.mtu = DAPL_MIN(port_attr.active_mtu, tp->ib_cm.mtu);
+		tp->ib_cm.ack_timer = DAPL_MAX(dev_attr.local_ca_ack_delay, tp->ib_cm.ack_timer);
 
-		/* set MTU in transport specific named attribute */
-		hca_ptr->ib_trans.named_attr.name = "DAT_IB_TRANSPORT_MTU";
-		hca_ptr->ib_trans.named_attr.value =
-		    dapl_ib_mtu_str(hca_ptr->ib_trans.mtu);
+		/* set provider/transport specific named attributes */
+		tp->na.dev = ia_attr->adapter_name;
+		tp->na.mtu = dapl_ib_mtu_str(tp->ib_cm.mtu);
+		tp->na.port = dapl_ib_port_str(port_attr.state);
+		tp->na.port_num = dapl_ib_port_num_str(hca_ptr->port_num);
+		if (!tp->guid)
+			tp->guid = ntohll(ibv_get_device_guid(tp->ib_dev));
+
+		sprintf(tp->guid_str, "%04x:%04x:%04x:%04x",
+			(unsigned) (tp->guid >> 48) & 0xffff,
+			(unsigned) (tp->guid >> 32) & 0xffff,
+			(unsigned) (tp->guid >> 16) & 0xffff,
+			(unsigned) (tp->guid >>  0) & 0xffff);
 
 		if (hca_ptr->ib_hca_handle->device->transport_type != IBV_TRANSPORT_IB)
 			goto skip_ib;
 
-               /* set SL, PKEY values, defaults = 0 */
-               hca_ptr->ib_trans.pkey_idx = 0;
-               hca_ptr->ib_trans.pkey = htons(dapl_os_get_env_val("DAPL_IB_PKEY", 0));
-               hca_ptr->ib_trans.sl = dapl_os_get_env_val("DAPL_IB_SL", 0);
+		/* set SL, PKEY values, defaults = 0 */
+		tp->ib_cm.pkey_idx = 0;
+		tp->ib_cm.pkey = htons(dapl_os_get_env_val("DAPL_IB_PKEY", 0));
+		tp->ib_cm.sl = dapl_os_get_env_val("DAPL_IB_SL", 0);
 
 		/* index provided, get pkey; pkey provided, get index */
-		if (hca_ptr->ib_trans.pkey) {
+		if (tp->ib_cm.pkey) {
 			int i; uint16_t pkey = 0;
 			for (i=0; i < dev_attr.max_pkeys; i++) {
 				if (ibv_query_pkey(hca_ptr->ib_hca_handle,
@@ -400,8 +516,8 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 					i = dev_attr.max_pkeys;
 					break;
 				}
-				if (pkey == hca_ptr->ib_trans.pkey) {
-					hca_ptr->ib_trans.pkey_idx = i;
+				if (pkey == tp->ib_cm.pkey) {
+					tp->ib_cm.pkey_idx = i;
 					break;
 				}
 			}
@@ -409,52 +525,54 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 				dapl_log(DAPL_DBG_TYPE_ERR,
 					 " ERR: new pkey(0x%x), query (%s)"
 					 " err or key !found, using default pkey_idx=0\n",
-					 ntohs(hca_ptr->ib_trans.pkey), strerror(errno));
+					 ntohs(tp->ib_cm.pkey), strerror(errno));
 			}
 		}
 skip_ib:
 
 #ifdef DEFINE_ATTR_LINK_LAYER
 #ifndef _OPENIB_CMA_
-		if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET)
-			hca_ptr->ib_trans.global = 1;
+		if (port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND &&
+		    port_attr.link_layer != IBV_LINK_LAYER_UNSPECIFIED)
+			tp->ib_cm.global = 1;
 
 		dapl_log(DAPL_DBG_TYPE_UTIL,
-			 " query_hca: port.link_layer = 0x%x\n", 
-			 port_attr.link_layer);
+			 " query_hca: port.link_layer = 0x%x, global = %d\n",
+			 port_attr.link_layer, tp->ib_cm.global);
 #endif
 #endif
 
 #ifdef _WIN32
 #ifndef _OPENIB_CMA_
 		if (port_attr.transport != IBV_TRANSPORT_IB)
-			hca_ptr->ib_trans.global = 1;
+			tp->ib_cm.global = 1;
 
 		dapl_log(DAPL_DBG_TYPE_UTIL,
 			 " query_hca: port.transport %d ib_trans.global %d\n",
-			 port_attr.transport, hca_ptr->ib_trans.global);
+			 port_attr.transport, tp->ib_cm.global);
 #endif
 #endif
+
 		dapl_log(DAPL_DBG_TYPE_UTIL,
 			     " query_hca: (%x.%x) eps %d, sz %d evds %d,"
-			     " sz %d mtu %d - pkey %x p_idx %d sl %d\n",
+			     " sz %d mtu %d pk %x pi %d sl %d gl %d inl %d\n",
 			     ia_attr->hardware_version_major,
 			     ia_attr->hardware_version_minor,
 			     ia_attr->max_eps, ia_attr->max_dto_per_ep,
 			     ia_attr->max_evds, ia_attr->max_evd_qlen,
-			     128 << hca_ptr->ib_trans.mtu,
-			     ntohs(hca_ptr->ib_trans.pkey),
-			     hca_ptr->ib_trans.pkey_idx,
-			     hca_ptr->ib_trans.sl);
+			     128 << tp->ib_cm.mtu, ntohs(tp->ib_cm.pkey),
+			     tp->ib_cm.pkey_idx, tp->ib_cm.sl,
+			     tp->ib_cm.global, tp->ib_cm.max_inline);
 
 		dapl_log(DAPL_DBG_TYPE_UTIL,
 			     " query_hca: msg %llu rdma %llu iov %d lmr %d rmr %d"
-			     " ack_time %d mr %u\n",
+			     " ack_time %d mr %u ia_addr_ptr %p\n",
 			     ia_attr->max_message_size, ia_attr->max_rdma_size,
 			     ia_attr->max_iov_segments_per_dto,
 			     ia_attr->max_lmrs, ia_attr->max_rmrs,
-			     hca_ptr->ib_trans.ack_timer,
-			     ia_attr->max_lmr_block_size);
+			     tp->ib_cm.ack_timer,
+			     ia_attr->max_lmr_block_size,
+			     ia_attr->ia_address_ptr);
 	}
 
 	if (ep_attr != NULL) {
@@ -473,7 +591,7 @@ skip_ib:
 			     " query_hca: MAX msg %llu mtu %d qsz %d iov %d"
 			     " rdma i%d,o%d\n",
 			     ep_attr->max_message_size,
-			     128 << hca_ptr->ib_trans.mtu,
+			     128 << tp->ib_cm.mtu,
 			     ep_attr->max_recv_dtos, 
 			     ep_attr->max_recv_iov,
 			     ep_attr->max_rdma_read_in,
@@ -550,7 +668,7 @@ void dapli_async_event_cb(struct _ib_hca_transport *hca)
 		switch (event.event_type) {
 		case IBV_EVENT_CQ_ERR:
 		{
-			struct dapl_ep *evd_ptr =
+			struct dapl_evd *evd_ptr =
 				event.element.cq->cq_context;
 
 			dapl_log(DAPL_DBG_TYPE_ERR,
@@ -560,7 +678,7 @@ void dapli_async_event_cb(struct _ib_hca_transport *hca)
 			/* report up if async callback still setup */
 			if (hca->async_cq_error)
 				hca->async_cq_error(hca->ib_ctx,
-						    event.element.cq,
+						    evd_ptr->ib_cq_handle,
 						    &event,
 						    (void *)evd_ptr);
 			break;
@@ -582,11 +700,16 @@ void dapli_async_event_cb(struct _ib_hca_transport *hca)
 		case IBV_EVENT_SRQ_LIMIT_REACHED:
 		case IBV_EVENT_SQ_DRAINED:
 		{
+			DAPL_DBG_TYPE dbg_type = DAPL_DBG_TYPE_ERR;
 			struct dapl_ep *ep_ptr =
 				event.element.qp->qp_context;
 
-			dapl_log(DAPL_DBG_TYPE_ERR,
-				 "dapl async_event QP (%p) ERR %d\n",
+			if (event.event_type == IBV_EVENT_QP_LAST_WQE_REACHED &&
+			    ep_ptr->param.srq_handle) {
+				dbg_type = DAPL_DBG_TYPE_EVD;
+			}
+
+			dapl_log(dbg_type, "dapl async_event QP (%p) Event %d\n",
 				 ep_ptr, event.event_type);
 
 			/* report up if async callback still setup */
@@ -619,8 +742,8 @@ void dapli_async_event_cb(struct _ib_hca_transport *hca)
 		}
 		case IBV_EVENT_CLIENT_REREGISTER:
 			/* no need to report this event this time */
-			dapl_log(DAPL_DBG_TYPE_UTIL,
-				 " async_event: IBV_CLIENT_REREGISTER\n");
+			dapl_log(DAPL_DBG_TYPE_WARN,
+				 " WARNING: IBV_CLIENT_REREGISTER\n");
 			break;
 
 		default:
@@ -635,7 +758,9 @@ void dapli_async_event_cb(struct _ib_hca_transport *hca)
 }
 
 /*
- * dapls_set_provider_specific_attr
+ * dapls_query_provider_specific_attrs
+ *
+ * Common for openib providers: cma, ucm, scm, mcm
  *
  * Input:
  *      attr_ptr        Pointer provider specific attributes
@@ -648,18 +773,41 @@ void dapli_async_event_cb(struct _ib_hca_transport *hca)
  */
 DAT_NAMED_ATTR ib_attrs[] = {
 	{
+	 "DAT_IB_PROVIDER_NAME", PROVIDER_NAME}
+	,
+	{
+	 "DAT_IB_DEVICE_NAME", "OFA_HCA_0000"}
+	,
+	{
+	 "DAT_IB_CONNECTIVITY_MODE", "DIRECT"}
+	,
+	{
+	 "DAT_IB_RDMA_READ", "TRUE"}
+	,
+	{
+	 "DAT_IB_NODE_GUID", "xxxx:xxxx:xxxx:xxxx"}
+	,
+	{
 	 "DAT_IB_TRANSPORT_MTU", "2048"}
+	,
+	{
+	 "DAT_IB_PORT_STATUS", "UNKNOWN"}
+	,
+	{
+	 "DAT_IB_PORT_NUMBER", "UNKNOWN"}
 	,
 #ifdef DAT_EXTENSIONS
 	{
 	 "DAT_EXTENSION_INTERFACE", "TRUE"}
 	,
+#ifndef _OPENIB_MCM_
 	{
 	 DAT_IB_ATTR_FETCH_AND_ADD, "TRUE"}
 	,
 	{
 	 DAT_IB_ATTR_CMP_AND_SWAP, "TRUE"}
 	,
+#endif
 	{
 	 DAT_IB_ATTR_IMMED_DATA, "TRUE"}
 	,
@@ -683,7 +831,7 @@ DAT_NAMED_ATTR ib_attrs[] = {
 	 DAT_IB_COLL_ALLGATHERV, "TRUE"}
 	,
 #endif /* DAT_IB_COLLECTIVES */
-#ifndef _OPENIB_CMA_
+#if !defined(_OPENIB_CMA_) && !defined(_OPENIB_MCM_)
 	{
 	 DAT_IB_ATTR_UD, "TRUE"}
 	,
@@ -693,6 +841,17 @@ DAT_NAMED_ATTR ib_attrs[] = {
 	 DAT_ATTR_COUNTERS, "TRUE"}
 	,
 #endif				/* DAPL_COUNTERS */
+#ifdef _OPENIB_MCM_
+	{
+	 "DAT_IB_PROXY_CPU_FAMILY", "UNKNOWN"}
+	,
+	{
+	 "DAT_IB_PROXY_CPU_MODEL", "UNKNOWN"}
+	,
+	{
+	 "DAT_IB_PROXY_VERSION", "UNKNOWN"}
+	,
+#endif  /* _OPENIB_MCM_, end of list */
 #endif
 };
 
@@ -704,8 +863,25 @@ void dapls_query_provider_specific_attr(IN DAPL_IA * ia_ptr,
 	attr_ptr->num_provider_specific_attr = SPEC_ATTR_SIZE(ib_attrs);
 	attr_ptr->provider_specific_attr = ib_attrs;
 
-	/* set MTU to actual settings */
-	ib_attrs[0].value = ia_ptr->hca_ptr->ib_trans.named_attr.value;
+	dapl_log(DAPL_DBG_TYPE_UTIL,
+		 " prov_attr: %p sz %d\n", ib_attrs, SPEC_ATTR_SIZE(ib_attrs));
+
+	/* update common attributes from providers */
+	ib_attrs[1].value = ia_ptr->hca_ptr->ib_trans.na.dev;
+	ib_attrs[2].value = ia_ptr->hca_ptr->ib_trans.na.mode;
+	ib_attrs[3].value = ia_ptr->hca_ptr->ib_trans.na.read;
+	ib_attrs[4].value = ia_ptr->hca_ptr->ib_trans.guid_str;
+	ib_attrs[5].value = ia_ptr->hca_ptr->ib_trans.na.mtu;
+	ib_attrs[6].value = ia_ptr->hca_ptr->ib_trans.na.port;
+	ib_attrs[7].value = ia_ptr->hca_ptr->ib_trans.na.port_num;
+#ifdef _OPENIB_MCM_
+{
+	int i = attr_ptr->num_provider_specific_attr;
+	ib_attrs[i-3].value = ia_ptr->hca_ptr->ib_trans.fam_str;
+	ib_attrs[i-2].value = ia_ptr->hca_ptr->ib_trans.mod_str;
+	ib_attrs[i-1].value = ia_ptr->hca_ptr->ib_trans.ver_str;
+}
+#endif
 }
 
 /*

@@ -46,7 +46,8 @@
 extern DAPL_EP * 
 dapl_ep_alloc (
     IN DAPL_IA			*ia,
-    IN const DAT_EP_ATTR	*ep_attr );
+    IN const DAT_EP_ATTR	*ep_attr,
+    IN DAT_BOOLEAN using_srq );
 
 extern void 
 dapl_ep_dealloc (

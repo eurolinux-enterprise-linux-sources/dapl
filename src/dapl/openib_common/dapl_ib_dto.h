@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2009-2014 Intel Corporation.  All rights reserved.
  *
  * This Software is licensed under one of the following licenses:
  *
@@ -28,15 +28,31 @@
 #define _DAPL_IB_DTO_H_
 
 #include "dapl_ib_util.h"
+#include "dapl_ep_util.h"
 
 #ifdef DAT_EXTENSIONS
 #include <dat2/dat_ib_extensions.h>
+
+#define CQE_WR_TYPE_UD(id) \
+	((int)((DAPL_COOKIE *)(uintptr_t)id)->ep->param.ep_attr.service_type == (int)DAT_IB_SERVICE_TYPE_UD)
+#else
+#define CQE_WR_TYPE_UD(id) (0)
 #endif
 
 STATIC _INLINE_ int dapls_cqe_opcode(ib_work_completion_t *cqe_p);
 
-#define CQE_WR_TYPE_UD(id) \
-	(((DAPL_COOKIE *)(uintptr_t)id)->ep->qp_handle->qp_type == IBV_QPT_UD)
+#if defined(_OPENIB_MCM_)
+#define PROVIDER_NAME "MCM"
+#elif defined(_OPENIB_CMA_)
+#define PROVIDER_NAME "CMA"
+#elif defined(_OPENIB_UCM_)
+#define PROVIDER_NAME "UCM"
+#elif defined(_OPENIB_SCM_)
+#define PROVIDER_NAME "SCM"
+#else
+#define PROVIDER_NAME ""
+#endif
+
 
 /*
  * dapls_ib_post_recv
@@ -78,13 +94,66 @@ dapls_ib_post_recv (
 		cookie->val.dto.size = total_len;
 	}
 
-	ret = ibv_post_recv(ep_ptr->qp_handle, &wr, &bad_wr);
-	
+#ifdef _OPENIB_MCM_
+	if (ep_ptr->qp_handle->tp->scif_ep && !ep_ptr->qp_handle->qp) /* QPr shadowed on proxy */
+		ret = dapli_mix_post_recv(ep_ptr->qp_handle, total_len, &wr, &bad_wr);
+	else
+		ret = ibv_post_recv(ep_ptr->qp_handle->qp, &wr, &bad_wr);
+#else
+	ret = ibv_post_recv(ep_ptr->qp_handle->qp, &wr, &bad_wr);
+#endif
 	if (ret)
 		return(dapl_convert_errno(errno,"ibv_recv"));
 
 	DAPL_CNTR(ep_ptr, DCNT_EP_POST_RECV);
 	DAPL_CNTR_DATA(ep_ptr, DCNT_EP_POST_RECV_DATA, total_len);
+
+	return DAT_SUCCESS;
+}
+
+/*
+ * dapls_ib_post_srq_recv
+ *
+ * Provider specific Post SRQ RECV function
+ */
+STATIC _INLINE_ DAT_RETURN
+dapls_ib_post_srq_recv (
+	IN  DAPL_SRQ		*srq_ptr,
+	IN  DAPL_COOKIE		*cookie,
+	IN  DAT_COUNT		segments,
+	IN  DAT_LMR_TRIPLET	*local_iov )
+{
+	struct ibv_recv_wr wr;
+	struct ibv_recv_wr *bad_wr;
+	ib_data_segment_t *ds = (ib_data_segment_t *)local_iov;
+	DAT_COUNT i, total_len;
+	int ret;
+
+	dapl_dbg_log(DAPL_DBG_TYPE_SRQ,
+		     " post_srq_rcv: srq %p cookie %p segs %d l_iov %p\n",
+		     srq_ptr, cookie, segments, local_iov);
+
+	/* setup work request */
+	total_len = 0;
+	wr.next = 0;
+	wr.num_sge = segments;
+	wr.wr_id = (uint64_t)(uintptr_t)cookie;
+	wr.sg_list = ds;
+
+	if (cookie != NULL) {
+		for (i = 0; i < segments; i++) {
+			dapl_dbg_log(DAPL_DBG_TYPE_SRQ,
+				     " post_srq_rcv: l_key 0x%x va %p len %d\n",
+				     ds->lkey, ds->addr, ds->length );
+			total_len += ds->length;
+			ds++;
+		}
+		cookie->val.dto.size = total_len;
+	}
+
+	ret = ibv_post_srq_recv(srq_ptr->srq_handle, &wr, &bad_wr);
+	if (ret)
+		return(dapl_convert_errno(errno,"ibv_recv"));
 
 	return DAT_SUCCESS;
 }
@@ -107,19 +176,17 @@ dapls_ib_post_send (
 	struct ibv_send_wr wr;
 	struct ibv_send_wr *bad_wr;
 	ib_data_segment_t *ds = (ib_data_segment_t *)local_iov;
-	ib_hca_transport_t *ibt_ptr = 
-		&ep_ptr->header.owner_ia->hca_ptr->ib_trans;
 	DAT_COUNT i, total_len;
 	int ret;
-	
+
 	dapl_dbg_log(DAPL_DBG_TYPE_EP,
-		     " post_snd: ep %p op %d ck %p sgs",
-		     "%d l_iov %p r_iov %p f %d\n",
-		     ep_ptr, op_type, cookie, segments, local_iov, 
-		     remote_iov, completion_flags);
+	             " post_snd: %s ep %p op %d ck %p u_ck %llx sgs %d l_iov %p r_iov %p f %d\n",
+	             PROVIDER_NAME, ep_ptr, op_type, cookie,
+	             cookie->val.dto.cookie.as_64, segments, local_iov,
+	             remote_iov, completion_flags);
 
 #ifdef DAT_EXTENSIONS	
-	if (ep_ptr->qp_handle->qp_type != IBV_QPT_RC)
+	if (ep_ptr->param.ep_attr.service_type != DAT_SERVICE_TYPE_RC)
 		return(DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_EP));
 #endif
 	/* setup the work request */
@@ -133,7 +200,7 @@ dapls_ib_post_send (
 
 	if (cookie != NULL) {
 		for (i = 0; i < segments; i++ ) {
-			dapl_dbg_log(DAPL_DBG_TYPE_EP, 
+			dapl_dbg_log(DAPL_DBG_TYPE_EP,
 				     " post_snd: lkey 0x%x va %p len %d\n",
 				     ds->lkey, ds->addr, ds->length );
 			total_len += ds->length;
@@ -146,17 +213,17 @@ dapls_ib_post_send (
 	    (op_type == OP_RDMA_WRITE || op_type == OP_RDMA_READ)) {
 		wr.wr.rdma.remote_addr = remote_iov->virtual_address;
 		wr.wr.rdma.rkey = remote_iov->rmr_context;
-		dapl_dbg_log(DAPL_DBG_TYPE_EP, 
+		dapl_dbg_log(DAPL_DBG_TYPE_EP,
 			     " post_snd_rdma: rkey 0x%x va %#016Lx\n",
 			     wr.wr.rdma.rkey, wr.wr.rdma.remote_addr);
 	}
 
-
+#ifndef _OPENIB_MCM_ /* don't use inline for MCM, optimized for large messages */
 	/* inline data for send or write ops */
-	if ((total_len <= ibt_ptr->max_inline_send) && 
+	if ((total_len <= ep_ptr->qp_handle->tp->ib_cm.max_inline) &&
 	   ((op_type == OP_SEND) || (op_type == OP_RDMA_WRITE))) 
 		wr.send_flags |= IBV_SEND_INLINE;
-	
+#endif
 	/* set completion flags in work request */
 	wr.send_flags |= (DAT_COMPLETION_SUPPRESS_FLAG & 
 				completion_flags) ? 0 : IBV_SEND_SIGNALED;
@@ -165,12 +232,21 @@ dapls_ib_post_send (
 	wr.send_flags |= (DAT_COMPLETION_SOLICITED_WAIT_FLAG & 
 				completion_flags) ? IBV_SEND_SOLICITED : 0;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_EP, 
-		     " post_snd: op 0x%x flags 0x%x sglist %p, %d\n", 
-		     wr.opcode, wr.send_flags, wr.sg_list, wr.num_sge);
+	dapl_log(DAPL_DBG_TYPE_EP,
+		 " post_snd: %s ep %p op %x flgs %x sgl %p,%d ln %d wr_id %Lx\n",
+		 PROVIDER_NAME, ep_ptr, wr.opcode, wr.send_flags, wr.sg_list,
+		 wr.num_sge, total_len, wr.wr_id);
 
-	ret = ibv_post_send(ep_ptr->qp_handle, &wr, &bad_wr);
-
+#ifdef _OPENIB_MCM_
+	if (ep_ptr->qp_handle->tp->scif_ep)
+		ret = dapli_mix_post_send(ep_ptr->qp_handle, total_len, &wr, &bad_wr);
+	else if (ep_ptr->qp_handle->ep_map == MIC_XSOCK_DEV)
+		ret = mcm_send_pi(ep_ptr->qp_handle, total_len, &wr, &bad_wr);
+	else
+		ret = ibv_post_send(ep_ptr->qp_handle->qp2, &wr, &bad_wr);
+#else
+	ret = ibv_post_send(ep_ptr->qp_handle->qp, &wr, &bad_wr);
+#endif
 	if (ret)
 		return(dapl_convert_errno(errno,"ibv_send"));
 
@@ -274,7 +350,7 @@ dapls_ib_post_ext_send (
 	
 	dapl_dbg_log(DAPL_DBG_TYPE_EP,
 		     " post_ext_snd: ep %p op %d ck %p sgs",
-		     "%d l_iov %p r_iov %p f %d\n",
+		     "%d l_iov %p r_iov %p f %d ah %p\n",
 		     ep_ptr, op_type, cookie, segments, local_iov, 
 		     remote_iov, completion_flags, remote_ah);
 
@@ -340,7 +416,7 @@ dapls_ib_post_ext_send (
 		break;
 	case OP_SEND_UD:
 		/* post must be on EP with service_type of UD */
-		if (ep_ptr->qp_handle->qp_type != IBV_QPT_UD)
+		if (ep_ptr->qp_handle->qp->qp_type != IBV_QPT_UD)
 			return(DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_EP));
 
 		dapl_dbg_log(DAPL_DBG_TYPE_EP, 
@@ -369,10 +445,18 @@ dapls_ib_post_ext_send (
 		     " post_snd: op 0x%x flags 0x%x sglist %p, %d\n", 
 		     wr.opcode, wr.send_flags, wr.sg_list, wr.num_sge);
 
-	ret = ibv_post_send(ep_ptr->qp_handle, &wr, &bad_wr);
-
+#ifdef _OPENIB_MCM_
+	if (ep_ptr->qp_handle->tp->scif_ep)
+		ret = dapli_mix_post_send(ep_ptr->qp_handle, total_len, &wr, &bad_wr);
+	else if (ep_ptr->qp_handle->ep_map == MIC_XSOCK_DEV)
+		ret = mcm_send_pi(ep_ptr->qp_handle, total_len, &wr, &bad_wr);
+	else
+		ret = ibv_post_send(ep_ptr->qp_handle->qp2, &wr, &bad_wr);
+#else
+	ret = ibv_post_send(ep_ptr->qp_handle->qp, &wr, &bad_wr);
+#endif
 	if (ret)
-		return( dapl_convert_errno(errno,"ibv_send") );
+		return( dapl_convert_errno(errno,"ibv_send_ext") );
 	
 #ifdef DAPL_COUNTERS
 	switch (op_type) {
@@ -467,6 +551,7 @@ STATIC _INLINE_ int dapls_cqe_opcode(ib_work_completion_t *cqe_p)
 
 #define DAPL_GET_CQE_OPTYPE(cqe_p) dapls_cqe_opcode(cqe_p)
 #define DAPL_GET_CQE_WRID(cqe_p) ((ib_work_completion_t*)cqe_p)->wr_id
+#define DAPL_GET_CQE_QP_NUM(cqe_p) ((ib_work_completion_t*)cqe_p)->qp_num
 #define DAPL_GET_CQE_STATUS(cqe_p) ((ib_work_completion_t*)cqe_p)->status
 #define DAPL_GET_CQE_VENDOR_ERR(cqe_p) ((ib_work_completion_t*)cqe_p)->vendor_err
 #define DAPL_GET_CQE_BYTESNUM(cqe_p) ((ib_work_completion_t*)cqe_p)->byte_len
@@ -486,8 +571,8 @@ STATIC _INLINE_ char * dapls_dto_op_str(int op)
         "OP_RECEIVE",
         "OP_RECEIVE_MSG_IMM",
 	"OP_RECEIVE_RDMA_IMM",
-        "OP_BIND_MW"
-	"OP_SEND_UD"
+        "OP_BIND_MW",
+	"OP_SEND_UD",
 	"OP_RECV_UD"
     };
     return ((op < 0 || op > 12) ? "Invalid CQE OP?" : optable[op]);

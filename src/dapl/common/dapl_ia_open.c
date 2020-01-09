@@ -122,13 +122,17 @@ dapl_ia_open(IN const DAT_NAME_PTR name,
 	/* get the hca_ptr */
 	hca_ptr = (DAPL_HCA *) provider->extension;
 
+	/* log levels could be reset and set between opens */
+	g_dapl_dbg_type =  dapl_os_get_env_val("DAPL_DBG_TYPE",
+				     	       DAPL_DBG_TYPE_ERR |
+				     	       DAPL_DBG_TYPE_WARN);
 	/*
 	 * Open the HCA if it has not been done before.
 	 */
 	dapl_os_lock(&hca_ptr->lock);
 	if (hca_ptr->ib_hca_handle == IB_INVALID_HANDLE) {
 		/* register with the HW */
-		dat_status = dapls_ib_open_hca(hca_ptr->name, hca_ptr);
+		dat_status = dapls_ib_open_hca(hca_ptr->name, hca_ptr, DAPL_OPEN_NORMAL);
 
 		if (dat_status != DAT_SUCCESS) {
 			dapl_dbg_log(DAPL_DBG_TYPE_ERR,
@@ -226,23 +230,6 @@ dapl_ia_open(IN const DAT_NAME_PTR name,
 
 		dapl_os_lock(&hca_ptr->lock);
 		if (hca_ptr->async_evd != (DAPL_EVD *) 0) {
-#if 0
-			/*
-			 * The async EVD for this HCA has already been assigned.
-			 * It's an error to try and assign another one.
-			 *
-			 * However, we need to somehow allow multiple IAs
-			 * off of the same HCA.  The right way to do this
-			 * is by dispatching events off the HCA to the appropriate
-			 * IA, but we aren't there yet.  So for now we create
-			 * the EVD but don't connect it to anything.
-			 */
-			dapl_os_atomic_dec(&evd_ptr->evd_ref_count);
-			dapl_evd_free(evd_ptr);
-			dat_status =
-			    DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG4);
-			goto bail;
-#endif
 			dapl_os_unlock(&hca_ptr->lock);
 		} else {
 			hca_ptr->async_evd = evd_ptr;

@@ -1073,34 +1073,69 @@ DAT_RETURN DAT_API dat_srq_set_lw(IN DAT_SRQ_HANDLE srq_handle,
 #ifdef DAT_EXTENSIONS
 
 extern int g_dat_extensions;
+extern DAT_RETURN udat_extension_open(IN const DAT_NAME_PTR name,
+		     	     	      IN DAT_EXTENDED_OP ext_op,
+		     	     	      IN va_list args);
+extern DAT_RETURN udat_extension_close(IN const DAT_NAME_PTR name,
+		     	     	       IN DAT_EXTENDED_OP ext_op,
+		     	     	       IN va_list args);
 
+/* Consumer API - dat_extension_op()
+ *
+ * Handle  == IA, EP, EVD, etc
+ * !Handle == direct extension operation to provider without device open
+ * 	      provider name supplied for linkage to library
+ *
+ */
 DAT_RETURN DAT_API dat_extension_op(IN DAT_HANDLE handle,
 				    IN DAT_EXTENDED_OP ext_op, IN ...)
 {
 	DAT_RETURN status;
-	DAT_IA_HANDLE dapl_handle;
+	DAT_IA_HANDLE dapl_handle = handle;
 	va_list args;
 
-	if (handle == NULL) {
-		return DAT_ERROR(DAT_INVALID_HANDLE,
-				 DAT_INVALID_HANDLE1);
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			 " dat_extension_op: (handle %p, op %d) called\n",
+			 handle, ext_op);
+
+	/* only convert if ia_handle vector */
+	if (handle && dats_is_ia_handle(handle)) {
+		if (dats_get_ia_handle(handle, &dapl_handle))
+			return DAT_ERROR(DAT_INVALID_HANDLE,
+					 DAT_INVALID_HANDLE1);
 	}
 
-	/* If not IA handle then just passthrough */
-	if (dats_get_ia_handle(handle, &dapl_handle) != DAT_SUCCESS) {
-		dapl_handle = handle;
-	}
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			 " dat_extension_op: dapl_handle %p \n", handle);
 
-	/* verify provider extension support */
-	if (!g_dat_extensions) {
+	/* verify provider extension support, if open  */
+	if (dapl_handle && !g_dat_extensions)
 		return DAT_ERROR(DAT_NOT_IMPLEMENTED, 0);
-	}
 
 	/* extension will validate the handle based on op */
 	va_start(args, ext_op);
-	status = DAT_HANDLE_EXTENDEDOP(dapl_handle, ext_op, args);
-	va_end(args);
+	if (ext_op & DAT_OPEN_EXTENSION_BASE) {
+		const DAT_NAME_PTR name = va_arg(args, const DAT_NAME_PTR);
 
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+				 " call udat_ext_open: (name %p, %s op %d) called\n",
+				 name, name, handle, ext_op);
+		if (name == NULL)
+			status = DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_ARG3);
+		else
+			status = udat_extension_open(name, ext_op, args);
+
+	} else if (ext_op & DAT_CLOSE_EXTENSION_BASE) {
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+				 " call udat_ext_close: handle %p\n", handle);
+		status = udat_extension_close(handle, ext_op, args);
+	} else {
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+				 " call dat_ext_op: handle %p\n", dapl_handle);
+
+		status = DAT_HANDLE_EXTENDEDOP(dapl_handle, ext_op, args);
+	}
+	va_end(args);
 	return status;
 }
 #endif

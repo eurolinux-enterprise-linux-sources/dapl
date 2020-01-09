@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2009-2014 Intel Corporation.  All rights reserved.
  *
  * This Software is licensed under one of the following licenses:
  *
@@ -114,41 +114,51 @@ DAT_RETURN dapls_ib_get_async_event(IN ib_error_record_t * err_record,
 	DAT_RETURN dat_status = DAT_SUCCESS;
 	int err_code = err_record->event_type;
 
-	switch (err_code) {
+	dapl_log(DAPL_DBG_TYPE_EXCEPTION, " %s %s\n", __FUNCTION__,
+				dapl_ib_async_str(err_code));
+
+	switch (err_code)
+	{
 		/* OVERFLOW error */
-	case IBV_EVENT_CQ_ERR:
-		*async_event = DAT_ASYNC_ERROR_EVD_OVERFLOW;
-		break;
+		case IBV_EVENT_CQ_ERR:
+			*async_event = DAT_ASYNC_ERROR_EVD_OVERFLOW;
+			break;
+
 		/* INTERNAL errors */
-	case IBV_EVENT_DEVICE_FATAL:
-		*async_event = DAT_ASYNC_ERROR_PROVIDER_INTERNAL_ERROR;
-		break;
+		case IBV_EVENT_DEVICE_FATAL:
+		case IBV_EVENT_PORT_ERR:
+		case IBV_EVENT_LID_CHANGE:
+		case IBV_EVENT_PKEY_CHANGE:
+		case IBV_EVENT_SM_CHANGE:
 		/* CATASTROPHIC errors */
-	case IBV_EVENT_PORT_ERR:
-		*async_event = DAT_ASYNC_ERROR_IA_CATASTROPHIC;
-		break;
+			*async_event = DAT_ASYNC_ERROR_IA_CATASTROPHIC;
+			break;
+
 		/* BROKEN QP error */
-	case IBV_EVENT_SQ_DRAINED:
-	case IBV_EVENT_QP_FATAL:
-	case IBV_EVENT_QP_REQ_ERR:
-	case IBV_EVENT_QP_ACCESS_ERR:
-		*async_event = DAT_ASYNC_ERROR_EP_BROKEN;
-		break;
+		case IBV_EVENT_SQ_DRAINED:
+		case IBV_EVENT_QP_FATAL:
+		case IBV_EVENT_QP_REQ_ERR:
+		case IBV_EVENT_QP_ACCESS_ERR:
+		case IBV_EVENT_SRQ_ERR:
+		case IBV_EVENT_SRQ_LIMIT_REACHED:
+		case IBV_EVENT_QP_LAST_WQE_REACHED:
+			*async_event = DAT_ASYNC_ERROR_EP_BROKEN;
+			break;
 
 		/* connection completion */
-	case IBV_EVENT_COMM_EST:
-		*async_event = DAT_CONNECTION_EVENT_ESTABLISHED;
-		break;
+		case IBV_EVENT_COMM_EST:
+			*async_event = DAT_CONNECTION_EVENT_ESTABLISHED;
+			break;
 
-		/* TODO: process HW state changes */
-	case IBV_EVENT_PATH_MIG:
-	case IBV_EVENT_PATH_MIG_ERR:
-	case IBV_EVENT_PORT_ACTIVE:
-	case IBV_EVENT_LID_CHANGE:
-	case IBV_EVENT_PKEY_CHANGE:
-	case IBV_EVENT_SM_CHANGE:
-	default:
-		dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, 0);
+		/* non-catastrophic events */
+		case IBV_EVENT_PATH_MIG:
+		case IBV_EVENT_PATH_MIG_ERR:
+		case IBV_EVENT_PORT_ACTIVE:
+		case IBV_EVENT_CLIENT_REREGISTER:
+			break;
+
+		default:
+			dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, 0);
 	}
 	return dat_status;
 }
@@ -175,33 +185,62 @@ DAT_RETURN
 dapls_ib_cq_alloc(IN DAPL_IA * ia_ptr,
 		  IN DAPL_EVD * evd_ptr, IN DAT_COUNT * cqlen)
 {
-	struct ibv_comp_channel *channel;
-	DAT_RETURN ret;
+	struct ibv_comp_channel *channel = NULL;
+	int opts, ret = ENOMEM;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
 		     "dapls_ib_cq_alloc: evd %p cqlen=%d \n", evd_ptr, *cqlen);
 
+	/* create CQ object */
+	evd_ptr->ib_cq_handle = dapl_os_alloc(sizeof(struct dcm_ib_cq));
+	if (!evd_ptr->ib_cq_handle)
+		goto err;
+
+	dapl_os_memzero(evd_ptr->ib_cq_handle, sizeof(struct dcm_ib_cq));
+	evd_ptr->ib_cq_handle->tp = &ia_ptr->hca_ptr->ib_trans;
+	evd_ptr->ib_cq_handle->evd = evd_ptr;
+
+#ifdef _OPENIB_MCM_
+	/* shadow support for TX, MPXYD */
+	if (ia_ptr->hca_ptr->ib_trans.scif_ep) {
+		ret = dapli_mix_cq_create(evd_ptr->ib_cq_handle, *cqlen);
+		if (ret)
+			goto err;
+
+		/* cross-socket: shadow both RX and TX, no IB CQ on MIC */
+		if (MXS_EP(&ia_ptr->hca_ptr->ib_trans.addr))
+			return DAT_SUCCESS;
+	}
+	dapl_llist_init_entry(&evd_ptr->ib_cq_handle->entry);
+#endif
 	if (!evd_ptr->cno_ptr)
 		channel = ibv_create_comp_channel(ia_ptr->hca_ptr->ib_hca_handle);
 	else
 		channel = ia_ptr->hca_ptr->ib_trans.ib_cq;
 
 	if (!channel)
-		return DAT_INSUFFICIENT_RESOURCES;
+		goto err;
 
-	evd_ptr->ib_cq_handle = ibv_create_cq(ia_ptr->hca_ptr->ib_hca_handle,
-					      *cqlen, evd_ptr, channel, 0);
-
-	if (evd_ptr->ib_cq_handle == IB_INVALID_HANDLE) {
-		ret = DAT_INSUFFICIENT_RESOURCES;
+	/* move channel FD to non-blocking */
+	opts = fcntl(channel->fd, F_GETFL);
+	if (opts < 0 || fcntl(channel->fd, F_SETFL, opts | O_NONBLOCK) < 0) {
+		dapl_log(DAPL_DBG_TYPE_ERR,
+			 " dapls_config_fd: fcntl on channel->fd %d ERR %d %s\n",
+			 channel->fd, opts, strerror(errno));
 		goto err;
 	}
+	evd_ptr->ib_cq_handle->cq =
+		ibv_create_cq(ia_ptr->hca_ptr->ib_hca_handle,
+			      *cqlen, evd_ptr, channel, 0);
+
+	if (!evd_ptr->ib_cq_handle->cq)
+		goto err;
 
 	/* arm cq for events */
 	dapls_set_cq_notify(ia_ptr, evd_ptr);
 
 	/* update with returned cq entry size */
-	*cqlen = evd_ptr->ib_cq_handle->cqe;
+	*cqlen = evd_ptr->ib_cq_handle->cq->cqe;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
 		     "dapls_ib_cq_alloc: new_cq %p cqlen=%d \n",
@@ -210,9 +249,17 @@ dapls_ib_cq_alloc(IN DAPL_IA * ia_ptr,
 	return DAT_SUCCESS;
 
 err:
-	if (!evd_ptr->cno_ptr)
+	dapl_log(DAPL_DBG_TYPE_ERR,
+		 "ib_cq_alloc ERR (%d): new_cq %p cqlen=%d ret %d %s\n",
+		 evd_ptr->ib_cq_handle, *cqlen, ret, strerror(errno));
+
+	if (evd_ptr->ib_cq_handle)
+		dapl_os_free(evd_ptr->ib_cq_handle, sizeof(struct dcm_ib_cq));
+
+	if (!evd_ptr->cno_ptr && channel)
 		ibv_destroy_comp_channel(channel);
-	return ret;
+
+	return dapl_convert_errno(ret, "cq_allocate" );
 }
 
 /*
@@ -239,15 +286,37 @@ DAT_RETURN dapls_ib_cq_free(IN DAPL_IA * ia_ptr, IN DAPL_EVD * evd_ptr)
 	struct ibv_comp_channel *channel;
 
 	if (evd_ptr->ib_cq_handle != IB_INVALID_HANDLE) {
+
+#ifdef _OPENIB_MCM_
+		/* remove from device PI processing list  */
+		dapl_os_lock(&ia_ptr->hca_ptr->ib_trans.cqlock);
+		if (evd_ptr->ib_cq_handle->entry.list_head)
+			dapl_llist_remove_entry(&ia_ptr->hca_ptr->ib_trans.cqlist,
+					    	&evd_ptr->ib_cq_handle->entry);
+		dapl_os_unlock(&ia_ptr->hca_ptr->ib_trans.cqlock);
+
+		/* shadow support, MPXYD */
+		if (ia_ptr->hca_ptr->ib_trans.scif_ep) {
+			dapli_mix_cq_free(evd_ptr->ib_cq_handle);
+			if (!evd_ptr->ib_cq_handle->cq) {
+				dapl_os_free(evd_ptr->ib_cq_handle,
+					     sizeof(struct dcm_ib_cq));
+				evd_ptr->ib_cq_handle = IB_INVALID_HANDLE;
+				return DAT_SUCCESS;
+			}
+		}
+#endif
 		/* pull off CQ and EVD entries and toss */
-		while (ibv_poll_cq(evd_ptr->ib_cq_handle, 1, &wc) == 1) ;
+		while (ibv_poll_cq(evd_ptr->ib_cq_handle->cq, 1, &wc) == 1) ;
 		while (dapl_evd_dequeue(evd_ptr, &event) == DAT_SUCCESS) ;
 
-		channel = evd_ptr->ib_cq_handle->channel;
-		if (ibv_destroy_cq(evd_ptr->ib_cq_handle))
+		channel = evd_ptr->ib_cq_handle->cq->channel;
+		if (ibv_destroy_cq(evd_ptr->ib_cq_handle->cq))
 			return (dapl_convert_errno(errno, "ibv_destroy_cq"));
 		if (!evd_ptr->cno_ptr)
 			ibv_destroy_comp_channel(channel);
+
+		dapl_os_free(evd_ptr->ib_cq_handle, sizeof(struct dcm_ib_cq));
 		evd_ptr->ib_cq_handle = IB_INVALID_HANDLE;
 	}
 	return DAT_SUCCESS;
@@ -256,13 +325,23 @@ DAT_RETURN dapls_ib_cq_free(IN DAPL_IA * ia_ptr, IN DAPL_EVD * evd_ptr)
 DAT_RETURN
 dapls_evd_dto_wakeup(IN DAPL_EVD * evd_ptr)
 {
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " cq_object_wakeup: evd=%p\n", evd_ptr);
+	dapl_log(DAPL_DBG_TYPE_EVD, " cq_object_wakeup: EVD %p CQ %p\n",
+		 evd_ptr, evd_ptr->ib_cq_handle);
 
 	/*  EVD with CNO; waiting on OS wait object */
-	if (evd_ptr->cno_ptr)
+	if (evd_ptr->cno_ptr) {
 		dapl_os_wait_object_wakeup(&evd_ptr->wait_object);
+		return DAT_SUCCESS;
+	}
 
+#ifdef _OPENIB_MCM_
+{
+	int flags = evd_ptr->ib_cq_handle->flags;
+	if (((flags & DCM_CQ_TX) && (flags & DCM_CQ_TX_INDIRECT)) ||
+	    ((flags & DCM_CQ_RX) && (flags & DCM_CQ_RX_INDIRECT)))
+		dapl_os_wait_object_wakeup(&evd_ptr->wait_object);
+}
+#endif
 	/* otherwise, no wake up mechanism */
 	return DAT_SUCCESS;
 }
@@ -303,15 +382,26 @@ dapls_wait_comp_channel(IN struct ibv_comp_channel *channel, IN uint32_t timeout
 DAT_RETURN
 dapls_evd_dto_wait(IN DAPL_EVD * evd_ptr, IN uint32_t timeout)
 {
-	struct ibv_comp_channel *channel = evd_ptr->ib_cq_handle->channel;
+	struct ibv_comp_channel *channel;
 	struct ibv_cq *ibv_cq = NULL;
 	void *context;
 	int status;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " cq_object_wait: EVD %p time %d\n",
-		     evd_ptr, timeout);
+	dapl_log(DAPL_DBG_TYPE_EVD,
+		 " cq_object_wait: EVD %p CQ %p time %d\n",
+		 evd_ptr, evd_ptr->ib_cq_handle, timeout);
 
+#ifdef _OPENIB_MCM_
+{
+	int flags = evd_ptr->ib_cq_handle->flags;
+	if (((flags & DCM_CQ_TX) && (flags & DCM_CQ_TX_INDIRECT)) ||
+	    ((flags & DCM_CQ_RX) && (flags & DCM_CQ_RX_INDIRECT))) {
+		return (dapl_os_wait_object_wait(&evd_ptr->wait_object, timeout));
+	}
+}
+#endif
+
+	channel = evd_ptr->ib_cq_handle->cq->channel;
 	status = dapls_wait_comp_channel(channel, timeout);
 	if (!status) {
 		if (!ibv_get_cq_event(channel, &ibv_cq, &context)) {
@@ -341,7 +431,6 @@ void dapli_cq_event_cb(struct _ib_hca_transport *tp)
 			dapl_evd_dto_callback(tp->ib_ctx, 
 					      evd->ib_cq_handle, (void*)evd);
 		}
-
 		ibv_ack_cq_events(ibv_cq, 1);
 	} 
 }
@@ -405,7 +494,8 @@ err:
  */
 DAT_RETURN dapls_set_cq_notify(IN DAPL_IA * ia_ptr, IN DAPL_EVD * evd_ptr)
 {
-	if (ibv_req_notify_cq(evd_ptr->ib_cq_handle, 0))
+	if (evd_ptr->ib_cq_handle->cq &&
+	    ibv_req_notify_cq(evd_ptr->ib_cq_handle->cq, 0))
 		return (dapl_convert_errno(errno, "notify_cq"));
 	else
 		return DAT_SUCCESS;
@@ -432,7 +522,8 @@ DAT_RETURN dapls_ib_completion_notify(IN ib_hca_handle_t hca_handle,
 				      IN DAPL_EVD * evd_ptr,
 				      IN ib_notification_type_t type)
 {
-	if (ibv_req_notify_cq(evd_ptr->ib_cq_handle, type))
+	if (evd_ptr->ib_cq_handle->cq &&
+	    ibv_req_notify_cq(evd_ptr->ib_cq_handle->cq, type))
 		return (dapl_convert_errno(errno, "notify_cq_type"));
 	else
 		return DAT_SUCCESS;
@@ -462,7 +553,45 @@ DAT_RETURN dapls_ib_completion_poll(IN DAPL_HCA * hca_ptr,
 {
 	int ret;
 
-	ret = ibv_poll_cq(evd_ptr->ib_cq_handle, 1, wc_ptr);
+#ifdef _OPENIB_MCM_
+	if (!evd_ptr->ib_cq_handle->cq) /* proxy service, no direct CQ */
+		return DAT_QUEUE_EMPTY;
+#endif
+	ret = ibv_poll_cq(evd_ptr->ib_cq_handle->cq, 1, wc_ptr);
+
+#ifdef _OPENIB_MCM_
+	/*
+	 * HST->MXS, we need to intercept direct TX WC in flight
+	 * because there is no way to know if indirect or direct CQ
+	 * service is needed at the time of QP creation.
+	 */
+	if (ret==1) {
+		DAPL_EP *ep_ptr;
+		DAPL_COOKIE *cookie = (DAPL_COOKIE *)(uintptr_t) DAPL_GET_CQE_WRID(wc_ptr);
+
+		dapl_os_assert((NULL != cookie));
+		ep_ptr = cookie->ep;
+		dapl_os_assert((NULL != ep_ptr));
+		if ((!ep_ptr->qp_handle->tp->scif_ep) &&
+		    (ep_ptr->qp_handle->ep_map == MIC_XSOCK_DEV) &&
+		    (DAPL_GET_CQE_OPTYPE(wc_ptr) == OP_RDMA_WRITE_IMM)) {
+			dapl_log(DAPL_DBG_TYPE_EP,
+				 " cq_dto_event: MCM RW_pi: evd %p ep %p st %d op %s ln %d wr_id %p\n",
+				 evd_ptr, ep_ptr,
+				 DAPL_GET_CQE_STATUS(wc_ptr),
+				 DAPL_GET_CQE_OP_STR(wc_ptr),
+				 cookie->val.dto.size, cookie);
+			ret = 0; /* WR RW_imm to PI, WC pending from PI */
+		} else {
+			dapl_log(DAPL_DBG_TYPE_EP,
+				 " cq_dto_event: MCM RW_direct: evd %p ep %p st %d op %s ln %d wr_id %p\n",
+				 evd_ptr, ep_ptr,
+				 DAPL_GET_CQE_STATUS(wc_ptr),
+				 DAPL_GET_CQE_OP_STR(wc_ptr),
+				 cookie->val.dto.size, cookie);
+		}
+	}
+#endif
 	if (ret == 1)
 		return DAT_SUCCESS;
 

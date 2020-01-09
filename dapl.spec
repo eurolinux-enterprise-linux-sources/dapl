@@ -1,20 +1,19 @@
 Name: dapl
-Version: 2.0.39
-Release: 5%{?dist}
+Version: 2.1.5
+Release: 1%{?dist}
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
 License: GPLv2 or BSD or CPL
-Url: http://openfabrics.org/
-Source0: http://www.openfabrics.org/downloads/dapl/dapl-%{version}.tar.gz
-Patch3: dapl-2.0.25-dat_ia_open_hang.patch
-Patch4: dapl-2.0.34-compile.patch
+Url: https://www.openfabrics.org/
+Source0: https://www.openfabrics.org/downloads/dapl/dapl-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 Obsoletes: udapl < 1.3
-BuildRequires: libibverbs-devel > 1.1.7, librdmacm-devel > 1.0.18
-BuildRequires: autoconf, libtool
-ExcludeArch: s390 s390x
+BuildRequires: libibverbs-devel > 1.1.7, librdmacm-devel > 1.0.18, ibacm-devel
+BuildRequires: chrpath
+ExcludeArch: s390
+#BuildRequires: autoconf, libtool
 %description
 libdat and libdapl provide a userspace implementation of the DAT 2.0
 API and is built to natively support InfiniBand/iWARP network technology.
@@ -44,10 +43,8 @@ Useful test suites to validate the dapl library API's and operation.
 
 %prep
 %setup -q
-%patch3 -p1 -b .bz649360
-%patch4 -p1 -b .bz1029509
-aclocal -I config && libtoolize --force --copy && autoheader && \
-    automake --foreign --add-missing --copy && autoconf
+#aclocal -I config && libtoolize --force --copy && autoheader && \
+#    automake --foreign --add-missing --copy && autoconf
 
 %build
 %configure CFLAGS="$CFLAGS -fno-strict-aliasing" --enable-ext-type=ib --sysconfdir=/etc/rdma
@@ -58,6 +55,7 @@ rm -rf %{buildroot}
 make DESTDIR=%{buildroot} install
 # remove unpackaged files from the buildroot
 rm -f %{buildroot}%{_libdir}/*.la
+chrpath -d %{buildroot}%{_bindir}/*
 
 %clean
 rm -rf %{buildroot}
@@ -88,6 +86,13 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
+* Tue Jun 09 2015 Doug Ledford <dledford@redhat.com> - 2.1.5-1
+- Update to latest upstream release
+- Include support for s390x
+- Include support for aarch64
+- Drop old fix for NULL not defined, upstream has it resolved
+- Resolves: bz1182180, bz1197216, bz1172462, bz1044727, bz1056487
+
 * Tue Oct 28 2014 Doug Ledford <dledford@redhat.com> - 2.0.39-5
 - Bump and rebuild after retagging the latest libibverbs and librdmacm
   into the build root
@@ -104,7 +109,7 @@ rm -rf %{buildroot}
 * Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 2.0.39-2
 - Mass rebuild 2013-12-27
 
-* Wed Dec 19 2013 Jay Fenlason <fenlason@redhat.com> - 2.0.39-1
+* Wed Dec 18 2013 Jay Fenlason <fenlason@redhat.com> - 2.0.39-1
 - Upgrade to latest version
   Resolves: rhbz#985117
 - Fix a compile problem with NULL not being defined

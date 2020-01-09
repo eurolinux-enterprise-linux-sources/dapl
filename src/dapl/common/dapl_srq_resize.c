@@ -66,7 +66,6 @@
 DAT_RETURN DAT_API
 dapl_srq_resize(IN DAT_SRQ_HANDLE srq_handle, IN DAT_COUNT srq_max_recv_dto)
 {
-	DAPL_IA *ia_ptr;
 	DAPL_SRQ *srq_ptr;
 	DAT_RETURN dat_status;
 
@@ -82,19 +81,17 @@ dapl_srq_resize(IN DAT_SRQ_HANDLE srq_handle, IN DAT_COUNT srq_max_recv_dto)
 	}
 
 	srq_ptr = (DAPL_SRQ *) srq_handle;
-	ia_ptr = srq_ptr->header.owner_ia;
 
 	/*
 	 * Check for nonsense requests per the spec
 	 */
-	if (srq_max_recv_dto <= srq_ptr->param.low_watermark) {
+	if (srq_max_recv_dto <= srq_ptr->param.low_watermark ||
+	    srq_max_recv_dto < dapl_os_atomic_read(&srq_ptr->recv_count)) {
 		dat_status = DAT_ERROR(DAT_INVALID_STATE, DAT_NO_SUBTYPE);
 		goto bail;
 	}
 
-	/* XXX Put implementation here XXX */
-
-	/* XXX */ dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
+	dat_status = dapls_ib_srq_resize(srq_ptr, (uint32_t)srq_max_recv_dto);
 
       bail:
 	return dat_status;

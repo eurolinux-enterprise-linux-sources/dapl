@@ -158,8 +158,7 @@ dapl_ep_create(IN DAT_IA_HANDLE ia_handle,
 	 */
 	if (ep_attr != NULL && (
 #ifndef DAT_EXTENSIONS
-				       ep_attr->service_type !=
-				       DAT_SERVICE_TYPE_RC ||
+				       ep_attr->service_type != DAT_SERVICE_TYPE_RC ||
 #endif
 				       (recv_evd_handle == DAT_HANDLE_NULL
 					&& ep_attr->max_recv_dtos != 0)
@@ -177,6 +176,7 @@ dapl_ep_create(IN DAT_IA_HANDLE ia_handle,
 					   dapl_ep_check_recv_completion_flags
 					   (ep_attr->recv_completion_flags)))) {
 		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG6);
+		dapl_log(DAPL_DBG_TYPE_ERR, "dapl_ep_create: failed EP attributes\n");
 		goto bail;
 	}
 
@@ -194,12 +194,11 @@ dapl_ep_create(IN DAT_IA_HANDLE ia_handle,
 		    ep_attr->max_request_dtos > ep_attr_limit.max_request_dtos
 		    || ep_attr->max_recv_iov > ep_attr_limit.max_recv_iov
 		    || ep_attr->max_request_iov > ep_attr_limit.max_request_iov
-		    || ep_attr->max_rdma_read_in >
-		    ep_attr_limit.max_rdma_read_in
-		    || ep_attr->max_rdma_read_out >
-		    ep_attr_limit.max_rdma_read_out)
+		    || ep_attr->max_rdma_read_in >  ep_attr_limit.max_rdma_read_in
+		    || ep_attr->max_rdma_read_out >  ep_attr_limit.max_rdma_read_out)
 		{
 			dat_status = DAT_INVALID_PARAMETER | DAT_INVALID_ARG6;
+			dapl_log(DAPL_DBG_TYPE_ERR, "dapl_ep_create: failed Transport attributes\n");
 			goto bail;
 		}
 	}
@@ -238,7 +237,7 @@ dapl_ep_create(IN DAT_IA_HANDLE ia_handle,
 	}
 
 	/* Allocate EP */
-	ep_ptr = dapl_ep_alloc(ia_ptr, ep_attr);
+	ep_ptr = dapl_ep_alloc(ia_ptr, ep_attr, DAT_FALSE);
 	if (ep_ptr == NULL) {
 		dat_status =
 		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);

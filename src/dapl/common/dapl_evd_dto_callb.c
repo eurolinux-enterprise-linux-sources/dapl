@@ -130,8 +130,10 @@ dapl_evd_dto_callback(IN ib_hca_handle_t hca_handle,
 			dat_status = dapls_ib_completion_notify(hca_handle,
 								evd_ptr,
 								IB_NOTIFY_ON_NEXT_COMP);
-
 			if (DAT_SUCCESS != dat_status) {
+				dapl_log(DAPL_DBG_TYPE_WARN, " -- %s notify ERR, CQ %p, st %x\n",
+					 __FUNCTION__, (void *)evd_ptr->ib_cq_handle, state);
+
 				(void)dapls_evd_post_async_error_event(evd_ptr->
 								       header.
 								       owner_ia->

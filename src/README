@@ -17,7 +17,7 @@ Building debug version:
 ./configure --enable-debug
 make
 
-Build example with OFED 1.2+ prefix (x86_64)
+Build example with OFED prefix (x86_64)
 ---------------------------------------------
 ./autogen.sh
 ./configure --prefix /usr --sysconf=/etc --libdir /usr/lib64 LDFLAGS=-L/usr/lib64 CPPFLAGS="-I/usr/include"
@@ -26,8 +26,6 @@ make
 Installing:
 ----------
 make install
-
-Note: The development package installs DAT 2.0 include files under /usr/include/dat2 to co-exist with DAT 1.2 /usr/include/dat
 
 NOTE: to link these libraries you must either use libtool and 
 specify the full pathname of the library, or use the `-LLIBDIR' 
@@ -46,44 +44,151 @@ more information, such as the ld(1) and ld.so(8) manual pages.
 2.0 CONFIGURATION:
 ===================
 
-sample /etc/dat.conf 
+/etc/dat.conf 
 
+# DAT v2.0
 #
-# DAT 1.2 and 2.0 configuration file
-#
+# Note: Both API and Provider versions are based on DAT specification, v2.0
+#  
 # Each entry should have the following fields:
 #
 # <ia_name> <api_version> <threadsafety> <default> <lib_path> \
 #           <provider_version> <ia_params> <platform_params>
 #
-# For the uDAPL cma provder, specify <ia_params> as one of the following:
+# For uDAPL cma provder, <ia_params> is one of the following:
 #       network address, network hostname, or netdev name and 0 for port
 #
-# Simple (OpenIB-cma) default with netdev name provided first on list
-# to enable use of same dat.conf version on all nodes
-#
-# Add examples for multiple interfaces and IPoIB HA fail over, and bonding
-#
-OpenIB-cma u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "ib0 0" ""
-OpenIB-cma-1 u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "ib1 0" ""
-OpenIB-cma-2 u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "ib2 0" ""
-OpenIB-cma-3 u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "ib3 0" ""
-OpenIB-bond u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "bond0 0" ""
-OpenIB-2-cma u2.0 nonthreadsafe default libdaplcma.so.2 dapl.2.0 "ib0 0" ""
-OpenIB-2-cma-1 u2.0 nonthreadsafe default libdaplcma.so.2 dapl.2.0 "ib1 0" ""
-OpenIB-2-cma-2 u2.0 nonthreadsafe default libdaplcma.so.2 dapl.2.0 "ib2 0" ""
-OpenIB-2-cma-3 u2.0 nonthreadsafe default libdaplcma.so.2 dapl.2.0 "ib3 0" ""
-OpenIB-2-bond u2.0 nonthreadsafe default libdaplcma.so.2 dapl.2.0 "bond0 0" ""
+# For uDAPL scm provider, <ia_params> is device name and port
+# For uDAPL ucm provider, <ia_params> is device name and port
+# For uDAPL iWARP provider, <ia_params> is netdev device name and 0 
+# For uDAPL iWARP provider, <ia_params> is netdev device name and 0 
+# For uDAPL RoCE provider, <ia_params> is device name and 0 
+# 
+ofa-v2-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 1" ""
+ofa-v2-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 2" ""
+ofa-v2-ib0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "ib0 0" ""
+ofa-v2-ib1 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "ib1 0" ""
+ofa-v2-mthca0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mthca0 1" ""
+ofa-v2-mthca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mthca0 2" ""
+ofa-v2-ipath0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "ipath0 1" ""
+ofa-v2-ipath0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "ipath0 2" ""
+ofa-v2-ehca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "ehca0 1" ""
+ofa-v2-iwarp u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "eth2 0" ""
+ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx4_0 1" ""
+ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx4_0 2" ""
+ofa-v2-mthca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mthca0 1" ""
+ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mthca0 2" ""
+ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "eth2 0" ""
+ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "eth3 0" ""
+ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 1" ""
+ofa-v2-scm-roe-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 2" ""
+ofa-v2-mcm-1 u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx4_0 1" ""
+ofa-v2-mcm-2 u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx4_0 2" ""
+ofa-v2-scif0 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "scif0 1" ""
+ofa-v2-scif0-u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "scif0 1" ""
+ofa-v2-mic0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "mic0:ib 1" ""
+ofa-v2-mlx4_0-1s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 1" ""
+ofa-v2-mlx4_0-2s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 2" ""
+ofa-v2-mlx4_1-1s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_1 1" ""
+ofa-v2-mlx4_1-2s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_1 2" ""
+ofa-v2-mlx4_1-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx4_1 1" ""
+ofa-v2-mlx4_1-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx4_1 2" ""
+ofa-v2-mlx4_0-1m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx4_0 1" ""
+ofa-v2-mlx4_0-2m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx4_0 2" ""
+ofa-v2-mlx4_1-1m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx4_1 1" ""
+ofa-v2-mlx4_1-2m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx4_1 2" ""
+ofa-v2-mlx5_0-1s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx5_0 1" ""
+ofa-v2-mlx5_0-2s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx5_0 2" ""
+ofa-v2-mlx5_1-1s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx5_1 1" ""
+ofa-v2-mlx5_1-2s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx5_1 2" ""
+ofa-v2-mlx5_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx5_0 1" ""
+ofa-v2-mlx5_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx5_0 2" ""
+ofa-v2-mlx5_1-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx5_1 1" ""
+ofa-v2-mlx5_1-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx5_1 2" ""
+ofa-v2-mlx5_0-1m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx5_0 1" ""
+ofa-v2-mlx5_0-2m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx5_0 2" ""
+ofa-v2-mlx5_1-1m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx5_1 1" ""
+ofa-v2-mlx5_1-2m u2.0 nonthreadsafe default libdaplomcm.so.2 dapl.2.0 "mlx5_1 2" ""
+ofa-v2-qib0-1s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "qib0 1" ""
+ofa-v2-qib0-2s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "qib0 2" ""
+ofa-v2-qib1-1s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "qib1 1" ""
+ofa-v2-qib1-2s u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "qib1 2" ""
+
+=============================
+3.0 Environment Variables
+=============================
+
+ - IB UD options using UCM provider, large scale settings (Xeon)
+ 
+export DAPL_UCM_REP_TIME=2000   /*  REQUEST timer, waiting on REPLY, msecs, default = 800 */
+export DAPL_UCM_RTU_TIME=1000   /* REPLY timer, waiting for RTU in msecs, default=400 */
+export DAPL_UCM_RETRY=7       	/* REQUEST & REPLY retries, default = 7 */
+export DAPL_UCM_QP_SIZE=1000	/* CM req/reply work queue size, default = 500 entries */
+export DAPL_UCM_CQ_SIZE=1000	/* CM req/reply completion queue size, default = 500 entries */
+export DAPL_UCM_TX_BURST=100	/* CM signal rate on send messages */
+
+ - IB RC options using UCM provider, large scale settings (Xeon)
+ 
+export DAPL_MAX_INLINE=64	/*  IB RC inline optimization, best small msg latency, def=64 */
+export DAPL_ACK_RETRY=7         /*  IB RC Ack retry count, default 7 */
+export DAPL_ACK_TIMER=20       	/* IB RC Ack retry timer, default 20 */
+					IB formula:: 5 bits, 4.096us*2^ack_timer. 16== 268ms, 20==4.2s
+- IB RC options using SCM provider
+
+export DAPL_SCM_NETDEV=mic0	/* default is first non-loopback netdev,  use mic0 with KNCs */
+
+Other  IB settings:
+export DAPL_IB_MTU=2048		/* IB MTU size, default = 2048 */
+export DAPL_RNR_TIMER=12	/* 5 bits, 12 =.64ms, 28 =163ms, 31 =491ms */
+export DAPL_RNR_RETRY=7		/* 3 bits, 7 == infinite */
+export DAPL_IB_PKEY= 0		/* override IB partition key, default is pkey index 0 */
+export DAPL_IB_SL=0		/* override IB Sevice level, default = 0 */
+
+- Other options:
+export DAPL_WR_MAX=500 		/* used to reduce max qp depth on all IB providers, default = dev attributes */
+
+Debug logging and Counter settings ( --enable-counters)
+
+export DAPL_DBG_SYS_MEM=10	/* threshold for low sys memory warning, def = 10 percent */
+export DAPL_DBG_TYPE=0x0000003 	/* set log, monitor, and error checking, default = warnings and errors */
+
+DAPL_DBG_TYPE bit settings as follow:
+
+DAPL_DBG_TYPE_ERR          = 0x0001,
+DAPL_DBG_TYPE_WARN         = 0x0002,
+DAPL_DBG_TYPE_EVD          = 0x0004,
+DAPL_DBG_TYPE_CM           = 0x0008,
+DAPL_DBG_TYPE_EP           = 0x0010,
+DAPL_DBG_TYPE_UTIL         = 0x0020,
+DAPL_DBG_TYPE_CALLBACK     = 0x0040,
+DAPL_DBG_TYPE_DTO_COMP_ERR = 0x0080,
+DAPL_DBG_TYPE_API          = 0x0100,
+DAPL_DBG_TYPE_RTN          = 0x0200,
+DAPL_DBG_TYPE_EXCEPTION   = 0x0400,
+DAPL_DBG_TYPE_SRQ         = 0x0800,
+DAPL_DBG_TYPE_CNTR        = 0x1000,
+DAPL_DBG_TYPE_CM_LIST     = 0x2000,
+DAPL_DBG_TYPE_THREAD      = 0x4000,
+DAPL_DBG_TYPE_CM_EST      = 0x8000,
+DAPL_DBG_TYPE_CM_WARN    = 0x10000,
+DAPL_DBG_TYPE_EXTENSION  = 0x20000,
+DAPL_DBG_TYPE_CM_STATS   = 0x40000,
+DAPL_DBG_TYPE_CM_ERRS    = 0x80000,    /* print any cm errors on device close */
+DAPL_DBG_TYPE_LINK_ERRS  = 0x100000,   /* print any link errors on device close */
+DAPL_DBG_TYPE_LINK_WARN  = 0x200000,   /* print any link warning on device close */
+DAPL_DBG_TYPE_DIAG_ERRS  = 0x400000,   /* print any diag_counter errors on dev close */
+DAPL_DBG_TYPE_SYS_WARN   = 0x800000,   /* print low mem warning during alloc, reg_mem */
+DAPL_DBG_TYPE_VER        = 0x1000000,  /* print dapl ver and build date during dev open */
 
 
 =============================
-3.0 Bugs/Known issues
+4.0 Bugs/Known issues
 =============================
 
-
+mlx5 support included, new dat.conf entries. beta level.
 
 =============================
-4.0 SAMPLE uDAPL APPLICATION:
+5.0 SAMPLE uDAPL APPLICATION:
 =============================
 
 There are 2 sample programs, with manpages, provided with this package.

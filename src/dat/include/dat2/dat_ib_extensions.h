@@ -74,9 +74,10 @@
  * 2.0.5 - Add DAT_IB_UD extended UD connection error events
  * 2.0.6 - Add MPI over IB collective extensions
  * 2.0.7 - Add new IA counters for dapl CM, device LINK, device DIAG
- *
+ * 2.0.8 - Add DAT_IB_OPEN_QUERY_OP, DAT_IB_CLOSE_QUERY_OP, fast provider query interface
+ * 2.0.9 - Add DAT_IB_UD_CM_FREE and DAT_IB_UD_AH_FREE
  */
-#define DAT_IB_EXTENSION_VERSION	207	/* 2.0.7 */
+#define DAT_IB_EXTENSION_VERSION	209	/* 2.0.9 */
 #define DAT_IB_ATTR_COUNTERS		"DAT_COUNTERS"
 #define DAT_IB_ATTR_FETCH_AND_ADD	"DAT_IB_FETCH_AND_ADD"
 #define DAT_IB_ATTR_CMP_AND_SWAP	"DAT_IB_CMP_AND_SWAP"
@@ -154,6 +155,11 @@ typedef enum dat_ib_op
 	DAT_IB_COLLECTIVE_BARRIER_OP,
 	DAT_IB_START_COUNTERS_OP,
 	DAT_IB_STOP_COUNTERS_OP,
+	DAT_IB_UD_CM_FREE_OP,
+	DAT_IB_UD_AH_FREE_OP,
+	/* OPEN and CLOSE extensions require DAT support, set proper range */
+	DAT_IB_OPEN_QUERY_OP  = DAT_OPEN_EXTENSION_BASE,
+	DAT_IB_CLOSE_QUERY_OP = DAT_CLOSE_EXTENSION_BASE,
 	
 } DAT_IB_OP;
 
@@ -313,8 +319,12 @@ typedef struct dat_ib_collective_event_data
  * NOTE: DAT_IB_EXTENSION_EVENT_DATA cannot exceed 64 bytes as defined by 
  *	 "DAT_UINT64 extension_data[8]" in DAT_EVENT (dat.h)
  *
- *  Provide UD address handles via extended connect establishment. 
- *  ia_addr provided with extended conn events for reference.
+ *  DAT_IB_UD_CONNECTION_EVENT_ESTABLISHED
+ *    UD address and CM handles via extended UD connect establishment.
+ *    	ia_addr provided with extended conn events for reference.
+ *    	CM handle provided via context, for dat_ib_ud_cm_release().
+ *      AH provided via remote_ah, for dat_ib_ud_ah_destroy().
+ *      NOTE: if CM released, AH must be destroy before dat_ep_free.
  */
 typedef struct dat_ib_extension_event_data
 {
@@ -327,6 +337,7 @@ typedef struct dat_ib_extension_event_data
 	    DAT_IB_ADDR_HANDLE			remote_ah;
 	    DAT_IB_COLLECTIVE_EVENT_DATA	coll;
     };
+    DAT_CONTEXT		context;
 
 } DAT_IB_EXTENSION_EVENT_DATA;
 
@@ -702,6 +713,38 @@ dat_strerror_ext_status (
 #define dat_ib_post_recv_ud	dat_ep_post_recv
 
 /* 
+ * Unreliable datagram: free CM
+ *
+ * This call frees CM object after AH and private data are copied
+ * and stored by consumer. Provider will destroy internal object
+ * and memory associated with CM and AH resolution. MAY be called
+ * after CM establishment and before EP destroyed
+ *
+ * Other extension flags:
+ *	n/a
+ */
+#define dat_ib_ud_cm_free(ep, cm) \
+	dat_extension_op(\
+		IN (DAT_EP_HANDLE) (ep), \
+		IN (DAT_IB_OP) DAT_IB_UD_CM_FREE_OP, \
+		IN (DAT_CONTEXT) (cm))
+
+/*
+ * Unreliable datagram: free AH
+ *
+ * This call frees UD Address Handle (AH). MUST be called after all UD sends
+ * are complete and before UD EP is destroyed.
+ *
+ * Other extension flags:
+ *	n/a
+ */
+#define dat_ib_ud_ah_free(ep, ah) \
+	dat_extension_op(\
+		IN (DAT_EP_HANDLE) (ep), \
+		IN (DAT_IB_OP) DAT_IB_UD_AH_FREE_OP, \
+		IN (DAT_IB_ADDR_HANDLE *) (ah))
+
+ /*
  * Query counter(s):  
  * Provide IA, EP, or EVD and call will return appropriate counters
  * 	DAT_HANDLE dat_handle, enum cntr, *DAT_UINT64 p_cntrs_out, int reset
@@ -746,6 +789,40 @@ dat_strerror_ext_status (
 		IN (DAT_HANDLE) dat_handle, \
 		IN (DAT_IB_OP) DAT_IB_STOP_COUNTERS_OP, \
 		IN (DAT_COUNTER_TYPE) (type))
+
+/*
+ * dat_ib_open_query:
+ * dat_ib_close_query:
+ *
+ * Given IA name, open appropriate provider for fast attribute query
+ *
+ * OUT:
+ * ia_handle
+ * ia_attr
+ * pr_attr
+ *
+ * RETURN VALUE:
+ *
+ * DAT_SUCCESS
+ * DAT_INVALID_HANDLE
+ * DAT_NOT_IMPLEMENTED
+ *
+ */
+#define dat_ib_open_query(name, ia_handle, ia_mask, ia_attr, prov_mask, prov_attr) \
+	dat_extension_op(\
+		IN (DAT_HANDLE) (NULL), \
+		IN (DAT_IB_OP) DAT_IB_OPEN_QUERY_OP, \
+		IN (const DAT_NAME_PTR) (name), \
+		OUT (DAT_HANDLE *) (ia_handle), \
+		IN (DAT_IA_ATTR_MASK) (ia_mask), \
+		OUT (DAT_IA_ATTR *) (ia_attr), \
+		IN  (DAT_PROVIDER_ATTR_MASK) (prov_mask), \
+		OUT (DAT_PROVIDER_ATTR *) (prov_attr))
+
+#define dat_ib_close_query(ia_handle) \
+	dat_extension_op(\
+		IN (DAT_HANDLE) (ia_handle), \
+		IN (DAT_IB_OP) DAT_IB_CLOSE_QUERY_OP)
 
 /*
  ************************ MPI IB Collective Functions ***********************

@@ -59,6 +59,16 @@ DT_transaction_stats_set_ready(DT_Tdep_Print_Head * phead,
 	DT_Mdep_Unlock(&transaction_stats->lock);
 }
 
+void
+DT_transaction_stats_reset_wait_count(DT_Tdep_Print_Head * phead,
+			       Transaction_Stats_t * transaction_stats,
+			       unsigned int num)
+{
+	DT_Mdep_Lock(&transaction_stats->lock);
+	transaction_stats->wait_count = num;
+	DT_Mdep_Unlock(&transaction_stats->lock);
+}
+
 bool
 DT_transaction_stats_wait_for_all(DT_Tdep_Print_Head * phead,
 				  Transaction_Stats_t * transaction_stats)

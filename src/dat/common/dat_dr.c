@@ -213,6 +213,30 @@ dat_dr_provider_open(IN const DAT_PROVIDER_INFO * info,
 }
 
 //***********************************************************************
+// Function: dat_dr_provider_open_ext
+//***********************************************************************
+#ifdef DAT_EXTENSIONS
+DAT_RETURN
+dat_dr_provider_open_ext(IN  const DAT_PROVIDER_INFO    *info,
+			 OUT DAT_HANDLE_EXTENDEDOP_FUNC *p_ext_func)
+{
+	DAT_RETURN status;
+	DAT_DICTIONARY_DATA data;
+
+	dat_os_lock(&g_dr_lock);
+	status = dat_dictionary_search(g_dr_dictionary, info, &data);
+	dat_os_unlock(&g_dr_lock);
+
+	if (DAT_SUCCESS == status) {
+		((DAT_DR_ENTRY *) data)->ref_count++;
+		*p_ext_func = ((DAT_DR_ENTRY *)data)->ia_ext_func;
+	}
+
+	return status;
+}
+#endif
+
+//***********************************************************************
 // Function: dat_dr_provider_close
 //***********************************************************************
 

@@ -35,6 +35,7 @@ void DT_Quit_Cmd_Init(Quit_Cmd_t * cmd)
 {
 	memset((void *)cmd, 0, sizeof(Quit_Cmd_t));
 	cmd->ReliabilityLevel = DAT_QOS_BEST_EFFORT;
+	cmd->port = SERVER_PORT_NUMBER;
 }
 
 /*--------------------------------------------------------- */
@@ -45,7 +46,7 @@ DT_Quit_Cmd_Parse(Quit_Cmd_t * cmd,
 	int c;
 
 	for (;;) {
-		c = DT_mygetopt_r(my_argc, my_argv, "ds:D:R:", opts);
+		c = DT_mygetopt_r(my_argc, my_argv, "ds:D:R:n", opts);
 		if (c == EOF) {
 			break;
 		}
@@ -70,6 +71,11 @@ DT_Quit_Cmd_Parse(Quit_Cmd_t * cmd,
 			{
 				cmd->ReliabilityLevel =
 				    DT_ParseQoS(opts->optarg);
+				break;
+			}
+		case 'n':
+			{
+				cmd->port = atoi(opts->optarg);
 				break;
 			}
 		case '?':
@@ -113,6 +119,7 @@ void DT_Quit_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE: ---- QUIT TEST ----\n");
 	DT_Mdep_printf("USAGE:     dapltest -T Q\n");
 	DT_Mdep_printf("USAGE:              -s <server Name>\n");
+	DT_Mdep_printf("USAGE:              -n <server port number>\n");
 	DT_Mdep_printf("USAGE:              [-D <device Name>]\n");
 	DT_Mdep_printf("USAGE:              [-d] : debug (zero)\n");
 	DT_Mdep_printf("USAGE:              [-R <service reliability>]\n");
@@ -129,4 +136,5 @@ void DT_Quit_Cmd_Print(Quit_Cmd_t * cmd)
 {
 	DT_Mdep_printf("Quit_Cmd.server_name: %s\n", cmd->server_name);
 	DT_Mdep_printf("Quit_Cmd.device_name: %s\n", cmd->device_name);
+	DT_Mdep_printf("Quit_Cmd.port: %s\n", cmd->port);
 }

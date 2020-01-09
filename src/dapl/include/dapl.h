@@ -479,6 +479,7 @@ struct dapl_srq
     DAPL_ATOMIC		srq_ref_count;
     DAPL_COOKIE_BUFFER	recv_buffer;
     DAPL_ATOMIC		recv_count;
+    ib_srq_handle_t	srq_handle;
 };
 
 /* DAPL_PZ maps to DAT_PZ_HANDLE */
@@ -496,6 +497,11 @@ struct dapl_lmr
     DAT_LMR_PARAM	param;
     ib_mr_handle_t	mr_handle;
     DAPL_ATOMIC		lmr_ref_count;
+#ifdef _OPENIB_MCM_
+    off_t 		sci_addr;
+    int 		sci_off;
+    int 		mr_id;
+#endif
 #if !defined(__KDAPL__)
     char		shmid[DAT_LMR_COOKIE_SIZE]; /* shared memory ID */
     ib_shm_transport_t	ib_trans; 	/* provider specific data */
@@ -575,6 +581,7 @@ typedef enum dapl_dto_type
 {
     DAPL_DTO_TYPE_SEND,
     DAPL_DTO_TYPE_RECV,
+    DAPL_DTO_TYPE_RECV_SRQ,
     DAPL_DTO_TYPE_RDMA_WRITE,
     DAPL_DTO_TYPE_RDMA_READ,
 #ifdef DAT_EXTENSIONS

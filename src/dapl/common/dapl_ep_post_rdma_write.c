@@ -93,7 +93,7 @@ dapl_ep_post_rdma_write(IN DAT_EP_HANDLE ep_handle,
 					   OP_RDMA_WRITE);
 
 	dapl_dbg_log(DAPL_DBG_TYPE_RTN,
-		     "dapl_ep_post_rdma_write () returns 0x%x", dat_status);
+		     "dapl_ep_post_rdma_write () returns 0x%x\n", dat_status);
 
 	return dat_status;
 }

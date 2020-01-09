@@ -1,3 +1,1312 @@
+commit 2973531db7e0cb98c2524f33cd26d2dfc07c7435
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 26 10:06:44 2015 -0700
+
+    update release notes, readme files
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4aabeb14cae22822cc22c2eaffcd4e047d7aba02
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 26 09:37:40 2015 -0700
+
+    dat.conf: update comments regarding versions
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 347e142c8b26f10cd87263f05f200dcde6200fd0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 22 09:53:23 2015 -0700
+
+    dtest: add logging of provider private data size with -v
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2c9bf4fa108f7b7322974ab68f4aa6b1fcd1b363
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 22 09:52:31 2015 -0700
+
+    scm: remove use of msg.resv field for process id logging
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 10debec2ec2df4dc87e9171a73ccc327a1af3e20
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 22 09:51:04 2015 -0700
+
+    cma: report correct CM req private data size on query
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 14d85c68d76522b384ca38761472e7351cc3889d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 20 11:56:24 2015 -0700
+
+    mpxyd: memset ib_wr structure before post_send on WC and WR requests
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 70aae776b355dd4fb2dfc6cb2cfc1b2e153aa251
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 20 11:43:03 2015 -0700
+
+    mcm: add HST side provider support for device without inline data capability
+    
+    Add registered WR buffers for HST->MXS (proxy in) mode
+    when inline data is not supported by device. Use registered
+    memory for source WR buffer instead of stack when sending
+    RDMA write request to peer proxy-in service.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 62697218aa0a3eee8ba2aa80446ecde8ce8a46a5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 14:51:08 2015 -0700
+
+    ucm: CM changes for UD extended port space and indexer
+    
+    Tested on 1200n 28ppn cluster, AlltoAll Intel MPI, UD mode.
+    Both static and dynamic modes, over 500m connections.
+    
+    Change port manager to indexer and service ID manager
+    to bitarray indexer. Reduces footprint for service IDs
+    and allow direct lookup on CM messages.
+    
+    New insert, remove, lookup functions for processing ID
+    based CM objects. Inbound requests, with the exception
+    of new CM requests, will no longer parse list but
+    use hash table lookups.
+    
+    AH caching is now used to prevent unnecessarily
+    creating multiple AH's for same QP destination.
+    
+    Add 24-bit port space support to CM processing code and
+    to wire protocol via DCM message reserve space.
+    Add version check to limit to 16-bit for backward compatibility.
+    
+    Bump CM protocol version to 8 for xport and rtns fields.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6d5869d4980cde888dafac1a9932d68e5004f80d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 14:36:28 2015 -0700
+
+    ucm: add device support for new port space hash table
+    
+    Allocate port space hash table during device open
+    when creating CM services. Default settings are set
+    to 4K entry chunks and 256K total port slots.
+    
+    Add environment variables for adjustments
+    
+    DAPL_UCM_ENTRY_BITS 11
+    DAPL_UCM_ARRAY_BITS 18
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1a980379130e890bb5b0ab597f83b3ea5595a383
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 14:34:57 2015 -0700
+
+    ucm: allocate/free AH hash table for UD endpoint types
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d8dd0942c3e60111324a928fd0900938c46cd1ac
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 14:31:57 2015 -0700
+
+    ucm: check for AH caching when destroying via UD extension
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ef42f3e739bfba13e4be75215208dca4d54803d4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 14:21:07 2015 -0700
+
+    ucm: optimizations for large scale UD communication management
+    
+    AH caching per QP, AH space set to 48K for LID unicast
+    Bump port space up to 24 bits
+    Reduce CM object and reduce private data to 68 bytes
+    Add xport space and rtns to DCM reserve fields.
+    
+    New indexer macros for port space hash table management
+    
+    Add hash table storage to ibtrans device objects
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e750509148eaa7feb70c1353b6e353e0968b0852
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 15 15:51:31 2015 -0700
+
+    mpxyd: use wr opcode instead of wc opcode to support logging on error cases
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9ba178297231c4531c0ff6bc8b07076d96ffe495
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 15 15:47:38 2015 -0700
+
+    mcm: HST->MXS mode, using RDMA_WRITE_WITH_IMM, fails with dtest -w
+    
+    Host side incorrectly sets opcode to IBV_WR_RDMA_WRITE_WITH_IMM on every segment
+    instead of just the last segment.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 142fa8fa58d5e0b92dccc52d7a3bd913456084b4
+Author: Mark Salter <msalter@redhat.com>
+Date:   Wed May 13 16:40:58 2015 -0700
+
+    dapl: aarch64 support for linux
+    
+    Add atomic ops to fix builds for aarch64 Linux.
+    
+    Signed-off-by: Mark Salter <msalter@redhat.com>
+    Acked-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0f8378347ca4f04a86ff1dc9701b349352042205
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 5 11:13:15 2015 -0700
+
+    dapltest: add scripts to dist, set default device to IPoIB
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 78859905995ba0df229957dc3cd15d5153f4d0ef
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 30 14:04:09 2015 -0700
+
+    mpxyd: add wc_flags to proxy work completions
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3d0f53bd26db0c2c5261740d8fefc6e03209996a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 19 17:05:08 2015 -0700
+
+    Release 2.1.4
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit edf672349adbcb64246ef2465e7dd582a5243c6a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 19 16:54:17 2015 -0700
+
+    mpxyd: fix typo in configuration file
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9219bf696d7c69744a668a045c7f1d0bf36c471a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 12 16:02:40 2015 -0400
+
+    cma: RR attributes moved to common ib_cm struct
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7b5d3b8a58d651a819e0f9418e5014a1a55a5751
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 12 16:00:20 2015 -0400
+
+    mpxyd: tx thread incorrectly sleeps with negative pi_rw_cnt value
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 670b6b34c4b4454ae801aa13bdfef94e98116774
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Mar 9 10:31:13 2015 -0400
+
+    dat.conf: add entries for True Scale qib device
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0ef549e67056a2ddf8a631b2a318dd68cf674e2e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Feb 12 15:21:37 2015 -0500
+
+    mpxyd: add support for devices without inline data support
+    
+    Add function to check for inline support during device open.
+    If inline data is not supported, the CM service and Proxy
+    data mover will not use inline data option on small IO.
+    
+    The PO->PI service will now allocate and register necessary
+    memory to send mcm_wr_rx and mcm_wc_rx operations from
+    registered memory locations if inline data not supported.
+    If inline is supported, no extra memory will be allocated
+    and src buffer will be built on stack as before.
+    
+    Cleanup some build warnings.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit bdf22d43b6193537cd4def9fa80324cc02535b47
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Feb 3 16:27:50 2015 -0800
+
+    ucm: long disconnect times with many-to-one applications
+    
+    Improve the DREQ/DREP handshake and state machine to handle
+    DREQ crossings and dropped DREP with new timewait state.
+    
+    Change dat_ep_disconnect call to ensure non-blocking
+    regardless of flags or state.
+    
+    Add adjustable disconnect reply timer and retry count.
+    DCM_DREP_TIME, DCM_DREQ_RETRY
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b5d72bb52401901a0fc551c64b09378e3e933550
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jan 22 15:49:25 2015 -0800
+
+    openib: add inline data support check during device open
+    
+    Not all rdma devices support inline data, however without
+    a verbs device attribute the only way to determine
+    support is with a QP create with max_inline_send set.
+    Add a common function to verify inline data support
+    before setting default to 64 bytes.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3788335383b02325e20f35f455d355b061b468bc
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 6 14:01:39 2015 -0800
+
+    cleanup ib/cm attribute management across openib providers
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1a917c0ee793971dbbd75503a5cbfb83336a81f5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 6 13:43:57 2015 -0800
+
+    dapltest: fix -Werror=format-security issue with printf
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b124919d0463377844bfbb98f1de3c4cfceefc3e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Dec 15 12:47:44 2014 -0800
+
+    Release 2.1.3
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4fad243dafcd64b956917020bc2eb6134dff3ce9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Dec 15 12:15:54 2014 -0800
+
+    dapl: mpxyd service changes to support multi-thread single-core option
+    
+    The proxy service has been changed to reduce the number of cores required
+    on the host side. Provides new option, via mpxyd.conf, to use single-core
+    and allow system adminitrator to bind to specific core id for all Intel
+    Xeon Phi adapters in the platform.
+    
+    mcm_affinity = 2 will set to single core (per Intel Xeon Phi).
+    mcm_affinity_base_mic will set to specific core for all adapters.
+    
+    Best performance can be acheived with mcm_affinity = 2 and
+    mcm_affinity_base_mic == 0. This option will cause single core
+    to remain busy, polling operations from clients, as long
+    as long as device is open and being used by clients for data
+    transfers.
+    
+    Default remains mcm_affinity = 1, multi-thread, multi-core.
+    
+    See mpxyd.conf for details.
+    
+    Proxy services work threads have been modified to yield
+    and limit work processing when data flow is pending.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7e7ceee5fdbe99f9241405b84ec6a4bba8978f03
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Dec 15 12:05:33 2014 -0800
+
+    dapl: add rdma_write_imm and write only option to dtest
+    
+    New write_only (-w) option with rdma_write_imm can
+    be used with providers that support IB extensions.
+    Allows more options for write bandwith profiling
+    with immediate data and signaling rate options
+    to increase write data rates, especially on MIC
+    clients that use proxy services.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0ae79c2236cc3b80f52cb4a3b2a38a40f1cba8b7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Dec 9 15:35:59 2014 -0800
+
+    ucm: add time wait override capability for CM services
+    
+    New environment variable DAPL_UCM_WAIT_TIME (ms) to
+    override the default wait_time for CM services.
+    Default setting is 60 seconds.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0bcd1e8ec1b85be02ce4c0b2c49b167c4a3cde74
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Dec 9 14:40:08 2014 -0800
+
+    common: dapl_ep_free must serialize CM object destroy
+    
+    CM object could be destroyed from time_wait state from
+    provider in separate thread. Destruction must be serialized
+    with EP lock.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6250e9791ee44de1d765c0e4a5d307e22f1e3680
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Nov 13 10:36:33 2014 -0800
+
+    dtestx: allow scale up to 1000 EP's
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 5428fe5d8ce1bdf8b9530bb4ce96fb5c95d9aa7f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Nov 13 10:34:52 2014 -0800
+
+    ucm: RTU not retransmitted in TIMEWAIT state
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit aa1d68b1ef129eff56221fc316827c6161f8b36d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 5 10:10:55 2014 -0800
+
+    mpxyd: increase max open files for service
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1b30fa751e0b7f679fa1f48a48860cfb77cf1b2b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Nov 21 14:26:40 2014 -0800
+
+    mpxyd: DTO completion ERR: status 12, op RDMA_WRITE running MPI alltoall test
+    
+    Running MIC scale-up configuration with mcm provider on a MXS node
+    instead of shm causes DTO error due to heavy use of proxy-in buffer pools.
+    Hit corner case where proxy buffer management hd ptr crossed tl
+    ptr due to 64 byte alignment on start when hd < 64 bytes behind tl.
+    
+    Add additional checking on PO and PI buffer management to handle
+    the case of HD passing TL on start locations. Also changed PO
+    processing to hold lock until hd ptr is registered with buf_wc slot
+    management to preserve order of memory usage across threads.
+    
+    Reduced the size of WC queue for PO and PI buffer management.
+    
+    Profiling, via MCM_PROFILE, was added to monitor and trigger buffer
+    management errors.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9692759bd2b5bb527eb2ad6442a4d04fef54ca61
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 13 14:10:36 2014 -0700
+
+    mcm: HST->MXS mode incorrectly signals multiple fragments per WR
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4a0f2fd605bfdc3b1dbd42c3128879ab0ab7514b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 9 15:23:24 2014 -0700
+
+    mcm: add segmentation to HST->MXS mode for improved performance
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 5ac3c9342f57bf1cadbf9d97065eabb9be36f14c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 9 15:21:02 2014 -0700
+
+    mpxyd: set global seg_sz to 128KB for proxy data service
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 78f3496bae4eb6c8e8a2c9606bc127dda562324c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 6 13:54:39 2014 -0700
+
+    openib: add port_num to provider named attributes
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 07acb18e6495d04da78854ac06d3faf3aacb486e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 6 12:50:09 2014 -0700
+
+    mcm: provide CPU family/model attribute on both host and mic sides
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1efe38952c28fc757c035fa486ea1c9e440a43ae
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 30 14:07:52 2014 -0700
+
+    dtestx: update IB extension example test with new v2.0.9 features
+    
+    Add support for new IB extensions for CM and AH resource cleanup.
+    Check for v2.0.9 and call dat_ib_ud_cm_free after connection
+    establishment and dat_ib_ud_ah_free after all data has been
+    transfered on UD endpoints.
+    
+    Also add socket based address exchange to eliminate the need
+    to include lid and qpn parameters on the client side.
+    
+    Change the multiple EP mode to send from EP 0 to EP[0-3] on
+    server side and EP[0-3] to EP[0-3] on client side.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit eb8acb83a4ee2eca22eaf1904bf1db343fd94e2d
+Author: Amir Hanania <amir.hanania@intel.com>
+Date:   Thu Sep 25 16:34:20 2014 -0700
+
+    dtest: add dtestsrq for SRQ example and provider testing
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3b778859648bda3fec346d5a992b82376885a540
+Author: Amir Hanania <amir.hanania@intel.com>
+Date:   Thu Sep 25 16:32:06 2014 -0700
+
+    common: add srq support for openib verbs providers
+    
+    Add necessary components and hooks to support ib_verbs shared
+    receive queues for both RC and UD QP's. External interfaces
+    were already provided per DAT 2.0 specification but internal
+    support was missing.
+    
+    A new dtestsrq will be provided with package for testing and
+    example code.
+    
+    Acked-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 110425e3a7a59e3c108a1e59819eaa006be995ca
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 25 16:06:33 2014 -0700
+
+    openib: add IB UD cm_free/ah_free extension support in UCM provider
+    
+    Make changes to UCM provider for new CM and AH destroy extensions.
+    Allow consumer to schedule CM object destroy after CM connection
+    event has been processed. Active side will put CM object in
+    TIMEWAIT in case RTU is dropped, passive side can schedule
+    CM object destroy immediatly when called. In the case where
+    consumer requests CM object destroy, the provider will remove
+    all internal references to AH since consumer will call AH
+    destroy directly when finished with UD sends.
+    
+    All other providers, MCM, CMA, SCM will return UNSUPPORTED
+    if new extensions are called.
+    
+    See dtestx source for code examples of new extensions.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4eec39c98e8484cdd423a4eae8ae3e5771674099
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 25 16:01:33 2014 -0700
+
+    openib: add new TIMEWAIT state for CM
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7163e7e8e60301c7eef380c508bce23453d401f1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 25 15:42:38 2014 -0700
+
+    extension: add IB UD extensions to reduce provider CM and AH memory footprint
+    
+    dat_ib_ud_cm_free, dat_ib_ud_ah_free added to allow consumers
+    the option to free provider CM and AH objects, related to AH resolution,
+    immediately after consuming CONN events instead of waiting for
+    EP destroy. With existing UD service providers the CM and AH objects
+    are linked to EP and not destroyed until consumer calls dat_ep_free.
+    
+    dat_ib_ud_cm_free() frees CM object after AH and private data are copied
+    and stored by consumer. Provider will destroy internal object
+    and memory associated with CM and AH resolution.
+    MAY be called after CM establishment and before EP destroyed
+    
+    dat_ib_ud_ah_free() destroys UD Address Handle (AH).
+    MUST be called after all UD sends are complete and
+    before UD EP is destroyed.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f2d9e25c62d4eadb859dd9b5d4a0e8d37926d1d9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 15 10:30:56 2014 -0700
+
+    mpxyd/mcm: add provider specific attribute DAT_IB_PROXY_VERSION
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 63cbb9bf38185ca81a677efa7ec88fa2b8e3409d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 15 10:28:40 2014 -0700
+
+    mpxyd: log warning if running in COMPAT mode
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4996386d02bf536fcbed20ded88ca571f47ac56b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Sep 5 08:07:04 2014 -0700
+
+    add provider and proxy support for GUID across platform
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9058c4d0717dd6ec9f5e780b1a664659d651856a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 3 15:47:51 2014 -0700
+
+    common: return appropriate handles with affiliated EP and EVD async events
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 25568900892f9e72413e235ebc4ba77176343c84
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 2 14:54:51 2014 -0700
+
+    Release 2.1.2
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9760d99201ab6a640a7bd4b18a06639aa2d79698
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 2 12:53:23 2014 -0700
+
+    mpxyd: add global routing support for proxy connections
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 87fda7a3bbc3e79687ec5f45327f02fb02a4701b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 2 12:52:06 2014 -0700
+
+    mcm: only call mix_get_attr if running on MIC
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1ccc2dc9749a1e8f7f33e9f1afdf3ee3a5c9cb6a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 2 08:47:29 2014 -0700
+
+    openib: modify check for link_layer to handle unspecified
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7e833f29dabae799be5b60231ceb7be91cd2463f
+Author: Alexey Ishchuk <aishchuk@linux.vnet.ibm.com>
+Date:   Tue Sep 2 08:34:19 2014 -0700
+
+    This patch adds the dapl_os_atopmic_inc, dapl_os_atomic_dec,
+    and dapl_os_atomic_assign function implementatios to the dapl
+    userspace package to provide the DAPL API support on the s390x
+    platform by adding Assembler language implemenation of those
+    platform specific functions.
+    
+    Signed-off-by: Alexey Ishchuk <aishchuk@linux.vnet.ibm.com>
+    Acked-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit fb8c10124f3399f34ae1f2096e6759fb01e1bc7f
+Author: Amir Hanania <amir.hanania@intel.com>
+Date:   Tue Aug 26 15:41:10 2014 -0700
+
+    dtest server exchange connection info with client
+    
+    The server and client create connection for the server to send the setup info to the client.
+    When using dtest, the client only needs to use -h <hostname/IP address> option and it will get the rest of the info from the server.
+    
+    Signed-off-by: Amir Hanania <amir.hanania@intel.com>
+
+commit 380218f3b62918601d89c48a44fcfee2899fdb11
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Aug 25 16:30:45 2014 -0700
+
+    mpxyd: 2 MICs in same numa_node will overlap CPU affinity, don't reset base
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 622a1870843e770ec2b6a83caf0d6fcb5057bb56
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Aug 25 08:59:50 2014 -0700
+
+    mcm: implement proxy mix_prov_attr function, add fields CPU model and family
+    
+    Provide MIC consumers with a provider specific query for proxy CPU model and family
+    to identify platform type from MIC side. Supported in MCM provider only.
+    
+    The following provider specific name attributes were added to MCM:
+    
+    DAT_IB_PROXY_CPU_FAMILY
+    DAT_IB_PROXY_CPU_MODEL
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1a6747faa5904e23a7b8c247a52b603aa24098a7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 22 10:27:46 2014 -0700
+
+    mpxyd: tx thread may not be signaled on small segment writes
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ce006692bcb5cabf241bdacf0dd62f5df8572f22
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 13 11:58:49 2014 -0700
+
+    Release 2.1.1
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6eb73e080c87b12cf4f4ec577cfdff53472791e1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 13 11:12:29 2014 -0700
+
+    common: add provider name to log messages
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a62f9a98b38865ff0e02f3bd30e04613c7bdd7de
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 13 11:10:03 2014 -0700
+
+    mpxyd: log warning message if numa_node invalid
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 69cfea06c710a1a83af7df3bcdfc49fe43580b05
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Aug 11 13:45:12 2014 -0700
+
+    include debuginfo with build
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 8ccf314650204d609bcdaa692fedbcde505afc41
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Aug 11 10:50:05 2014 -0700
+
+    mpxyd: tx thread doesn't sleep during no pending IO state
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 86a4ff51b5da853c85dc290fe1b69725d8f18618
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Aug 11 09:49:08 2014 -0700
+
+    mpxyd: change MIC cpu_mask to per numa node instead of adapter
+    
+    The proxy processing threads for multiple cards in same socket will overlap
+    same cpu cores with existing cpumask per adapter. Change thread affinity
+    and cpumask to a per socket method.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4e0e6dc0ac02c651767d446a4f58eeb991fff983
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 1 11:10:47 2014 -0700
+
+    mpxyd: set to MXS mode if device numa_node is invalid (-1)
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4072fc3443418cc22e40a8e83d6660da0cb2819d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 1 10:54:14 2014 -0700
+
+    mpxyd: MXS based alltoall benchmark hangs or returns post_send timeout
+    
+    Clean-up shared proxy buffer slot management during IO completions.
+    Current code adjusts proxy buffer tail, using m_idx, incorrectly
+    if freeing multiple in order buffer slots. Also, when processing
+    immediate in-order slot, m_po_buf_tl() failed to continue parsing
+    list to free other in-order !busy slots.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 61c12d3815f8ced11d70e97cc9c806591edde420
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 31 09:50:30 2014 -0700
+
+    mpxyd: add IO profile capabilities to help debug alltoall stall cases
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 807bb7262c4fefe6f857c06cb1ff979349abd19f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 31 09:37:27 2014 -0700
+
+    mpxyd: retry stalled inline post_send, init m_idx only when signaled
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 776a2e359c60366683e2681365c12cf8a4fd132f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 25 08:35:31 2014 -0700
+
+    Release 2.1.0
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a761b9b5422eb4c0872c1518fa5c58798421ca6e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 23 15:32:06 2014 -0700
+
+    build: add missing NEWS file
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 710dafc4cbac7fe5ea2b5d19f83e6f557a96ec7f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 12:55:54 2014 -0700
+
+    update autogen.sh
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 09d80a9e8ecb67f7509a425950ed2d4430334430
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 12:33:12 2014 -0700
+
+    Add MCM provider and MPXYD service to build
+    
+    update package version to 2.1.0
+    MCM provider is dependent on Intel MPSS SCIF library.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3d0fc81e2c39558f0c91b17fc84e32c755d3e92f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 12:05:44 2014 -0700
+
+    mpxyd: service startup script and configuration file
+    
+    mpxyd -       Starts/Stops MIC SCIF/DAPL RDMA proxy server
+    mpxyd.conf -  Config details: service logs, CM timers, proxy buffers, data segment size, etc.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2a4173f780a5183a0e2bf49ed99196f3a9655da5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 11:55:09 2014 -0700
+
+    add readme for MCM provider and MPXYD service
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 659f1dc384098ef838ba10ee8ab467b3c3221b3e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 11:51:11 2014 -0700
+
+    update Copyright dates
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 713f41df5ff268d9d857a0fee9da6d93c0591ed2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 11:18:07 2014 -0700
+
+    Add new MIC RDMA proxy service daemon (MPXYD)
+    
+    New service created to support MIC based proxy RDMA. Includes
+    services to manage connectivity of multi-path heterogeneous
+    endpoints and use data paths based on platform constraints.
+    
+    It will create and manage multiple QP's per endpoint if needed. This
+    allows optimal performance per direction based on various platform
+    constraints.  For example, if the MIC is on same socket as HCA, only
+    proxy out is needed and not proxy in. In this case, data can go direct
+    from MPXYD->MIC. However, if the MIC is on a different CPU socket
+    from HCA, the provider will use both proxy out and proxy in services
+    to avoid additional constraints of the server platform.
+    
+    The MCM provider and MPXYD will support connections between
+    MIC and non MIC endpoints.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 574a863607d1bad07aa4b97b1f35ce2b13a53df7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 10:58:37 2014 -0700
+
+    add new dapl MIC provider (MCM) to support MIC RDMA proxy services
+    
+    Provider supports all modes of connectivity and will setup data paths
+    based on endpoint locality and platform constraints. Provides
+    transparent DAT API support for RDMA writes, RDMA write with
+    immediate data, Sends, and Recvs. No RDMA read or atomic support.
+    To use MCM provider an application can use the new ofa-v2-mcm
+    device definations in dat.conf. Intel MPSS is required for
+    for MCM provider build and usage.
+    
+    The following shows connectivity modes and data paths:
+    
+    HST -> HST to HCA
+    MSS -> MIC to HCA same socket
+    MXS -> MIC to HCA cross socket
+    
+    1.  HST->HST:    Xeon->HCA->fabric->HCA->Xeon  (direct->direct)
+        HST<-HST:    Xeon<-HCA<-fabric<-HCA<-Xeon  (direct<-direct)
+    
+    2.  MSS->MSS:    KNC->Xeon->HCA->fabric->HCA->KNC  (proxy->direct)
+        MSS<-MSS:    KNC<-HCA<-fabric<-HCA<-Xeon<-KNC  (direct<-proxy)
+    
+    3.  MSX->MSX:    KNC->Xeon->HCA->fabric->HCA->Xeon->KNC  (proxy->proxy)
+        MSX<-MSX:    KNC<-Xeon<-HCA<-fabric<-HCA<-Xeon<-KNC  (proxy<-proxy)
+    
+    4.  MSS->MSX:    KNC->Xeon->HCA->fabric->HCA->Xeon->KNC  (proxy->proxy)
+        MSS<-MXS:    KNC<-HCA<-fabric<-HCA<-Xeon<-KNC        (direct<-proxy)
+    
+    5.  MSS->HST:    KNC->Xeon->HCA->fabric->HCA->Xeon  (proxy->direct)
+        MSS<-HST:    KNC<-HCA<-fabric<-HCA<-Xeon        (direct<-direct)
+    
+    6.  MSX->HST:    KNC->Xeon->HCA->fabric->HCA->Xeon  (proxy->direct)
+        MSX<-HST:    KNC<-Xeon<-HCA<-fabric<-HCA<-Xeon  (proxy<-direct)
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4ca7c024e65cb7903bc3d32aa1ca5643e50775c1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 21 08:03:46 2014 -0700
+
+    MCM: new MIC provider and proxy service definitions
+    
+    Definitions for MIC Proxy RDMA services
+    
+     MCM <-> MPXYD over SCI (Symmetric Communications InterFace) - ops, cm, events
+     MCM <-> MCM over IB -  CM, WR/WC proxy-in and proxy-out wire protocol
+    
+    This service enables MIC based DAPL provider (MCM) to use
+    proxy data service (host CPU) for SND/RCV and RDMA write operations.
+    RDMA reads and atomics are not supported. This service communicates within
+    within a server platform over PCI-E bus using SCIF and a MCM specific
+    MIX (MIC exchange) messaging protocol. The MCM provider uses a new MCM
+    CM protocol on the wire along with a Proxy WR/WC protocol.
+    
+    This service is designed to improved bandwidth on larger IO
+    when direct MIC based IO is contrained.
+    
+    This new MCM provider maintains the DAT level API semantics, including
+    strict ordering requirements of data flow. RDMA write with immediate
+    data is the only IB extension supported.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7e09eb221ebb1db71d194e064645149203d7e827
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 18 11:17:03 2014 -0700
+
+    cleanup build warnings
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d5643cb15bfa238605261485d22c67173acc3e42
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 18 08:51:00 2014 -0700
+
+    common: add CQ,QP,MR abstractions for new MIC provider and data proxy service
+    
+    The new MIC (many integrated core) based provider (MCM) has the capability to
+    shadow QPs,CQs,MRs on the host side of the platform for optimial performance
+    based on locality of endpoints and platform contraints. Each endpoint (DAPL_EP),
+    transparent to consumer, may have multiple connections via MCM provider.
+    
+    openib_common ib_cq/ib_qp code base has been expanded, MCM only, to support
+    separate send and receive channels per endpoint.
+    
+    openib_common dapl_mr code base has been expanded, MCM only, to support
+    MIC base DMA interfaces for MIC to HOST communications.
+    
+    openib_common post_send,post_recv inline code base, MCM only, has been
+    modified to proxy data services via the new MCM provider.
+    
+    dapl_ib_async_str added for better logging across openib providers.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 848f76611f0ce46165a9cb55eda34d937a44bdc8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 16 15:25:44 2014 -0700
+
+    openib: cleanup, use inet_ntop for GIDs, remove some logs, destroy pipes on release
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 77d04f2e07127cd4df918dbc207b6a41180fc015
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jul 15 15:06:08 2014 -0700
+
+    common: new dapls_evd_cqe_to_event call, cqe to event
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f407d13bcf91db515e957b59655f0e56fb4c1971
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jul 15 14:39:44 2014 -0700
+
+    common: init ring_buffer, assign hd/tl pos in range
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 5f2325d50faaa8a10a8024eb84cd71cfd3ce4971
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 11 11:32:43 2014 -0700
+
+    allow log level changes during device open
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit eb135e67a6c2082bacc6867217897fcc8c6219a2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 11 09:53:27 2014 -0700
+
+    ucm: fix cm rbuf setup, include grh pad on initialization
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f0ed5177c257294793fd49d25678d63270cee080
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 11 09:11:25 2014 -0700
+
+    ucm: remove duplicate async_event code, use common async event call
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3d5d3cc10a3f1181835a9c0ca227651649e923ff
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 11 08:39:01 2014 -0700
+
+    new lightweight open_query/close_query IB extension for fast attribute query
+    
+    Consumers that need provider attributes must do a full device open
+    in order to get any provider/device information. With so many static device
+    entries in /etc/dat.conf consumers are building classification
+    mechanisms to identify provider type, locality, name, device
+    mode, and decide which device is appropriate. The existing DAT interface
+    doesn't provide a lightweight mechanism for queries.
+    
+    The following fast query functions have been added to dat_ib_extensions.h:
+    
+    dat_ib_open_query(name, ia_handle, ia_mask, ia_attr, prov_mask, prov_attr)
+    dat_ib_close_query(ia_handle)
+    
+    In addition, DAT extension interface, dat_extension_op, has been
+    expanded to include new internal calls to handle quick provider load
+    and function linkage via udat_extension_open, and udat_extension_close
+    functions. Extended operations needing DAT open/close services need
+    to be defined from a DAT_OPEN_EXTENSION_BASE or DAT_CLOSE_EXTENSION_BASE
+    respectively.
+    
+    NOTE: The ia_handle returned with open query must be closed with subsequent
+    close_query and not used with any other dat_ia_ operations. Attribute
+    storage from query_open is not valid after close_query call.
+    
+    The IB extensions have been rolled to version 2.0.8 with this new API.
+    The changes are backward compatible.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 5e5b104e35106a2b7d0026437bff8d4ced27446f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 9 09:43:47 2014 -0700
+
+    dtestcm: add more detailed debug during disconnect phase
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e1360797208bcdd824945ee9b858d307bf5bd096
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jul 8 16:14:51 2014 -0700
+
+    cma: long delays when opening cma provider with no IPoIB configured
+    
+    The rdma_cm provider (ofa-v2-ib0) can take netdev, ip address, or hostname
+    for local address bindings. When trying to open a non-existent netdev (ib0)
+    the provider will fall through and use the getaddrinfo sys call assuming
+    dat.conf parameter is either an IP address or hostname and not a netdev.
+    
+    This patch changes getipaddr() error handling when opening the cma provider
+    on a non-existant netdev. It will only call getaddrinfo with AI_CANONNAME
+    hints after checking for a valid hostname.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e01796baa6b0f6cf0e1fb310d2c42d3446898c24
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jul 8 14:20:27 2014 -0700
+
+    common: new debug levels for low system memory, IA stats, and package info
+    
+    DAPL_DBG_TYPE_SYS_WARN = 0x800000
+    DAPL_DBG_TYPE_VER      = 0x1000000
+    DAPL_DBG_TYPE_IA_STATS = 0x2000000
+    
+    export DAPL_DBG_SYS_MEM = 5 will set the checking for memory less than 5%
+    when DAPL_DBG_TYPE is set with bit DAPL_DBG_TYPE_SYS_WARN.
+    
+    The package must be built with --enable-counters for memory checking and
+    IA stats capabilities.
+    
+    In addition, if DAPL_DBG_TYPE is set with bit DAPL_DBG_TYPE_VER than
+    the package rev and build date will be sent to stdout during library
+    init.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4116019695ea01db5f7f2046fbb0937cd299550b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jun 26 15:40:46 2014 -0700
+
+    build: remove library check for mverbs with --enable-fca
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9bb5212cfeca4a62288467fceac6b0611a11ffe4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jun 24 15:49:20 2014 -0700
+
+    IB extension: segfault in create collective group with non-vector type IA handle"
+    
+    The dats_get_ia_handle call was change in 2.0.34 to convert IA handle from
+    both vector to handle and handle to vector to fix query calls that
+    incorrectly returned IA handles in non-vector form. If a caller uses a
+    non vector IA handle it will get converted incorrectly to a vector and cause
+    a segfault. Add additional check to verify a IA handle type before calling
+    get ia handle to avoid incorrect translation.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 36d2db42865394c929f5f4a2316abe679da9d680
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jun 24 15:48:38 2014 -0700
+
+    build: change configure help to correctly state collective default=none
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 11e6cd1516b4aad6a17656ff72f37c12712bf69b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 5 09:11:18 2014 -0700
+
+    Release 2.0.42
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7c1fb7a46e1d94fb07a640bdd8a1f5292d82eb2b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 15 14:48:54 2014 -0700
+
+    dapltest: increase DTO evd size to prevent CQ overflow on limit_rpost test
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 8bd2437ccb1299b5f82809b9f42d029625b4f647
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 15 13:44:16 2014 -0700
+
+    Creation of reserved SP moves EP state to DAT_EP_STATE_RESERVED even in failure
+    cases. Reserve EP after successfully binding the listening port.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 80f9eed66c01afecd3553e66baa64fecbb9347ba
+Author: Dave Goodell <dgoodell@cisco.com>
+Date:   Mon Mar 24 14:07:37 2014 -0700
+
+    dapl: fix string bug in dapls_dto_op_str
+    
+    This led to indexing off the end of the array and gave surprising
+    results for OP_RECV_UD.
+
+commit 2ce4712c357e6b796d63e38dddb536cac650fa5c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Mar 17 14:20:08 2014 -0700
+
+    Release 2.0.41
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 43f35cd944b578162d8d4627b8419a1534cf1edc
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Mar 14 10:47:06 2014 -0700
+
+    dapltest: change server port, from 45278 to 62000, out of registered IANA range
+    
+    The existing port 45278 is in the registered port range.
+    
+    RFC 6335:
+     System Ports, well known, 0-1023 (assigned by IANA)
+     User Ports, registered, 1024-49151 (assigned by IANA)
+     Dynamic Ports, private or Ephemeral, 49152-65535 (never assigned)
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 12251e447cfee4cb8aea02c14549e990f7c92784
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 13 09:55:29 2014 -0700
+
+    dat: lower log level on load errors of provider library
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 30ce6e3ab4f8cf375e0671be7f85c519b00fc1cb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 4 10:52:49 2014 -0800
+
+    dat: dat_ia_open should close provider after failure
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 77630fdf56d478f25e0bee8bd9b0d1b0ce10e818
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 4 10:48:55 2014 -0800
+
+    dapltest: set default limit max to 1000
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 622daca65b403c9b561dff4ed57421bdeeac731f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 4 10:30:02 2014 -0800
+
+    openib: add new provider specific attributes
+    
+    DAT_IB_PROVIDER_NAME = UCM/CMA/SCM
+    DAT_IB_DEVICE_NAME = ibv_get_device_name
+    DAT_IB_CONNECTIVITY_MODE = DIRECT/PROXY
+    DAT_IB_RDMA_READ = TRUE/FALSE
+    DAT_IB_NODE_GUID = xxxx:xxxx:xxxx:xxxx
+    DAT_IB_PORT_STATE = ibv_port_state_str
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2860312f368be59fa5027f3fe87bce2bcf6f5280
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Mar 3 15:04:12 2014 -0800
+
+    dapltest: update scripts for regression testing purposes
+    
+    cl.sh and srv.sh update to provide better examples and
+    a methods to quickly regression test any dapltest changes.
+    
+     usage: srv.sh devicename
+       where devicename is provider (default = ofa-v2-mlx4_0-1)
+    
+     usage: cl.sh hostname testname devicename
+       where testname
+         stop - request DAPLtest server to exit.
+         conn - simple connection with limited dater transfer
+         trans - single transaction test
+         transm - transaction test: multiple transactions [RW SND, RDMA]
+         transt - transaction test: multi-threaded, single transaction
+         transme - transaction test: multi-endpoints per thread
+         transmet - transaction test: multi: threads and endpoints per thread
+         transmete - transaction test: multi threads == endpoints
+         perf - Performance test
+         threads - multi-threaded single transaction test.
+         threadsm - multi: threads and endpoints, single transaction test.
+         rdma-write - RDMA write
+         rdma-read - RDMA read
+         bw - bandwidth
+         latb - latency tests, blocking for events
+         latp - latency tests, polling for events
+         lim - limit tests.
+         regression - loop over a collection of all tests.
+       where devicename is provider (default = ofa-v2-mlx4_0-1)
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f15ff784b9385e6964d7efad3219ca508df29f13
+Author: swise@opengridcomputing.com <swise@opengridcomputing.com>
+Date:   Mon Mar 3 14:35:43 2014 -0800
+
+    dapltest: Add final send/recv "sync" for transaction tests.
+    
+    The transaction tests need both sides to send a sync message after running the test.  This ensures that all remote operations are complete before dapltest deregeisters memory and disconnects the endpoints.
+    
+    Without this logic, we see intermittent async errors on iwarp devices because a read response or write arrives after the rmr has been destroyed.
+    I believe this is more likely to happen with iWARP than IB because iWARP completions only indicate the local buffer can be reused.  It doesn't imply that the message has even arrived at the peer, let alone been placed in the peer application's memory.
+    
+    Changes from V1:
+    
+    - allocate new send/recv buffers for the Final Sync message.
+    
+    - post the Final Sync recv buffer at the beginning of the final iteration of a test.
+    
+    - tests ok on cxgb4 and mlx4 devices.
+    
+    Signed-off-by: Steve Wise <swise@opengridcomputing.com>
+
+commit 9457b7008424131e9c9d08e3dd09ff2becab78fe
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 10 13:07:00 2014 -0800
+
+    Release 2.0.40
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 8d36d4b0250418b0a257f47d40c6ddcfebd6b614
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Feb 9 23:34:43 2014 -0800
+
+    dist: ib collective extension include files missing
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3248d857058e3a1dfd0405adc71ae1002fe947d6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Feb 9 23:24:29 2014 -0800
+
+    dapltest: the quit command is missing changes for -n option.
+    
+    Server-port was not being set properly during param init phase on the client side.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 36beb63db58b79404902c5d55ba518147bdaa5ca
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Feb 9 22:55:17 2014 -0800
+
+    dat.conf: remove v1, add Mellanox Connect-IB and Intel Xeon Phi MIC
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit bf625e3eb450141b7dc924e6d40d83bbb02db354
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 10 13:01:47 2014 -0800
+
+    NULL undefined on Fedora, incorrectly using kernel stddef.h
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ef14daf0585119ba3cae24e7fa0943ff032117ed
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 3 16:05:06 2013 -0700
+
+    Release 2.0.39
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
 commit d398aef3c8bbd4fbadb113a5d8e324153e555cea
 Author: Arlin Davis <arlin.r.davis@intel.com>
 Date:   Thu Oct 3 15:21:08 2013 -0700

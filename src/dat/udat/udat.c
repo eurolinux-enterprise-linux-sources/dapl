@@ -106,7 +106,9 @@ dat_registry_add_provider(IN const DAT_PROVIDER * provider,
 	entry.ref_count = 0;
 	entry.ia_open_func = provider->ia_open_func;
 	entry.info = *provider_info;
-
+#ifdef DAT_EXTENSIONS
+	entry.ia_ext_func = provider->handle_extendedop_func;
+#endif
 	return dat_dr_insert(provider_info, &entry);
 }
 
@@ -210,6 +212,12 @@ dat_ia_openv(IN const DAT_NAME_PTR name,
 				      async_event_handle, ia_handle);
 	if (dat_status == DAT_SUCCESS) {
 		*ia_handle = (DAT_IA_HANDLE) dats_set_ia_handle(*ia_handle);
+	} else {
+		(void)dat_dr_provider_close(&info);
+#ifndef DAT_NO_STATIC_REGISTRY
+		(void)dat_sr_provider_close(&info);
+#endif
+		return dat_status;
 	}
 
 	/*
@@ -399,6 +407,138 @@ DAT_BOOLEAN udat_check_state(void)
 
 	return status;
 }
+
+#ifdef DAT_EXTENSIONS
+
+/***********************************************************************
+ * Function: udat_extension_open - provider name supplied
+ ***********************************************************************/
+DAT_RETURN DAT_API
+udat_extension_open(IN const DAT_NAME_PTR name,
+		    IN DAT_EXTENDED_OP ext_op,
+		    IN va_list args)
+{
+	DAT_HANDLE_EXTENDEDOP_FUNC prov_ext_func;
+	DAT_PROVIDER_INFO info;
+	DAT_OS_SIZE len;
+	DAT_RETURN dat_status;
+
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			 " udat_extenstion_op(%s,%x:%x,%x,%d) called\n",
+			 name, ext_op, DAT_VERSION_MAJOR, DAT_VERSION_MINOR, DAT_THREADSAFE);
+
+	if (UDAT_IS_BAD_POINTER(name)) {
+		return DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG1);
+	}
+
+	len = dat_os_strlen(name);
+
+	if (DAT_NAME_MAX_LENGTH <= len) {
+		return DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG1);
+	}
+
+	if (DAT_FALSE == udat_check_state()) {
+		return DAT_ERROR(DAT_INVALID_STATE, 0);
+	}
+
+	dat_os_strncpy(info.ia_name, name, len + 1);
+
+	info.dapl_version_major = DAT_VERSION_MAJOR;
+	info.dapl_version_minor = DAT_VERSION_MINOR;
+	info.is_thread_safe = DAT_THREADSAFE;
+
+#ifndef DAT_NO_STATIC_REGISTRY
+	(void)dat_sr_provider_open(&info);
+#endif
+	dat_status = dat_dr_provider_open_ext(&info, &prov_ext_func);
+	if (dat_status != DAT_SUCCESS) {
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+				 " DAT Registry: udat_ext_op () provider information "
+				 "for IA name %s not found in dynamic registry\n",
+				 name);
+		return dat_status;
+	}
+	g_dat_extensions = 1;
+	dat_status = (*prov_ext_func) (name, ext_op, args);
+
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			" udat_extension_op () return = 0x%x for IA name %s\n",
+			 dat_status, name);
+
+	if (dat_status != DAT_SUCCESS) {
+		(void)dat_dr_provider_close(&info);
+#ifndef DAT_NO_STATIC_REGISTRY
+		(void)dat_sr_provider_close(&info);
+#endif
+	}
+
+	return dat_status;
+}
+/***********************************************************************
+ * Function: udat_extension_close - provider handle supplied
+ ***********************************************************************/
+DAT_RETURN DAT_API
+udat_extension_close(IN DAT_IA_HANDLE ia_handle,
+		     IN DAT_EXTENDED_OP ext_op,
+		     IN va_list args)
+{
+	DAT_PROVIDER *provider;
+	DAT_PROVIDER_INFO info;
+	DAT_OS_SIZE len;
+	DAT_RETURN dat_status;
+	const char* ia_name;
+
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			 " udat_ext_close_op(ia=%p,op=%x) called\n",
+			 ia_handle, ext_op);
+
+	if (ia_handle == NULL)
+		return DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_IA);
+
+	if (DAT_FALSE == udat_check_state())
+		return DAT_ERROR(DAT_INVALID_STATE, 0);
+
+	provider = DAT_HANDLE_TO_PROVIDER(ia_handle);
+	ia_name = provider->device_name;
+
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			 " udat_ext_close_op(ia=%p,op=%x,name=%s) called\n",
+			 ia_handle, ext_op, ia_name);
+
+	dat_status = (*provider->handle_extendedop_func) (ia_handle, ext_op, args);
+
+	dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+			" udat_extension_op () return = 0x%x for IA name %s\n",
+			 dat_status, ia_name);
+
+	if (dat_status != DAT_SUCCESS)
+		return dat_status;
+
+	len = dat_os_strlen(ia_name);
+	dat_os_assert(len < DAT_NAME_MAX_LENGTH);
+	dat_os_strncpy(info.ia_name, ia_name, len + 1);
+	info.dapl_version_major = DAT_VERSION_MAJOR;
+	info.dapl_version_minor = DAT_VERSION_MINOR;
+	info.is_thread_safe = DAT_THREADSAFE;
+
+	dat_status = dat_dr_provider_close(&info);
+	if (DAT_SUCCESS != dat_status) {
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+				 "udat_ext_close_op: dynamic registry unable to close "
+				 "provider for IA name %s\n", ia_name);
+	}
+
+#ifndef DAT_NO_STATIC_REGISTRY
+	dat_status = dat_sr_provider_close(&info);
+	if (DAT_SUCCESS != dat_status) {
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_CONSUMER_API,
+				 "udat_ext_close_op: static registry unable to close "
+				 "provider for IA name %s\n", ia_name);
+	}
+#endif
+	return dat_status;
+}
+#endif
 
 /*
  * Local variables:

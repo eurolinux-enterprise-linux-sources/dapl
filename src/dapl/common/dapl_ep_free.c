@@ -66,7 +66,7 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 	DAPL_EP *ep_ptr;
 	DAPL_IA *ia_ptr;
 	DAT_EP_PARAM *param;
-	dp_ib_cm_handle_t cm_ptr, next_cm_ptr;
+	dp_ib_cm_handle_t cm_ptr;
 	ib_qp_state_t save_qp_state;
 	DAT_RETURN dat_status = DAT_SUCCESS;
 
@@ -110,29 +110,30 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 	 */
 	(void)dapl_ep_disconnect(ep_ptr, DAT_CLOSE_ABRUPT_FLAG);
 
-	/* Free all CM objects */
-	cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
-		  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
-	while (cm_ptr != NULL) {
-                dapl_log(DAPL_DBG_TYPE_EP,
-			 "dapl_ep_free: Free CM: EP=%p CM=%p\n",
-			 ep_ptr, cm_ptr);
-
-		next_cm_ptr = dapl_llist_next_entry(&ep_ptr->cm_list_head,
-						    &cm_ptr->list_entry);
-		dapls_cm_free(cm_ptr); /* blocking call */
-		cm_ptr = next_cm_ptr;
-	}
-
 	/*
 	 * Do verification of parameters and the state change atomically.
 	 */
 	dapl_os_lock(&ep_ptr->header.lock);
 
+	/* Free all CM objects */
+	cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
+		  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
+
+	while (cm_ptr != NULL) {
+                dapl_log(DAPL_DBG_TYPE_EP,
+			 "dapl_ep_free: Free CM: EP=%p CM=%p\n",
+			 ep_ptr, cm_ptr);
+		dapl_os_unlock(&ep_ptr->header.lock);
+		dapls_cm_free(cm_ptr); /* blocking call */
+		dapl_os_lock(&ep_ptr->header.lock);
+		cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
+			  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
+	}
+
 #ifdef DAPL_DBG
 	/* check if event pending and warn, don't assert, state is valid */
 	if (ep_ptr->param.ep_state == DAT_EP_STATE_DISCONNECT_PENDING) {
-		dapl_dbg_log(DAPL_DBG_TYPE_WARN, " dat_ep_free WARNING: "
+		dapl_dbg_log(DAPL_DBG_TYPE_EP, " dat_ep_free WARNING: "
 			     "EVENT PENDING on ep %p, disconnect "
 			     "and wait before calling dat_ep_free\n", ep_ptr);
 	}
@@ -161,6 +162,11 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 		dapl_os_atomic_dec(&((DAPL_EVD *) param->connect_evd_handle)->
 				   evd_ref_count);
 		param->connect_evd_handle = NULL;
+	}
+	if (param->srq_handle != NULL) {
+		dapl_os_atomic_dec(&((DAPL_SRQ *) param->srq_handle)->
+				   srq_ref_count);
+		param->srq_handle = NULL;
 	}
 
 	/*

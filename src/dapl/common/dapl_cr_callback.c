@@ -366,7 +366,7 @@ dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 		 * requestor that we cant help them.
 		 */
 		ia_ptr = sp_ptr->header.owner_ia;
-		ep_ptr = dapl_ep_alloc(ia_ptr, NULL);
+		ep_ptr = dapl_ep_alloc(ia_ptr, NULL, DAT_FALSE);
 		if (ep_ptr == NULL) {
 			dapls_cr_free(cr_ptr);
 			/* Invoking function will call dapls_ib_cm_reject() */

@@ -154,11 +154,6 @@ dapl_rsp_create(IN DAT_IA_HANDLE ia_handle,
 	 */
 	dapl_os_atomic_inc(&((DAPL_EVD *) evd_handle)->evd_ref_count);
 
-	/*
-	 * Update the EP state indicating the provider now owns it
-	 */
-	ep_ptr->param.ep_state = DAT_EP_STATE_RESERVED;
-
 	/* 
 	 * Set up a listener for a connection. Connections can arrive
 	 * even before this call returns!
@@ -179,8 +174,7 @@ dapl_rsp_create(IN DAT_IA_HANDLE ia_handle,
 			 * wrong!  Decrements the EVD refcount & release it. Set 
 			 * the state to FREE, so we know the call failed.
 			 */
-			dapl_os_atomic_dec(&((DAPL_EVD *) evd_handle)->
-					   evd_ref_count);
+			dapl_os_atomic_dec(&((DAPL_EVD *) evd_handle)->evd_ref_count);
 			sp_ptr->evd_handle = NULL;
 			sp_ptr->state = DAPL_SP_STATE_FREE;
 			dapls_ia_unlink_sp(ia_ptr, sp_ptr);
@@ -198,6 +192,11 @@ dapl_rsp_create(IN DAT_IA_HANDLE ia_handle,
 	 * Return handle to the user
 	 */
 	*rsp_handle = (DAT_RSP_HANDLE) sp_ptr;
+
+	/*
+	 * Update the EP state indicating the provider now owns it
+	 */
+	ep_ptr->param.ep_state = DAT_EP_STATE_RESERVED;
 
       bail:
 	return dat_status;

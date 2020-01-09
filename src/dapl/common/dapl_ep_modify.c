@@ -454,9 +454,8 @@ dapli_ep_modify_validate_parameters(IN DAT_EP_HANDLE ep_handle,
 
 	if (ep_param_mask & DAT_EP_FIELD_RECV_EVD_HANDLE) {
 		if (ep_param->recv_evd_handle != NULL &&
-		    (DAPL_BAD_HANDLE(ep_param->recv_evd_handle, DAPL_MAGIC_EVD)
-		     || !((DAPL_EVD *) ep_param->recv_evd_handle)->
-		     evd_flags & DAT_EVD_DTO_FLAG))
+		    ((DAPL_BAD_HANDLE(ep_param->recv_evd_handle, DAPL_MAGIC_EVD) ||
+		    (((DAPL_EVD *)ep_param->recv_evd_handle)->evd_flags & DAT_EVD_DTO_FLAG)) == 0))
 		{
 			dat_status =
 			    DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG3);

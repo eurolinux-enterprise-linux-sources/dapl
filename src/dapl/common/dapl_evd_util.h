@@ -182,4 +182,9 @@ extern DAT_RETURN dapls_evd_cq_poll_to_event (
 extern void dapls_evd_post_overflow_event (
     IN DAPL_EVD			*evd_ptr);
 
+extern DAT_RETURN dapls_evd_cqe_to_event(
+    IN DAPL_EVD 		*evd_ptr,
+    ib_work_completion_t 	*cqe);
+
+
 #endif

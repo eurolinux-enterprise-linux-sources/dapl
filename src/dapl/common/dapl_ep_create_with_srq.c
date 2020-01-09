@@ -84,6 +84,7 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 	DAT_EP_ATTR ep_attr_limit;
 	DAPL_EVD *evd_ptr;
 	DAT_RETURN dat_status;
+	*ep_handle = NULL;
 
 	dat_status = DAT_SUCCESS;
 	dapl_dbg_log(DAPL_DBG_TYPE_API,
@@ -146,16 +147,6 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 		goto bail;
 	}
 
-	/*
-	 * Verify the SRQ handle. It is an error to invoke this call with
-	 * a NULL handle
-	 */
-	if (DAPL_BAD_HANDLE(srq_handle, DAPL_MAGIC_SRQ)) {
-		dat_status =
-		    DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_SRQ);
-		goto bail;
-	}
-
 	if (ep_handle == NULL) {
 		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG7);
 		goto bail;
@@ -167,14 +158,35 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 	}
 
 	/*
+	 * Verify the SRQ handle. It is an error to invoke this call with
+	 * a NULL handle
+	 */
+	dapl_os_lock(&ia_ptr->header.lock);
+	if (DAPL_BAD_HANDLE(srq_handle, DAPL_MAGIC_SRQ)) {
+		dat_status =
+		    DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_SRQ);
+		dapl_os_unlock(&ia_ptr->header.lock);
+		goto bail;
+	}
+	if (((DAPL_SRQ *) srq_handle)->param.srq_state ==
+						DAT_SRQ_STATE_SHUTDOWN) {
+		dat_status =
+		    DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_SRQ_SHUTDOWN);
+		dapl_os_unlock(&ia_ptr->header.lock);
+		goto bail;
+
+	}
+	dapl_os_atomic_inc(&((DAPL_SRQ *) srq_handle)->srq_ref_count);
+	dapl_os_unlock(&ia_ptr->header.lock);
+
+	/*
 	 * Qualify EP Attributes are legal and make sense.  Note that if one
 	 * or both of the DTO handles are NULL, then the corresponding
 	 * max_*_dtos must 0 as the user will not be able to post dto ops on
 	 * the respective queue.
 	 */
 	if (ep_attr != NULL &&
-	    (ep_attr->service_type != DAT_SERVICE_TYPE_RC ||
-	     (recv_evd_handle == DAT_HANDLE_NULL && ep_attr->max_recv_dtos != 0)
+	    ((recv_evd_handle == DAT_HANDLE_NULL && ep_attr->max_recv_dtos != 0)
 	     || (recv_evd_handle != DAT_HANDLE_NULL
 		 && ep_attr->max_recv_dtos == 0)
 	     || (request_evd_handle == DAT_HANDLE_NULL
@@ -186,6 +198,7 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 		 dapl_ep_check_recv_completion_flags(ep_attr->
 						     recv_completion_flags)))) {
 		dat_status = DAT_INVALID_PARAMETER | DAT_INVALID_ARG6;
+		dapl_os_atomic_dec(&((DAPL_SRQ *) srq_handle)->srq_ref_count);
 		goto bail;
 	}
 
@@ -195,6 +208,7 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 		dat_status = dapls_ib_query_hca(ia_ptr->hca_ptr,
 						NULL, &ep_attr_limit, NULL);
 		if (dat_status != DAT_SUCCESS) {
+			dapl_os_atomic_dec(&((DAPL_SRQ *) srq_handle)->srq_ref_count);
 			goto bail;
 		}
 		if (ep_attr->max_mtu_size > ep_attr_limit.max_mtu_size ||
@@ -209,6 +223,8 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 		    ep_attr_limit.max_rdma_read_out)
 		{
 			dat_status = DAT_INVALID_PARAMETER | DAT_INVALID_ARG6;
+			dapl_os_atomic_dec(&((DAPL_SRQ *) srq_handle)->
+					   srq_ref_count);
 			goto bail;
 		}
 	}
@@ -246,22 +262,12 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 		}
 	}
 
-	dat_status = DAT_NOT_IMPLEMENTED;
-
-	/*
-	 * XXX The rest of the EP code is useful in this case too,
-	 * XXX but need to complete the SRQ implementation before
-	 * XXX committing resources
-	 */
-	*ep_handle = ep_ptr = NULL;
-	goto bail;
-#ifdef notdef
-
 	/* Allocate EP */
-	ep_ptr = dapl_ep_alloc(ia_ptr, ep_attr);
+	ep_ptr = dapl_ep_alloc(ia_ptr, ep_attr, DAT_TRUE);
 	if (ep_ptr == NULL) {
 		dat_status =
 		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+		dapl_os_atomic_dec(&((DAPL_SRQ *) srq_handle)->srq_ref_count);
 		goto bail;
 	}
 
@@ -279,6 +285,7 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 	ep_ptr->param.recv_evd_handle = recv_evd_handle;
 	ep_ptr->param.request_evd_handle = request_evd_handle;
 	ep_ptr->param.connect_evd_handle = connect_evd_handle;
+	ep_ptr->param.srq_handle = srq_handle;
 
 	/*
 	 * Make sure we handle the NULL DTO EVDs
@@ -309,6 +316,8 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 		if (dat_status != DAT_SUCCESS) {
 			dapl_os_atomic_dec(&((DAPL_PZ *) pz_handle)->
 					   pz_ref_count);
+			dapl_os_atomic_dec(&((DAPL_SRQ *) srq_handle)->
+					   srq_ref_count);
 			dapl_ep_dealloc(ep_ptr);
 			goto bail;
 		}
@@ -339,8 +348,6 @@ dapl_ep_create_with_srq(IN DAT_IA_HANDLE ia_handle,
 	dapl_ia_link_ep(ia_ptr, ep_ptr);
 
 	*ep_handle = ep_ptr;
-
-#endif				/* notdef */
 
       bail:
 	return dat_status;

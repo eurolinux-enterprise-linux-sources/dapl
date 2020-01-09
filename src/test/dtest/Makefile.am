@@ -1,9 +1,12 @@
-bin_PROGRAMS = dtest dtestcm
+bin_PROGRAMS = dtest dtestcm dtestsrq
 dtest_SOURCES = dtest.c
 dtest_CFLAGS = -g -Wall -D_GNU_SOURCE 
 
 dtestcm_SOURCES = dtestcm.c
 dtestcm_CFLAGS = -g -Wall -D_GNU_SOURCE 
+
+dtestsrq_SOURCES = dtestsrq.c
+dtestsrq_CFLAGS = -g -Wall -D_GNU_SOURCE 
 
 if EXT_TYPE_IB
 bin_PROGRAMS += dtestx
@@ -15,4 +18,5 @@ endif
 INCLUDES =  -I $(srcdir)/../../dat/include 
 dtest_LDADD = $(top_builddir)/dat/udat/libdat2.la
 dtestcm_LDADD = $(top_builddir)/dat/udat/libdat2.la
+dtestsrq_LDADD = $(top_builddir)/dat/udat/libdat2.la
 

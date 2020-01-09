@@ -108,8 +108,8 @@ dapl_ia_query(IN DAT_IA_HANDLE ia_handle,
 		 * Obtain parameters from the HCA.  Protect against multiple
 		 * IAs beating on the HCA at the same time.
 		 */
-		dat_status =
-		    dapls_ib_query_hca(ia_ptr->hca_ptr, ia_attr, NULL, NULL);
+		dat_status = dapls_ib_query_hca(ia_ptr->hca_ptr,
+						ia_attr, NULL, NULL);
 		if (dat_status != DAT_SUCCESS) {
 			goto bail;
 		}

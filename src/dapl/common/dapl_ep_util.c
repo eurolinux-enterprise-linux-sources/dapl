@@ -104,7 +104,8 @@ char *dapl_get_ep_state_str(DAT_EP_STATE state)
  * 	none
  *
  */
-DAPL_EP *dapl_ep_alloc(IN DAPL_IA * ia_ptr, IN const DAT_EP_ATTR * ep_attr)
+DAPL_EP *dapl_ep_alloc(IN DAPL_IA * ia_ptr, IN const DAT_EP_ATTR * ep_attr,
+		       IN DAT_BOOLEAN using_srq)
 {
 	DAPL_EP *ep_ptr;
 
@@ -172,13 +173,16 @@ DAPL_EP *dapl_ep_alloc(IN DAPL_IA * ia_ptr, IN const DAT_EP_ATTR * ep_attr)
 		goto bail;
 	}
 
-	if (DAT_SUCCESS != dapls_cb_create(&ep_ptr->recv_buffer,
-					   ep_ptr,
-					   ep_ptr->param.ep_attr.max_recv_dtos))
-	{
-		dapl_ep_dealloc(ep_ptr);
-		ep_ptr = NULL;
-		goto bail;
+	/* SRQ case - don't allocate as we use the SRQ recv buffer */
+	if (using_srq == DAT_FALSE) {
+		if (DAT_SUCCESS != dapls_cb_create(&ep_ptr->recv_buffer,
+						   ep_ptr,
+						   ep_ptr->param.ep_attr.max_recv_dtos))
+		{
+			dapl_ep_dealloc(ep_ptr);
+			ep_ptr = NULL;
+			goto bail;
+		}
 	}
 
 	dapls_io_trc_alloc(ep_ptr);
@@ -209,7 +213,8 @@ void dapl_ep_dealloc(IN DAPL_EP * ep_ptr)
 	ep_ptr->header.magic = DAPL_MAGIC_INVALID;	/* reset magic to prevent reuse */
 
 	dapls_cb_free(&ep_ptr->req_buffer);
-	dapls_cb_free(&ep_ptr->recv_buffer);
+	if (ep_ptr->recv_buffer.pool)
+		dapls_cb_free(&ep_ptr->recv_buffer);
 
 	if (NULL != ep_ptr->cxn_timer) {
 		dapl_os_free(ep_ptr->cxn_timer, sizeof(DAPL_OS_TIMER));
@@ -627,8 +632,10 @@ void dapls_ep_flush_cqs(DAPL_EP * ep_ptr)
 	if (ep_ptr->param.request_evd_handle)
 		dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.request_evd_handle);
 	if (ep_ptr->param.recv_evd_handle)
-		while (dapls_cb_pending(&ep_ptr->recv_buffer))
-			dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.recv_evd_handle);
+		if (ep_ptr->recv_buffer.pool)
+			while (dapls_cb_pending(&ep_ptr->recv_buffer))
+				dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.
+							recv_evd_handle);
 }
 
 /*

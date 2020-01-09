@@ -56,6 +56,9 @@ typedef struct
     DAT_COUNT 			ref_count;
     DAT_IA_OPEN_FUNC 		ia_open_func;
     DAT_PROVIDER_INFO 		info;
+#ifdef DAT_EXTENSIONS
+    DAT_HANDLE_EXTENDEDOP_FUNC	ia_ext_func;
+#endif /* DAT_EXTENSIONS */
 } DAT_DR_ENTRY;
 
 
@@ -80,11 +83,17 @@ extern DAT_RETURN
 dat_dr_remove (
     IN  const DAT_PROVIDER_INFO *info );
 
-
 extern DAT_RETURN
 dat_dr_provider_open (
     IN  const DAT_PROVIDER_INFO *info,
     OUT DAT_IA_OPEN_FUNC	*p_ia_open_func );
+
+#ifdef DAT_EXTENSIONS
+extern DAT_RETURN
+dat_dr_provider_open_ext (
+    IN  const DAT_PROVIDER_INFO    *info,
+    OUT DAT_HANDLE_EXTENDEDOP_FUNC *p_ext_func );
+#endif
 
 extern DAT_RETURN
 dat_dr_provider_close (

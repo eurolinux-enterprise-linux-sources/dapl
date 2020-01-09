@@ -34,6 +34,8 @@
 #define RMI_RECV_BUFFER_ID      1
 #define SYNC_SEND_BUFFER_ID     2
 #define SYNC_RECV_BUFFER_ID     3
+#define FINAL_SYNC_SEND_BUFFER_ID     4
+#define FINAL_SYNC_RECV_BUFFER_ID     5
 
 /*
  * The sync buffers are sent to say "Go!" to the other side.
@@ -364,15 +366,15 @@ void DT_Transaction_Main(void *param)
 		 * Adjust default EP attributes to fit the requested test.
 		 * This is simplistic; in that we don't count ops of each
 		 * type and direction, checking EP limits.  We just try to
-		 * be sure the EP's WQs are large enough.  The "+2" is for
-		 * the RemoteMemInfo and Sync receive buffers.
+		 * be sure the EP's WQs are large enough.  The "+3" is for
+		 * the RemoteMemInfo and Start and Final Sync receive buffers.
 		 */
 		ep_attr = pt_ptr->ep_attr;
-		if (ep_attr.max_recv_dtos < test_ptr->cmd->num_ops + 2) {
-			ep_attr.max_recv_dtos = test_ptr->cmd->num_ops + 2;
+		if (ep_attr.max_recv_dtos < test_ptr->cmd->num_ops + 3) {
+			ep_attr.max_recv_dtos = test_ptr->cmd->num_ops + 3;
 		}
-		if (ep_attr.max_request_dtos < test_ptr->cmd->num_ops + 2) {
-			ep_attr.max_request_dtos = test_ptr->cmd->num_ops + 2;
+		if (ep_attr.max_request_dtos < test_ptr->cmd->num_ops + 3) {
+			ep_attr.max_request_dtos = test_ptr->cmd->num_ops + 3;
 		}
 
 		/* Create EP */
@@ -399,7 +401,7 @@ void DT_Transaction_Main(void *param)
 		 */
 		test_ptr->ep_context[i].bp = DT_BpoolAlloc(pt_ptr, phead, test_ptr->ia_handle, test_ptr->pz_handle, test_ptr->ep_context[i].ep_handle, DAT_HANDLE_NULL,	/* rmr */
 							   buff_size,
-							   4,
+							   6,
 							   DAT_OPTIMAL_ALIGNMENT,
 							   false, false);
 		if (!test_ptr->ep_context[i].bp) {
@@ -422,15 +424,25 @@ void DT_Transaction_Main(void *param)
 								 ep_context[i].
 								 bp, 1)));
 		DT_Tdep_PT_Debug(3,
-				 (phead, "2: SYNC_SEND %p\n",
+				 (phead, "2: INITIAL_SYNC_SEND %p\n",
 				  (DAT_PVOID) DT_Bpool_GetBuffer(test_ptr->
 								 ep_context[i].
 								 bp, 2)));
 		DT_Tdep_PT_Debug(3,
-				 (phead, "3: SYNC_RECV %p\n",
+				 (phead, "3: INITIAL_SYNC_RECV %p\n",
 				  (DAT_PVOID) DT_Bpool_GetBuffer(test_ptr->
 								 ep_context[i].
 								 bp, 3)));
+		DT_Tdep_PT_Debug(3,
+				 (phead, "4: FINAL_SYNC_SEND %p\n",
+				  (DAT_PVOID) DT_Bpool_GetBuffer(test_ptr->
+								 ep_context[i].
+								 bp, 4)));
+		DT_Tdep_PT_Debug(3,
+				 (phead, "5: FINAL_SYNC_RECV %p\n",
+				  (DAT_PVOID) DT_Bpool_GetBuffer(test_ptr->
+								 ep_context[i].
+								 bp, 5)));
 
 		/*
 		 * Post recv and sync buffers
@@ -1635,6 +1647,25 @@ DT_Transaction_Run(DT_Tdep_Print_Head * phead, Transaction_Test_t * test_ptr)
 
 		/* repost unless this is the last iteration */
 		repost_recv = (iteration + 1 != test_ptr->cmd->num_iterations);
+		
+		/* 
+		 * If this is the last iteration, then post the Final Sync recv
+		 * buffer.  This makes the buffer available before both sides
+		 * finish their last iteration.
+		 */
+		if (!repost_recv) {
+
+			/* post the Final Sync recv buf. */
+			for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+				if (!DT_post_recv_buffer(phead,
+					 test_ptr->ep_context[i].ep_handle,
+					 test_ptr->ep_context[i].bp,
+					 FINAL_SYNC_RECV_BUFFER_ID, SYNC_BUFF_SIZE)) {
+					/* error message printed by DT_post_recv_buffer */
+					goto bail;
+				}
+			}
+		}
 
 		for (op = 0; op < test_ptr->cmd->num_ops; op++) {
 			ours = (test_ptr->is_server ==
@@ -1798,6 +1829,126 @@ DT_Transaction_Run(DT_Tdep_Print_Head * phead, Transaction_Test_t * test_ptr)
 			}	/* end switch for transfer type */
 		}		/* end loop for each op */
 	}			/* end loop for iteration */
+
+	/*
+	 * Final sync up to ensure all previous remote operations have
+	 * finished.
+	 */
+	if (test_ptr->is_server) {
+		/*
+		 * Server
+		 */
+		DT_Tdep_PT_Debug(1,
+				 (phead,
+				  "Test[" F64x "]: Send Final Sync to Client\n",
+				  test_ptr->base_port));
+		for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+			if (!DT_post_send_buffer(phead,
+						 test_ptr->ep_context[i].
+						 ep_handle,
+						 test_ptr->ep_context[i].bp,
+						 FINAL_SYNC_SEND_BUFFER_ID,
+						 SYNC_BUFF_SIZE)) {
+				DT_Tdep_PT_Debug(1,
+						 (phead,
+						  "Test[" F64x
+						  "]: Server final sync send error\n",
+						  test_ptr->base_port));
+				goto bail;
+			}
+		}
+		for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+			DAT_DTO_COMPLETION_EVENT_DATA dto_stat;
+
+			if (!DT_dto_event_wait(phead,
+					       test_ptr->ep_context[i].
+					       reqt_evd_hdl, &dto_stat)) {
+				DT_Tdep_PT_Debug(1,
+						 (phead,
+						  "Test[" F64x
+						  "]: Server final sync send error\n",
+						  test_ptr->base_port));
+
+				goto bail;
+			}
+		}
+
+		DT_Tdep_PT_Debug(1,
+				 (phead,
+				  "Test[" F64x "]: Wait for Final Sync Message\n",
+				  test_ptr->base_port));
+		for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+			DAT_DTO_COMPLETION_EVENT_DATA dto_stat;
+
+			if (!DT_dto_event_wait(phead,
+					       test_ptr->ep_context[i].
+					       recv_evd_hdl, &dto_stat)) {
+				DT_Tdep_PT_Debug(1,
+						 (phead,
+						  "Test[" F64x
+						  "]: Server final sync recv error\n",
+						  test_ptr->base_port));
+				goto bail;
+			}
+		}
+	} else {
+
+		/*
+		 * Client
+		 */
+		DT_Tdep_PT_Debug(1,
+				 (phead,
+				  "Test[" F64x "]: Wait for Final Sync Message\n",
+				  test_ptr->base_port));
+		DT_transaction_stats_reset_wait_count(phead,
+					       &test_ptr->pt_ptr->
+					       Client_Stats,
+					       test_ptr->cmd->eps_per_thread);
+		for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+			DAT_DTO_COMPLETION_EVENT_DATA dto_stat;
+
+			if (!DT_dto_event_wait(phead,
+					       test_ptr->ep_context[i].
+					       recv_evd_hdl, &dto_stat)) {
+				DT_Tdep_PT_Debug(1,
+						 (phead,
+						  "Test[" F64x
+						  "]: Client final sync recv error\n",
+						  test_ptr->base_port));
+				goto bail;
+			}
+			DT_transaction_stats_set_ready(phead,
+						       &test_ptr->pt_ptr->
+						       Client_Stats);
+		}
+		DT_Tdep_PT_Debug(1,
+				 (phead, "Test[" F64x "]: Send Final Sync Msg\n",
+				  test_ptr->base_port));
+		for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+			if (!DT_post_send_buffer(phead,
+						 test_ptr->ep_context[i].
+						 ep_handle,
+						 test_ptr->ep_context[i].bp,
+						 FINAL_SYNC_SEND_BUFFER_ID,
+						 SYNC_BUFF_SIZE)) {
+				DT_Tdep_PT_Debug(1,
+						 (phead,
+						  "Test[" F64x
+						  "]: Client sync send error\n",
+						  test_ptr->base_port));
+				goto bail;
+			}
+		}
+		for (i = 0; i < test_ptr->cmd->eps_per_thread; i++) {
+			DAT_DTO_COMPLETION_EVENT_DATA dto_stat;
+
+			if (!DT_dto_event_wait(phead,
+					       test_ptr->ep_context[i].
+					       reqt_evd_hdl, &dto_stat)) {
+				goto bail;
+			}
+		}
+	}
 
 	/* end time and print stats */
 	test_ptr->stats.end_time = DT_Mdep_GetTime();

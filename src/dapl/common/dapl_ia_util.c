@@ -528,7 +528,8 @@ void dapli_ia_release_hca(DAPL_HCA * hca_ptr)
 #ifdef DAPL_COUNTERS
 {
 		DAPL_IA *ia = (DAPL_IA *)dapl_llist_peek_head(&hca_ptr->ia_list_head);
-		dapli_stop_counters(ia);
+		if (hca_ptr->ib_hca_handle)
+			dapli_stop_counters(ia);
 		dapl_os_free(ia->cntrs, sizeof(DAT_UINT64) * DCNT_IA_ALL_COUNTERS);
 }
 #endif

@@ -309,7 +309,7 @@ int main(int argc, char **argv)
 		perror("malloc ep");
 		exit(1);
 	}
-	memset(h_ep, 0, (burst * sizeof(DAT_PSP_HANDLE)));
+	memset(h_ep, 0, (connections * sizeof(DAT_EP_HANDLE)));
 	
 	/* allocate PSP handles, check for multi-listens */
 	if (multi_listens)
@@ -533,8 +533,8 @@ complete:
 	if (!server) {
 		printf(" Connections: %8.2lf usec, CPS %7.2lf "
 			"Total %4.2lf secs, poll_cnt=%u, Num=%d\n", 
-		       (double)(ts.conn/connections), 
-		       (double)(1/(ts.conn/1000000/connections)), 
+		       (double)(ts.conn/connections),
+		       (double)(1/(ts.conn/1000000/connections)),
 		       (double)(ts.conn/1000000), 
 		       conn_poll_count, connections);
 	}
@@ -894,7 +894,7 @@ DAT_RETURN disconnect_eps(void)
 	if (!server) {
 		start = get_time();
 		for (i = 0; i < connections; i++) {
-			LOGPRINTF(" dat_ep_disconnect\n");
+			LOGPRINTF(" dat_ep_disconnect[%d]\n",i);
 			ret = dat_ep_disconnect(h_ep[i], 
 						DAT_CLOSE_DEFAULT);
 			if (ret != DAT_SUCCESS) {
@@ -903,7 +903,7 @@ DAT_RETURN disconnect_eps(void)
 						DT_RetToString(ret));
 				return ret;
 			} else {
-				LOGPRINTF(" disconnect completed\n");
+				LOGPRINTF(" disconnect completed[%d]\n", i);
 			}
 		}
 	} else {
@@ -912,7 +912,9 @@ DAT_RETURN disconnect_eps(void)
 
 	LOGPRINTF(" Wait for Disc event, free EPs as completed\n");
 	start = get_time();
+	nmore = 0;
 	for (i = 0; i < connections; i++) {
+		LOGPRINTF(" waiting for disc event %d of %d, nmore = %d\n", i+1, connections, nmore);
 		event.event_number = 0;
 		conn_event->ep_handle = NULL;
 		ret = dat_evd_wait(h_conn_evd, DAT_TIMEOUT_INFINITE, 
@@ -958,6 +960,7 @@ DAT_RETURN disconnect_eps(void)
 	stop = get_time();
 	ts.epf += ((stop - start) * 1.0e6);
 	ts.total += ts.epf;
+	LOGPRINTF(" Successfully disconnected all %d EP's\n", connections);
 	return DAT_SUCCESS;
 }
 

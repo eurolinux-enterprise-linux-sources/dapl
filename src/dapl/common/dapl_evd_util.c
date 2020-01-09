@@ -548,25 +548,12 @@ void dapli_evd_eh_print_cqe(IN ib_work_completion_t * cqe_ptr)
 {
 #ifdef DAPL_DBG
 	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-		     "\t >>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<\n");
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-		     "\t dapl_evd_dto_callback : CQE \n");
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-		     "\t\t work_req_id %lli\n", DAPL_GET_CQE_WRID(cqe_ptr));
-	if (DAPL_GET_CQE_STATUS(cqe_ptr) == 0) {
-		dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-			     "\t\t op_type: %s\n",
-			     DAPL_GET_CQE_OP_STR(cqe_ptr));
-		dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-			     "\t\t bytes_num %d\n",
-			     DAPL_GET_CQE_BYTESNUM(cqe_ptr));
-	}
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-		     "\t\t status %d vendor_err 0x%x\n",
+		     "DTO CQE: WR 0x%llx op %s ln %d stat %d vn 0x%x\n",
+		     DAPL_GET_CQE_WRID(cqe_ptr),
+		     DAPL_GET_CQE_OP_STR(cqe_ptr),
+		     DAPL_GET_CQE_BYTESNUM(cqe_ptr),
 		     DAPL_GET_CQE_STATUS(cqe_ptr),
 		     DAPL_GET_CQE_VENDOR_ERR(cqe_ptr));
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-		     "\t >>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<\n");
 #endif
 	return;
 }
@@ -751,8 +738,8 @@ dapls_evd_post_async_error_event(IN DAPL_EVD * evd_ptr,
 {
 	DAT_EVENT *event_ptr;
 
-	dapl_log(DAPL_DBG_TYPE_WARN,
-		 " WARNING: async event - %s evd=%p/n",
+	dapl_log(DAPL_DBG_TYPE_EXCEPTION,
+		 " async event - %s evd=%p\n",
 		 dapl_event_str(event_number), evd_ptr);
 
 	dapl_os_lock(&evd_ptr->header.lock);
@@ -988,7 +975,7 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 		 * requestor that we cant help them.
 		 */
 		ia_ptr = sp_ptr->header.owner_ia;
-		ep_ptr = dapl_ep_alloc(ia_ptr, NULL);
+		ep_ptr = dapl_ep_alloc(ia_ptr, NULL, DAT_FALSE);
 		if (ep_ptr == NULL) {
 			dapls_cr_free(cr_ptr);
 			goto bail;
@@ -1099,6 +1086,7 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 	DAPL_COOKIE *cookie;
 	DAT_DTO_COMPLETION_STATUS dto_status;
 	DAPL_COOKIE_BUFFER *buffer;
+	DAPL_SRQ *srq_ptr = NULL;
 
 	/*
 	 * All that can be relied on if the status is bad is the status
@@ -1109,6 +1097,7 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 	cookie = (DAPL_COOKIE *) (uintptr_t) DAPL_GET_CQE_WRID(cqe_ptr);
 	dapl_os_assert((NULL != cookie));
 
+	/* In case of RECV SRQ DTO cookie->ep holds pointer to the SRQ */
 	ep_ptr = cookie->ep;
 	dapl_os_assert((NULL != ep_ptr));
 
@@ -1138,8 +1127,13 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 				break;
 			}
 #endif
-
-			if (DAPL_DTO_TYPE_RECV == cookie->val.dto.type)
+			if (DAPL_DTO_TYPE_RECV_SRQ == cookie->val.dto.type) {
+				/* in SRQ event we do NOT have ep pointer */
+				srq_ptr = (DAPL_SRQ *)ep_ptr;
+				buffer = &srq_ptr->recv_buffer;
+				ep_ptr = NULL;
+			}
+			else if (DAPL_DTO_TYPE_RECV == cookie->val.dto.type)
 				buffer = &ep_ptr->recv_buffer;
 			else
 				buffer = &ep_ptr->req_buffer;
@@ -1164,6 +1158,8 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 			}
 
 			dapls_cookie_dealloc(buffer, cookie);
+			if (srq_ptr)
+				dapl_os_atomic_dec(&srq_ptr->recv_count);
 			break;
 		}
 
@@ -1210,6 +1206,36 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 	if ((dto_status != DAT_DTO_SUCCESS) &&
 	    (dto_status != DAT_DTO_ERR_FLUSHED)) {
 		DAPL_EVD *evd_ptr;
+
+		/* In SRQ case we need to look up the EP */
+		if (ep_ptr == NULL) {
+			DAT_UINT32 qp_num = DAPL_GET_CQE_QP_NUM(cqe_ptr);
+			DAPL_IA *ia_ptr = (DAPL_IA *)srq_ptr->param.ia_handle;
+
+			dapl_os_lock(&ia_ptr->header.lock);
+			ep_ptr = (dapl_llist_is_empty(&ia_ptr->ep_list_head)
+				   ? NULL :
+				   dapl_llist_peek_head(&ia_ptr->ep_list_head));
+
+			while (ep_ptr != NULL) {
+				if (ep_ptr->qp_handle->qp->qp_num == qp_num)
+					break;
+
+				ep_ptr =
+				    dapl_llist_next_entry(&ia_ptr->ep_list_head,
+								&ep_ptr->header.
+								ia_list_entry);
+			}
+			dapl_os_unlock(&ia_ptr->header.lock);
+
+			if (ep_ptr == NULL ) {
+				dapl_dbg_log(DAPL_DBG_TYPE_DTO_COMP_ERR,
+					     " SRQ %p at ia %p - "
+					     "EP with qpn %d was not found\n",
+					     srq_ptr, ia_ptr, qp_num);
+				return;
+			}
+		}
 
 		/*
 		 * If we are connected, generate disconnect and generate an
@@ -1342,6 +1368,42 @@ dapls_evd_cq_poll_to_event(IN DAPL_EVD * evd_ptr, OUT DAT_EVENT * event)
 	}
 
 	return dat_status;
+}
+
+/*
+ * dapls_evd_cqe_to_event
+ *
+ * Convert a single CQE into an event
+ *
+ * Input:
+ *	evd ptr
+ *	cq entry ptr
+ *
+ * Output:
+ * 	event
+ *
+ * Returns:
+ * 	Status of operation
+ *
+ */
+DAT_RETURN
+dapls_evd_cqe_to_event(DAPL_EVD * evd_ptr, ib_work_completion_t *cqe)
+{
+	DAT_EVENT *event;
+
+	if (evd_ptr->ib_cq_handle == IB_INVALID_HANDLE) /* nothing to do */
+		return DAT_SUCCESS;
+
+	dapli_evd_eh_print_cqe(cqe); /* For debugging.  */
+
+	event = dapli_evd_get_and_init_event(evd_ptr, DAT_DTO_COMPLETION_EVENT);
+	if (event == NULL)
+		return DAT_QUEUE_FULL;
+
+	dapli_evd_cqe_to_event(evd_ptr, cqe, event);
+	dapli_evd_post_event(evd_ptr, event);
+
+	return DAT_SUCCESS;
 }
 
 #ifdef DAPL_DBG_IO_TRC

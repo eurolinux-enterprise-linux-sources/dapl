@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2008 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2005-2014 Intel Corporation.  All rights reserved.
  *
  * This Software is licensed under one of the following licenses:
  *
@@ -56,6 +56,7 @@ ib_thread_state_t g_ib_thread_state = 0;
 DAPL_OS_THREAD g_ib_thread;
 DAPL_OS_LOCK g_hca_lock;
 struct dapl_llist_entry *g_hca_list;
+char gid_str[INET6_ADDRSTRLEN];
 
 #if defined(_WIN64) || defined(_WIN32)
 #include <rdma\winverbs.h>
@@ -107,9 +108,11 @@ static int dapls_os_init(void)
 
 static void dapls_os_release(void)
 {
-	/* close pipe? */
+	if (g_ib_pipe[0])
+		close(g_ib_pipe[0]);
+	if (g_ib_pipe[1])
+		close(g_ib_pipe[1]);
 }
-
 
 static int dapls_config_fd(int fd)
 {
@@ -147,28 +150,37 @@ static int dapls_thread_signal(void)
 }
 #endif
 
-/* Get IP address using network name, address, or device name */
+
+/* Get IP address using netdev name, address, or hostname
+ *
+ * Verify hostname before getting IP address to avoid name service delays
+ */
 static int getipaddr(char *name, char *addr, int len)
 {
-        struct addrinfo *res;
+        struct addrinfo *res, hint;
+        char hostname[128];
 
-        /* assume netdev for first attempt, then network and address type */
+        /* netdev for first attempt, then IP address, and finally by hostname */
         if (getipaddr_netdev(name, addr, len)) {
-                if (getaddrinfo(name, NULL, NULL, &res)) {
-                        dapl_log(DAPL_DBG_TYPE_ERR,
-                                 " open_hca: getaddr_netdev ERROR:"
-                                 " %s. Is %s configured?\n",
-                                 strerror(errno), name);
-                        return 1;
-                } else {
-                        if (len >= res->ai_addrlen)
-                                memcpy(addr, res->ai_addr, res->ai_addrlen);
-                        else {
-                                freeaddrinfo(res);
-                                return 1;
-                        }
-                        freeaddrinfo(res);
+        	memset(&hint, 0, sizeof hint);
+        	hint.ai_flags = AI_NUMERICHOST;
+
+        	if (getaddrinfo(name, NULL, &hint, &res)) {
+        		if (!gethostname(hostname, sizeof(hostname)) &&
+        		    !strcmp(name, hostname)) {
+        			hint.ai_flags = AI_CANONNAME;
+				if (getaddrinfo(name, NULL, &hint, &res))
+					goto err;
+        		} else
+        			goto err;
                 }
+		if (len >= res->ai_addrlen)
+			memcpy(addr, res->ai_addr, res->ai_addrlen);
+		else {
+			freeaddrinfo(res);
+			return 1;
+		}
+		freeaddrinfo(res);
         }
 
         dapl_dbg_log(
@@ -183,6 +195,11 @@ static int getipaddr(char *name, char *addr, int len)
                  s_addr >> 24 & 0xff);
 
         return 0;
+err:
+	dapl_log(DAPL_DBG_TYPE_ERR,
+		 " open_hca: getaddr_netdev ERROR:%s. Is %s configured?\n",
+		 strerror(errno), name);
+        return 1;
 }
 
 /*
@@ -247,15 +264,31 @@ int32_t dapls_ib_release(void)
  *      dapl_convert_errno
  *
  */
-DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
+DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name,
+			     IN DAPL_HCA * hca_ptr,
+			     IN DAPL_OPEN_FLAGS flags)
 {
 	struct rdma_cm_id *cm_id = NULL;
-	union ibv_gid *gid;
 	int ret;
-	DAT_RETURN dat_status;
+	DAT_RETURN dat_status = DAT_SUCCESS;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: %s - %p\n", hca_name, hca_ptr);
+	dapl_log(DAPL_DBG_TYPE_UTIL, " open_hca: %s %s - %p in %s\n",
+		 PROVIDER_NAME, hca_name, hca_ptr,
+		 flags & DAPL_OPEN_QUERY ? "QUERY MODE":"STD MODE");
+
+	/* HCA name will be hostname or IP address */
+	if (getipaddr((char *)hca_name,
+		      (char *)&hca_ptr->hca_address,
+		      sizeof(DAT_SOCK_ADDR6)))
+		return DAT_INVALID_ADDRESS;
+
+	if (flags & DAPL_OPEN_QUERY) {
+		dapl_log(DAPL_DBG_TYPE_WARN,
+			 " WARNING! open_hca: %s %s - %p in %s\n",
+			 PROVIDER_NAME, hca_name, hca_ptr,
+			 flags & DAPL_OPEN_QUERY ? "QUERY MODE":"");
+		goto done;
+	}
 
 	/* Setup the global cm event channel */
 	dapl_os_lock(&g_hca_lock);
@@ -271,15 +304,6 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 	}
 	dapl_os_unlock(&g_hca_lock);
 
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: RDMA channel created (%p)\n", g_cm_events);
-
-	/* HCA name will be hostname or IP address */
-	if (getipaddr((char *)hca_name,
-		      (char *)&hca_ptr->hca_address, 
-		      sizeof(DAT_SOCK_ADDR6)))
-		return DAT_INVALID_ADDRESS;
-
 	/* cm_id will bind local device/GID based on IP address */
 	if (rdma_create_id(g_cm_events, &cm_id, 
 			   (void *)hca_ptr, RDMA_PS_TCP)) {
@@ -292,7 +316,7 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 		rdma_destroy_id(cm_id);
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " open_hca: rdma_bind ERR %s."
-			 " Is %s configured?\n", strerror(errno), hca_name);
+			 " Is %s configured as IPoIB?\n", strerror(errno), hca_name);
 		return DAT_INVALID_ADDRESS;
 	}
 
@@ -303,13 +327,6 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 	hca_ptr->port_num = cm_id->port_num;
 	hca_ptr->ib_trans.ib_dev = cm_id->verbs->device;
 	hca_ptr->ib_trans.ib_ctx = cm_id->verbs;
-	gid = &cm_id->route.addr.addr.ibaddr.sgid;
-
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: ctx=%p port=%d GID subnet %016llx"
-		     " id %016llx\n", cm_id->verbs, cm_id->port_num,
-		     (unsigned long long)ntohll(gid->global.subnet_prefix),
-		     (unsigned long long)ntohll(gid->global.interface_id));
 
 	/* support for EVD's with CNO's: one channel via thread */
 	hca_ptr->ib_trans.ib_cq =
@@ -327,15 +344,16 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 	}
 
 	/* set inline max with env or default, get local lid and gid 0 */
-	if (hca_ptr->ib_hca_handle->device->transport_type
-	    == IBV_TRANSPORT_IWARP)
-		hca_ptr->ib_trans.max_inline_send =
-		    dapl_os_get_env_val("DAPL_MAX_INLINE",
-					INLINE_SEND_IWARP_DEFAULT);
-	else
-		hca_ptr->ib_trans.max_inline_send =
-		    dapl_os_get_env_val("DAPL_MAX_INLINE",
-					INLINE_SEND_IB_DEFAULT);
+	if (dapl_ib_inline_data(hca_ptr->ib_hca_handle)) {
+		if (hca_ptr->ib_hca_handle->device->transport_type == IBV_TRANSPORT_IWARP)
+			hca_ptr->ib_trans.ib_cm.max_inline =
+			    dapl_os_get_env_val("DAPL_MAX_INLINE",
+						INLINE_SEND_IWARP_DEFAULT);
+		else
+			hca_ptr->ib_trans.ib_cm.max_inline =
+			    dapl_os_get_env_val("DAPL_MAX_INLINE",
+						INLINE_SEND_IB_DEFAULT);
+	}
 
 	/* set CM timer defaults */
 	hca_ptr->ib_trans.max_cm_timeout =
@@ -344,9 +362,6 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 	hca_ptr->ib_trans.max_cm_retries =
 	    dapl_os_get_env_val("DAPL_MAX_CM_RETRIES", IB_CM_RETRIES);
 	
-	/* set default IB MTU */
-	hca_ptr->ib_trans.mtu = dapl_ib_mtu(2048);
-
 	dat_status = dapli_ib_thread_init();
 	if (dat_status != DAT_SUCCESS)
 		return dat_status;
@@ -366,24 +381,21 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 	dapl_os_unlock(&g_hca_lock);
 
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: %s, %s %d.%d.%d.%d INLINE_MAX=%d\n", hca_name,
-		     ((struct sockaddr_in *)
-		     &hca_ptr->hca_address)->sin_family == AF_INET ?
-		     "AF_INET" : "AF_INET6", 
-		     ((struct sockaddr_in *)
-		     &hca_ptr->hca_address)->sin_addr.s_addr >> 0 & 0xff, 
-		     ((struct sockaddr_in *)
-		     &hca_ptr->hca_address)->sin_addr.s_addr >> 8 & 0xff, 
-		     ((struct sockaddr_in *)
-		     &hca_ptr->hca_address)->sin_addr.s_addr >> 16 & 0xff, 
-		     ((struct sockaddr_in *)
-		     &hca_ptr->hca_address)->sin_addr.s_addr >> 24 & 0xff, 
-		     hca_ptr->ib_trans.max_inline_send);
+		     "%s open: dev %s port %d, GID %s, IP %s\n",
+		     PROVIDER_NAME, hca_name, hca_ptr->port_num,
+		     inet_ntop(AF_INET6, &cm_id->route.addr.addr.ibaddr.sgid,
+			       gid_str, sizeof(gid_str)),
+		     inet_ntoa(((struct sockaddr_in *)
+				     &hca_ptr->hca_address)->sin_addr));
 
 #ifdef DAT_IB_COLLECTIVES
 	if (dapli_create_collective_service(hca_ptr))
 		return DAT_INTERNAL_ERROR;
 #endif
+
+done:
+	/* set default IB MTU */
+	hca_ptr->ib_trans.ib_cm.mtu = dapl_ib_mtu(2048);
 
 	return DAT_SUCCESS;
 }
@@ -409,6 +421,9 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p->%p\n",
 		     hca_ptr, hca_ptr->ib_hca_handle);
 
+	if (!g_ib_thread_state) /* thread never started */
+		goto bail;
+
 #ifdef DAT_IB_COLLECTIVES
 	dapli_free_collective_service(hca_ptr);
 #endif
@@ -420,35 +435,36 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 	}
 	dapl_os_unlock(&g_hca_lock);
 
-	/* 
+	/* If HCA is on active hca list
 	 * Remove hca from async event processing list
 	 * Wakeup work thread to remove from polling list
 	 */
-	hca_ptr->ib_trans.destroy = 1;
-	if (dapls_thread_signal() == -1)
-		dapl_log(DAPL_DBG_TYPE_UTIL,
-			 " destroy: thread wakeup error = %s\n",
-			 strerror(errno));
-
-	/* wait for thread to remove HCA references */
-	while (hca_ptr->ib_trans.destroy != 2) {
+	if (hca_ptr->ib_trans.entry.list_head == &g_hca_list) {
+		hca_ptr->ib_trans.destroy = 1;
 		if (dapls_thread_signal() == -1)
 			dapl_log(DAPL_DBG_TYPE_UTIL,
 				 " destroy: thread wakeup error = %s\n",
 				 strerror(errno));
-		dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-			     " ib_thread_destroy: wait on hca %p destroy\n");
-		dapl_os_sleep_usec(1000);
+
+		/* wait for thread to remove HCA references */
+		while (hca_ptr->ib_trans.destroy != 2) {
+			if (dapls_thread_signal() == -1)
+				dapl_log(DAPL_DBG_TYPE_UTIL,
+					 " destroy: thread wakeup error = %s\n",
+					 strerror(errno));
+			dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
+				     " ib_thread_destroy: wait on hca %p destroy\n");
+			dapl_os_sleep_usec(1000);
+		}
 	}
 bail:
-
 	if (hca_ptr->ib_trans.ib_cq)
 		ibv_destroy_comp_channel(hca_ptr->ib_trans.ib_cq);
 
 	if (hca_ptr->ib_trans.ib_cq_empty) {
 		struct ibv_comp_channel *channel;
-		channel = hca_ptr->ib_trans.ib_cq_empty->channel;
-		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty);
+		channel = hca_ptr->ib_trans.ib_cq_empty->cq->channel;
+		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty->cq);
 		ibv_destroy_comp_channel(channel);
 	}
 

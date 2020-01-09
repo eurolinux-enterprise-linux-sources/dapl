@@ -60,36 +60,6 @@ dapl_evd_qp_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 				 IN ib_error_record_t * cause_ptr,
 				 IN void *context)
 {
-	/*
-	 * This is an affiliated error and hence should be able to 
-	 * supply us with exact information on the error type and QP. 
-	 *
-	 * However the Mellanox and IBM APIs for registering this callback 
-	 * are different. 
-	 *
-	 * The IBM API allows consumers to register the callback with 
-	 *
-	 * ib_int32_t 
-	 * ib_set_qp_async_error_eh_us (
-	 *          ib_hca_handle_t         hca_handle,
-	 *          ib_qp_async_handler_t   handler )
-	 *
-	 * Notice that this function does not take a context. The context is 
-	 * specified per QP in the call to ib_qp_create_us().
-	 *
-	 * In contrast the Mellanox API requires that the context be specified 
-	 * when the funciton is registered:
-	 *
-	 * VAPI_ret_t 
-	 * VAPI_set_async_event_handler (
-	 *          IN VAPI_hca_hndl_t              hca_hndl,
-	 *          IN VAPI_async_event_handler_t   handler,
-	 *          IN void*                        private_data )
-	 *
-	 * Therefore we always specify the context as the asyncronous EVD 
-	 * to be compatible with both APIs.
-	 */
-
 	DAPL_IA *ia_ptr;
 	DAPL_EP *ep_ptr;
 	DAPL_EVD *async_evd;
@@ -97,10 +67,10 @@ dapl_evd_qp_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 	DAT_RETURN dat_status;
 
 #ifdef _VENDOR_IBAL_
-	dapl_dbg_log(DAPL_DBG_TYPE_ERR, "%s() IB err %s\n",
+	dapl_dbg_log(DAPL_DBG_TYPE_EXCEPTION, "%s() IB err %s\n",
 		     __FUNCTION__, ib_get_async_event_str(cause_ptr->code));
 #else
-	dapl_dbg_log(DAPL_DBG_TYPE_ERR, "%s() IB async QP err - ctx=%p\n",
+	dapl_dbg_log(DAPL_DBG_TYPE_EXCEPTION, "%s() IB async QP err - ctx=%p\n",
 		     __FUNCTION__, context);
 #endif
 
@@ -115,17 +85,21 @@ dapl_evd_qp_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 	async_evd = (DAPL_EVD *) ia_ptr->async_error_evd;
 	DAPL_CNTR(ia_ptr, DCNT_IA_ASYNC_QP_ERROR);
 
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK | DAPL_DBG_TYPE_EXCEPTION,
-		     "--> %s: ep %p qp %p (%x) state %d\n", __FUNCTION__,
-		     ep_ptr,
-		     ep_ptr->qp_handle, ep_ptr->qpn, ep_ptr->param.ep_state);
+	dapl_log(DAPL_DBG_TYPE_EXCEPTION, " -- %s: ep %p qp %p (%x) state %d\n",
+		 __FUNCTION__,  ep_ptr, ep_ptr->qp_handle,
+		 ep_ptr->qpn, ep_ptr->param.ep_state);
 
 	/*
 	 * Transition to ERROR if we are connected; other states need to
-	 * complete first (e.g. pending states)
+	 * complete first (e.g. pending states) unless it's SRQ LAST_WQE_REACHED
+	 * which is a regular async event in case of disconnect.
 	 */
 	if (ep_ptr->param.ep_state == DAT_EP_STATE_CONNECTED) {
-		ep_ptr->param.ep_state = DAT_EP_STATE_ERROR;
+		if (!ep_ptr->param.srq_handle || cause_ptr->event_type != IBV_EVENT_QP_LAST_WQE_REACHED) {
+			dapl_os_lock(&ep_ptr->header.lock);
+			ep_ptr->param.ep_state = DAT_EP_STATE_ERROR;
+			dapl_os_unlock(&ep_ptr->header.lock);
+		}
 	}
 
 	dapl_os_assert(async_evd != NULL);
@@ -139,8 +113,7 @@ dapl_evd_qp_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 		 */
 		(void)dapls_evd_post_async_error_event(async_evd,
 						       async_event,
-						       async_evd->header.
-						       owner_ia);
+						       (DAT_HANDLE) ep_ptr);
 	}
 	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK | DAPL_DBG_TYPE_EXCEPTION,
 		     "%s() returns\n", __FUNCTION__);

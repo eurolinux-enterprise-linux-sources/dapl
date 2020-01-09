@@ -73,6 +73,7 @@ DAT_RETURN dapls_rbuf_alloc(INOUT DAPL_RING_BUFFER * rbuf, IN DAT_COUNT size)
 	}
 
 	rbuf->base = (void *)dapl_os_alloc(rsize * sizeof(void *));
+	dapl_os_memzero (rbuf->base, rsize * sizeof(void *));
 	if (rbuf->base != NULL) {
 		rbuf->lim = rsize - 1;
 		dapl_os_atomic_set(&rbuf->head, 0);
@@ -193,10 +194,10 @@ DAT_RETURN dapls_rbuf_add(IN DAPL_RING_BUFFER * rbuf, IN void *entry)
 	int pos;
 	int val;
 
-	while (((dapl_os_atomic_read(&rbuf->head) + 1) & rbuf->lim) !=
-	       (dapl_os_atomic_read(&rbuf->tail) & rbuf->lim)) {
+	while ((dapl_os_atomic_read(&rbuf->head) + 1) !=
+	        dapl_os_atomic_read(&rbuf->tail)) {
 		pos = dapl_os_atomic_read(&rbuf->head);
-		val = dapl_os_atomic_assign(&rbuf->head, pos, pos + 1);
+		val = dapl_os_atomic_assign(&rbuf->head, pos, ((pos + 1) & rbuf->lim));
 		if (val == pos) {
 			pos = (pos + 1) & rbuf->lim;	/* verify in range */
 			rbuf->base[pos] = entry;
@@ -205,7 +206,6 @@ DAT_RETURN dapls_rbuf_add(IN DAPL_RING_BUFFER * rbuf, IN void *entry)
 	}
 
 	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
-
 }
 
 /*
@@ -232,16 +232,14 @@ void *dapls_rbuf_remove(IN DAPL_RING_BUFFER * rbuf)
 	while (dapl_os_atomic_read(&rbuf->head) !=
 	       dapl_os_atomic_read(&rbuf->tail)) {
 		pos = dapl_os_atomic_read(&rbuf->tail);
-		val = dapl_os_atomic_assign(&rbuf->tail, pos, pos + 1);
+		val = dapl_os_atomic_assign(&rbuf->tail, pos, ((pos + 1) & rbuf->lim));
 		if (val == pos) {
 			pos = (pos + 1) & rbuf->lim;	/* verify in range */
-
 			return (rbuf->base[pos]);
 		}
 	}
 
 	return NULL;
-
 }
 
 /*

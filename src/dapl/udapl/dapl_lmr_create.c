@@ -108,6 +108,8 @@ dapli_lmr_create_virtual(IN DAPL_IA * ia,
 	reg_desc.for_va = virt_addr;
 	dat_status = DAT_SUCCESS;
 
+	dapl_dbg_log(DAPL_DBG_TYPE_API, "dapl_lmr_create (ia=%p,pz=%p)\n", ia, pz);
+
 	lmr = dapl_lmr_alloc(ia,
 			     DAT_MEM_TYPE_VIRTUAL,
 			     reg_desc, length, (DAT_PZ_HANDLE) pz, privileges);
@@ -122,7 +124,9 @@ dapli_lmr_create_virtual(IN DAPL_IA * ia,
 					  lmr,
 					  virt_addr,
 					  length, privileges, va_type);
-
+#ifdef DAPL_COUNTERS
+	dapl_os_memchk(g_dapl_dbg_mem, "create_mr");
+#endif
 	if (DAT_SUCCESS != dat_status) {
 		dapl_lmr_dealloc(lmr);
 		goto bail;

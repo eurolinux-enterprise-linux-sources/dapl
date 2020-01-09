@@ -95,22 +95,12 @@ typedef struct _ib_hca_transport
 	ib_async_cq_handler_t	async_cq_error;
 	ib_async_dto_handler_t	async_cq;
 	ib_async_qp_handler_t	async_qp_error;
-	int			rd_atom_in;
-	int			rd_atom_out;
 	uint16_t		lid;
-	uint8_t			ack_timer;
-	uint8_t			ack_retry;
-	uint8_t			rnr_timer;
-	uint8_t			rnr_retry;
-	uint8_t			global;
-	uint8_t			hop_limit;
-	uint8_t			tclass;
-	uint8_t			mtu;
-	DAT_NAMED_ATTR		named_attr;
+	ib_cm_attr_t		ib_cm;  /* dev attr for QP and CM */
 	DAPL_SOCKET		scm[2];
-	uint8_t			sl;
-	uint16_t		pkey;
-	int			pkey_idx;
+	uint64_t		guid;
+	char 			guid_str[32];
+	ib_named_attr_t		na;
 #ifdef DAT_IB_COLLECTIVES
 	/* Collective member device and address information */
 	ib_thread_state_t 	coll_thread_state;
@@ -139,6 +129,7 @@ void dapli_cq_event_cb(struct _ib_hca_transport *tp);
 void dapls_cm_acquire(dp_ib_cm_handle_t cm_ptr);
 void dapls_cm_release(dp_ib_cm_handle_t cm_ptr);
 void dapls_cm_free(dp_ib_cm_handle_t cm_ptr);
+DAT_RETURN dapls_ud_cm_free(DAPL_EP *ep_ptr, dp_ib_cm_handle_t cm_ptr);
 
 #ifdef DAPL_COUNTERS
 void dapls_print_cm_list(IN DAPL_IA *ia_ptr);

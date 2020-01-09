@@ -36,7 +36,7 @@ void DT_Limit_Cmd_Init(Limit_Cmd_t * cmd)
 	memset((void *)cmd, 0, sizeof(Limit_Cmd_t));
 	cmd->ReliabilityLevel = DAT_QOS_BEST_EFFORT;
 	cmd->width = 1;
-	cmd->maximum = ~0U;
+	cmd->maximum = 1000;
 	cmd->port = SERVER_PORT_NUMBER;
 }
 
@@ -197,6 +197,7 @@ void DT_Limit_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE:              [-d] : debug (zero)\n");
 	DT_Mdep_printf("USAGE:              [-w <width_of_resource_sets>]\n");
 	DT_Mdep_printf("USAGE:              [-m <maximum_for_exhaustion_tests>]\n");
+	DT_Mdep_printf("USAGE:                  (1000 - Default)\n");
 	DT_Mdep_printf("USAGE:              [-R <service reliability>]\n");
 	DT_Mdep_printf("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
 	DT_Mdep_printf("USAGE:                  (HT == QOS_HIGH_THROUGHPUT)\n");

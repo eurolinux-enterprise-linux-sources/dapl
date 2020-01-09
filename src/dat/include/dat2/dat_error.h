@@ -319,6 +319,7 @@ typedef enum dat_return_subtype
     DAT_INVALID_STATE_SRQ_OPERATIONAL,
     DAT_INVALID_STATE_SRQ_ERROR,
     DAT_INVALID_STATE_SRQ_IN_USE,
+    DAT_INVALID_STATE_SRQ_SHUTDOWN,
 
         /* DAT_LENGTH_ERROR has no subtypes */
 

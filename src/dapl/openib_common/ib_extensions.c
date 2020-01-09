@@ -29,7 +29,10 @@
 #include "dapl_evd_util.h"
 #include "dapl_ib_util.h"
 #include "dapl_ep_util.h"
+#include "dapl_ia_util.h"
 #include "dapl_cookie.h"
+#include "dapl_provider.h"
+
 #include <stdarg.h>
 
 #ifdef DAT_IB_COLLECTIVES
@@ -47,6 +50,14 @@ dapli_post_ext(IN DAT_EP_HANDLE ep_handle,
 	       IN const DAT_RMR_TRIPLET * remote_iov,
 	       IN int op_type,
 	       IN DAT_COMPLETION_FLAGS flags, IN DAT_IB_ADDR_HANDLE * ah);
+
+DAT_RETURN
+dapli_open_query_ext(IN const DAT_NAME_PTR name,
+		     OUT DAT_IA_HANDLE * ia_handle,
+		     IN DAT_IA_ATTR_MASK ia_mask,
+		     OUT DAT_IA_ATTR * ia_attr,
+		     IN DAT_PROVIDER_ATTR_MASK pr_mask,
+		     OUT DAT_PROVIDER_ATTR * pr_attr);
 
 /*
  * dapl_extensions
@@ -68,7 +79,8 @@ dapli_post_ext(IN DAT_EP_HANDLE ep_handle,
  */
 DAT_RETURN
 dapl_extensions(IN DAT_HANDLE dat_handle,
-		IN DAT_EXTENDED_OP ext_op, IN va_list args)
+		IN DAT_EXTENDED_OP ext_op,
+		IN va_list args)
 {
 	DAT_EP_HANDLE ep;
 	DAT_IB_ADDR_HANDLE *ah = NULL;
@@ -86,6 +98,29 @@ dapl_extensions(IN DAT_HANDLE dat_handle,
 		     dat_handle, ext_op);
 
 	switch ((int)ext_op) {
+
+	case DAT_IB_OPEN_QUERY_OP:
+	{
+		dapl_dbg_log(DAPL_DBG_TYPE_RTN,
+			     " OPEN_QUERY extension call\n");
+
+		DAT_IA_HANDLE *ia_handle = va_arg(args, DAT_IA_HANDLE *);
+		DAT_IA_ATTR_MASK ia_mask = va_arg(args, DAT_IA_ATTR_MASK);
+		DAT_IA_ATTR *ia_attr = va_arg(args, DAT_IA_ATTR *);
+		DAT_PROVIDER_ATTR_MASK pr_mask = va_arg(args, DAT_PROVIDER_ATTR_MASK);
+		DAT_PROVIDER_ATTR *pr_attr = va_arg(args, DAT_PROVIDER_ATTR *);
+		DAT_NAME_PTR name = (DAT_NAME_PTR) dat_handle;
+
+		status = dapli_open_query_ext(name, ia_handle, ia_mask,
+					      ia_attr, pr_mask, pr_attr);
+		break;
+	}
+	case DAT_IB_CLOSE_QUERY_OP:
+		dapl_dbg_log(DAPL_DBG_TYPE_RTN,
+			     " CLOSE_QUERY extension call\n");
+
+		status = dapl_ia_close(dat_handle, DAT_CLOSE_ABRUPT_FLAG);
+		break;
 
 	case DAT_IB_RDMA_WRITE_IMMED_OP:
 		dapl_dbg_log(DAPL_DBG_TYPE_RTN,
@@ -153,6 +188,56 @@ dapl_extensions(IN DAT_HANDLE dat_handle,
 					OP_SEND_UD, comp_flags, ah);
 		break;
 
+	case DAT_IB_UD_CM_FREE_OP:
+	{
+		ib_cm_srvc_handle_t cm;
+
+		dapl_dbg_log(DAPL_DBG_TYPE_RTN,
+			     " UD cm_free extension call\n");
+
+		ep = dat_handle;
+		cm = (ib_cm_srvc_handle_t) va_arg(args, DAT_UINT64);
+
+		if (DAPL_BAD_HANDLE(ep, DAPL_MAGIC_EP))
+			status = DAT_ERROR(DAT_INVALID_HANDLE,
+					   DAT_INVALID_HANDLE_EP);
+		else {
+			status = dapls_ud_cm_free(ep, cm);
+		}
+		break;
+	}
+	case DAT_IB_UD_AH_FREE_OP:
+	{
+		DAT_IB_ADDR_HANDLE *dat_ah;
+		uint16_t lid;
+		int ret;
+
+		dapl_dbg_log(DAPL_DBG_TYPE_RTN,
+			     " UD ah_free extension call\n");
+
+		ep = dat_handle;
+		dat_ah = va_arg(args, DAT_IB_ADDR_HANDLE *);
+
+		if (DAPL_BAD_HANDLE(ep, DAPL_MAGIC_EP)) {
+			status = DAT_ERROR(DAT_INVALID_HANDLE,
+					   DAT_INVALID_HANDLE_EP);
+		} else {
+			lid = ntohs(((union dcm_addr *)&dat_ah->ia_addr)->ib.lid);
+
+			if (lid > DCM_AH_SPACE) {
+				status = DAT_ERROR(DAT_INVALID_PARAMETER,
+						   DAT_INVALID_ARG2);
+				break;
+			}
+
+			errno = 0;
+			if (!((DAPL_EP *)ep)->qp_handle->ah[lid])
+				ret = ibv_destroy_ah(dat_ah->ah);
+
+			status = dapl_convert_errno(errno, "destroy_ah");
+		}
+		break;
+	}
 #ifdef DAPL_COUNTERS
 	case DAT_QUERY_COUNTERS_OP:
 		{
@@ -574,3 +659,116 @@ dapls_cqe_to_event_extension(IN DAPL_EP * ep_ptr,
 		break;
 	}
 }
+
+/*
+ * dapli_open_query_ext
+ *
+ *
+ * Direct link to provider for quick provider query without full IA device open
+ *
+ * Input:
+ *	provider name
+ *	ia_attr
+ *	provider_attr
+ *
+ * Output:
+ * 	ia_attr
+ *	provider_attr
+ *
+ * Return Values:
+ * 	DAT_SUCCESS
+ * 	DAT_INSUFFICIENT_RESOURCES
+ * 	DAT_INVALID_PARAMETER
+ * 	DAT_INVALID_HANDLE
+ * 	DAT_PROVIDER_NOT_FOUND	(returned by dat registry if necessary)
+ */
+DAT_RETURN
+dapli_open_query_ext(IN const DAT_NAME_PTR name,
+		     OUT DAT_IA_HANDLE * ia_handle_ptr,
+		     IN DAT_IA_ATTR_MASK ia_mask,
+		     OUT DAT_IA_ATTR * ia_attr,
+		     IN DAT_PROVIDER_ATTR_MASK pr_mask,
+		     OUT DAT_PROVIDER_ATTR * pr_attr)
+{
+	DAT_RETURN dat_status = DAT_SUCCESS;
+	DAT_PROVIDER *provider;
+	DAPL_HCA *hca_ptr = NULL;
+	DAT_IA_HANDLE ia_ptr = NULL;
+
+	dapl_log(DAPL_DBG_TYPE_EXTENSION,
+		 "dapli_open_query_ext (%s, 0x%llx, %p, 0x%x, %p)\n",
+		     name, ia_mask, ia_attr, pr_mask, pr_attr);
+
+	dat_status = dapl_provider_list_search(name, &provider);
+	if (DAT_SUCCESS != dat_status) {
+		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG1);
+		goto bail;
+	}
+
+	/* ia_handle_ptr and async_evd_handle_ptr cannot be NULL */
+	if ((ia_attr == NULL) && (pr_attr == NULL)) {
+		return DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG5);
+	}
+
+	/* initialize the caller's OUT param */
+	*ia_handle_ptr = DAT_HANDLE_NULL;
+
+	/* get the hca_ptr */
+	hca_ptr = (DAPL_HCA *) provider->extension;
+
+	/* log levels could be reset and set between open_query calls  */
+	if (dapl_os_get_env_val("DAPL_DBG_TYPE", 0))
+		g_dapl_dbg_type =  dapl_os_get_env_val("DAPL_DBG_TYPE", 0);
+
+	/*
+	 * Open the HCA if it has not been done before.
+	 */
+	dapl_os_lock(&hca_ptr->lock);
+	if (hca_ptr->ib_hca_handle == IB_INVALID_HANDLE) {
+		/* open in query mode */
+		dat_status = dapls_ib_open_hca(hca_ptr->name,
+					       hca_ptr, DAPL_OPEN_QUERY);
+		if (dat_status != DAT_SUCCESS) {
+			dapl_dbg_log(DAPL_DBG_TYPE_ERR,
+				     "dapls_ib_open_hca failed %x\n",
+				     dat_status);
+			dapl_os_unlock(&hca_ptr->lock);
+			goto bail;
+		}
+	}
+	/* Take a reference on the hca_handle */
+	dapl_os_atomic_inc(&hca_ptr->handle_ref_count);
+	dapl_os_unlock(&hca_ptr->lock);
+
+	/* Allocate and initialize ia structure */
+	ia_ptr = (DAT_IA_HANDLE) dapl_ia_alloc(provider, hca_ptr);
+	if (!ia_ptr) {
+		dat_status = DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+		goto cleanup;
+	}
+
+	dat_status = dapl_ia_query(ia_ptr, NULL, ia_mask, ia_attr, pr_mask, pr_attr);
+	if (dat_status != DAT_SUCCESS) {
+		dapl_dbg_log(DAPL_DBG_TYPE_ERR,
+			     "dapls_ib_query_hca failed %x\n", dat_status);
+		goto cleanup;
+	}
+
+	*ia_handle_ptr = ia_ptr;
+	return DAT_SUCCESS;
+
+cleanup:
+	/* close device and release HCA reference */
+	if (ia_ptr) {
+		dapl_ia_close(ia_ptr, DAT_CLOSE_ABRUPT_FLAG);
+	} else {
+		dapl_os_lock(&hca_ptr->lock);
+		dapls_ib_close_hca(hca_ptr);
+		hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
+		dapl_os_atomic_dec(&hca_ptr->handle_ref_count);
+		dapl_os_unlock(&hca_ptr->lock);
+	}
+bail:
+	return dat_status;
+}
+

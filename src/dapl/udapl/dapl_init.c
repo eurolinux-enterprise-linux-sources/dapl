@@ -47,6 +47,8 @@
 #include "dapl_name_service.h"
 #include "dapl_timer_util.h"
 #include "dapl_vendor.h"
+#include "config.h"
+
 
 /*
  * dapl_init
@@ -72,16 +74,24 @@ void dapl_init(void)
 	/* set up debug type */
 	g_dapl_dbg_type = dapl_os_get_env_val("DAPL_DBG_TYPE",
 					      DAPL_DBG_TYPE_ERR | DAPL_DBG_TYPE_WARN);
+
+	g_dapl_dbg_level = dapl_os_get_env_val("DAPL_DBG_LEVEL", 0);
+
 	/* set up debug destination */
 	g_dapl_dbg_dest = dapl_os_get_env_val("DAPL_DBG_DEST",
 					      DAPL_DBG_DEST_STDOUT);
+
+	g_dapl_dbg_mem = dapl_os_get_env_val("DAPL_DBG_SYS_MEM", 5);
 
 	/* open log file on first logging call if necessary */
 	if (g_dapl_dbg_dest & DAPL_DBG_DEST_SYSLOG)
 		openlog("libdapl", LOG_ODELAY | LOG_PID | LOG_CONS, LOG_USER);
 
-	dapl_log(DAPL_DBG_TYPE_UTIL, "dapl_init: dbg_type=0x%x,dbg_dest=0x%x\n",
-		 g_dapl_dbg_type, g_dapl_dbg_dest);
+	dapl_log(DAPL_DBG_TYPE_UTIL, "dapl_init: dbg_type=%x,dbg_dest=%x,dbg_level=%x\n",
+		 g_dapl_dbg_type, g_dapl_dbg_dest, g_dapl_dbg_level);
+
+	dapl_log(DAPL_DBG_TYPE_VER, " %s dapl-%s-%u,  DAPL_DBG_TYPE 0x%x\n",
+		 PROVIDER_NAME, VERSION, PACKAGE_DATE, g_dapl_dbg_type);
 
 	/* See if the user is on a loopback setup */
 	g_dapl_loopback_connection = dapl_os_get_env_bool("DAPL_LOOPBACK");

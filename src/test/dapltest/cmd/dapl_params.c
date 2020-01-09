@@ -199,6 +199,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
 			params_ptr->ReliabilityLevel =
 			    Quit_Cmd->ReliabilityLevel;
 			params_ptr->debug = Quit_Cmd->debug;
+			params_ptr->server_port = Quit_Cmd->port;
 			DT_NetAddrLookupHostAddress(&params_ptr->server_netaddr,
 						    Quit_Cmd->server_name);
 			break;

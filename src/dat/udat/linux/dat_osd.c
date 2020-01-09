@@ -156,7 +156,7 @@ dat_os_library_load (
     }
     else
     {
-	dat_os_dbg_print (DAT_OS_DBG_TYPE_ERROR,
+	dat_os_dbg_print (DAT_OS_DBG_TYPE_GENERIC,
 			 "DAT: library load failure: %s\n",
 			 dlerror ());
 	return DAT_INTERNAL_ERROR;

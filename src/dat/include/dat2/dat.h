@@ -577,8 +577,9 @@ typedef DAT_UINT64 DAT_EP_PARAM_MASK;
 
 typedef enum dat_srq_state
 {
+    DAT_SRQ_STATE_ERROR,
     DAT_SRQ_STATE_OPERATIONAL,
-    DAT_SRQ_STATE_ERROR
+    DAT_SRQ_STATE_SHUTDOWN
 } DAT_SRQ_STATE;
 
 #define DAT_VALUE_UNKNOWN (((DAT_COUNT) ~0)-1)
@@ -1345,6 +1346,8 @@ extern DAT_RETURN DAT_API dat_srq_set_lw (
 	IN      DAT_COUNT);             /* low_watermark        */
 
 #ifdef DAT_EXTENSIONS
+#define DAT_OPEN_EXTENSION_BASE  0x1000
+#define DAT_CLOSE_EXTENSION_BASE 0x2000
 typedef int	DAT_EXTENDED_OP;
 extern DAT_RETURN DAT_API dat_extension_op(
 	IN	DAT_HANDLE,		/* handle */

@@ -26,13 +26,16 @@
  */
 
 #include "dapl.h"
+#include "dapl_adapter_util.h"
 #if !defined(__KDAPL__)
 #include <stdarg.h>
 #include <stdlib.h>
 #endif				/* __KDAPL__ */
 
+DAPL_DBG_TYPE g_dapl_dbg_level;	/* debug type override */
 DAPL_DBG_TYPE g_dapl_dbg_type;	/* initialized in dapl_init.c */
 DAPL_DBG_DEST g_dapl_dbg_dest;	/* initialized in dapl_init.c */
+int           g_dapl_dbg_mem;	/* initialized in dapl_init.c */
 
 static char *_ptr_host_ = NULL;
 static char _hostname_[128];
@@ -50,15 +53,16 @@ void dapl_internal_dbg_log(DAPL_DBG_TYPE type, const char *fmt, ...)
 		last_t = start_t;
 	}
 
-	if (type & g_dapl_dbg_type) {
+	if ((type & g_dapl_dbg_type) || (type & g_dapl_dbg_level)) {
 		if (DAPL_DBG_DEST_STDOUT & g_dapl_dbg_dest) {
 			dapl_os_get_time(&current_t);
 			delta_t = current_t - last_t;
 			total_t = current_t - start_t;
 			last_t  = current_t;
 			va_start(args, fmt);
-			fprintf(stdout, "%s:%x:%x: %d us(%d us%s): ",
-				_ptr_host_, dapl_os_getpid(), dapl_os_gettid(),
+			fprintf(stdout, "%s:%s:%x:%x: %d us(%d us%s): ",
+				_ptr_host_, PROVIDER_NAME,
+				dapl_os_getpid(), dapl_os_gettid(),
 				total_t, delta_t, delta_t > 500000 ? "!!!":"");
 			dapl_os_vprintf(fmt, args);
 			va_end(args);
@@ -384,6 +388,8 @@ void dapli_stop_counters(DAT_HANDLE dh)
 	if (g_dapl_dbg_type & DAPL_DBG_TYPE_DIAG_ERRS)
 		dapl_stop_diag_cntrs(dh);
 
+	if (g_dapl_dbg_type & DAPL_DBG_TYPE_IA_STATS)
+		dapl_print_counter_str(dh, DCNT_IA_ALL_COUNTERS, 1, "_IA");
 	if (g_dapl_dbg_type & DAPL_DBG_TYPE_CM_STATS)
 		dapl_print_counter_str(dh, DCNT_IA_ALL_COUNTERS, 1, "_CM");
 	else if (g_dapl_dbg_type & DAPL_DBG_TYPE_CM_ERRS)
@@ -636,14 +642,12 @@ void dapl_print_counter_str(DAT_HANDLE dh, int counter, int reset, const char *p
 	int i, max;
 	DAT_UINT64 *p_cntrs;
 	DAT_HANDLE_TYPE type = 0;
-	DAPL_IA *ia = NULL;
 
 	dat_get_handle_type(dh, &type);
 
 	switch (type) {
 	case DAT_HANDLE_TYPE_IA:
 		max = DCNT_IA_ALL_COUNTERS;
-		ia = (DAPL_IA *)dh;
 		p_cntrs = ((DAPL_IA *) dh)->cntrs;
 		break;
 	case DAT_HANDLE_TYPE_EP:

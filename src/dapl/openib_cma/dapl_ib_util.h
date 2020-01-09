@@ -97,7 +97,6 @@ typedef struct _ib_hca_transport
 	struct rdma_cm_id 	*cm_id;
 	struct ibv_comp_channel *ib_cq;
 	ib_cq_handle_t		ib_cq_empty;
-	int			max_inline_send;
 	ib_async_handler_t	async_unafiliated;
 	void			*async_un_ctx;
 	ib_async_cq_handler_t	async_cq_error;
@@ -105,25 +104,13 @@ typedef struct _ib_hca_transport
 	ib_async_qp_handler_t	async_qp_error;
 	uint8_t			max_cm_timeout;
 	uint8_t			max_cm_retries;
-	/* device attributes */
-	int			rd_atom_in;
-	int			rd_atom_out;
 	struct	ibv_context	*ib_ctx;
 	struct	ibv_device	*ib_dev;
 	/* dapls_modify_qp_state */
-	uint16_t		lid;
-	uint8_t			ack_timer;
-	uint8_t			ack_retry;
-	uint8_t			rnr_timer;
-	uint8_t			rnr_retry;
-	uint8_t			global;
-	uint8_t			hop_limit;
-	uint8_t			tclass;
-	uint8_t			mtu;
-	DAT_NAMED_ATTR		named_attr;
-	uint8_t			sl;
-	uint16_t		pkey;
-	int			pkey_idx;
+	ib_cm_attr_t		ib_cm;  /* dev attr for QP and CM */
+	uint64_t		guid;
+	char			guid_str[32];
+	ib_named_attr_t		na;
 #ifdef DAT_IB_COLLECTIVES
 	/* Collective member device and address information */
 	ib_thread_state_t 	coll_thread_state;
@@ -154,6 +141,7 @@ dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep);
 void dapls_cm_acquire(dp_ib_cm_handle_t cm);
 void dapls_cm_release(dp_ib_cm_handle_t cm);
 void dapls_cm_free(dp_ib_cm_handle_t cm_ptr);
+DAT_RETURN dapls_ud_cm_free(DAPL_EP *ep_ptr, dp_ib_cm_handle_t cm_ptr);
 
 #ifdef DAPL_COUNTERS
 STATIC _INLINE_ void dapls_print_cm_list(IN DAPL_IA * ia_ptr)

@@ -63,9 +63,9 @@ dapl_evd_cq_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 	DAPL_EVD *evd;
 	DAT_RETURN dat_status;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK | DAPL_DBG_TYPE_EXCEPTION,
-		     "dapl_evd_cq_async_error_callback (%p, %p, %p, %p)\n",
-		     ib_hca_handle, ib_cq_handle, cause_ptr, context);
+	dapl_log(DAPL_DBG_TYPE_WARN, " -- %s (%p, %p, %p, %p)\n",
+		 __FUNCTION__, ib_hca_handle, ib_cq_handle,
+		 cause_ptr, context);
 
 	if (NULL == context) {
 		dapl_os_panic("NULL == context\n");
@@ -77,9 +77,7 @@ dapl_evd_cq_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 
 	dat_status = dapls_evd_post_async_error_event(async_evd,
 						      DAT_ASYNC_ERROR_EVD_OVERFLOW,
-						      (DAT_IA_HANDLE)
-						      async_evd->header.
-						      owner_ia);
+						      (DAT_HANDLE) evd);
 
 	if (dat_status != DAT_SUCCESS) {
 		dapl_os_panic("async EVD overflow\n");

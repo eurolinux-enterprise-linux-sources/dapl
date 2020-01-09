@@ -90,6 +90,11 @@ dapl_ep_post_recv(IN DAT_EP_HANDLE ep_handle,
 	}
 
 	ep_ptr = (DAPL_EP *) ep_handle;
+	if (ep_ptr->param.srq_handle) {
+		dat_status =
+		    DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_SRQ_IN_USE);
+		goto bail;
+	}
 
 	/*
 	 * Synchronization ok since this buffer is only used for receive

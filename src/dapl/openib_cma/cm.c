@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
- * Copyright (c) 2005-2007 Intel Corporation. All rights reserved.
+ * Copyright (c) 2005-2015 Intel Corporation. All rights reserved.
  * Copyright (c) 2004-2005, Mellanox Technologies, Inc. All rights reserved. 
  * Copyright (c) 2003 Topspin Corporation.  All rights reserved. 
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
@@ -262,6 +262,11 @@ void dapls_cm_free(dp_ib_cm_handle_t conn)
 	dapl_ep_unlink_cm(conn->ep, conn);
 }
 
+DAT_RETURN dapls_ud_cm_free(DAPL_EP *ep_ptr, dp_ib_cm_handle_t cm_ptr)
+{
+	return DAT_NOT_IMPLEMENTED;
+}
+
 static struct dapl_cm_id *dapli_req_recv(struct dapl_cm_id *conn,
 					 struct rdma_cm_event *event)
 {
@@ -290,10 +295,10 @@ static struct dapl_cm_id *dapli_req_recv(struct dapl_cm_id *conn,
 		/* Get requesters connect data, setup for accept */
 		new_conn->params.responder_resources =
 		    DAPL_MIN(event->param.conn.responder_resources,
-			     conn->hca->ib_trans.rd_atom_in);
+			     conn->hca->ib_trans.ib_cm.rd_atom_in);
 		new_conn->params.initiator_depth =
 		    DAPL_MIN(event->param.conn.initiator_depth,
-			     conn->hca->ib_trans.rd_atom_out);
+			     conn->hca->ib_trans.ib_cm.rd_atom_out);
 
 		new_conn->params.flow_control = event->param.conn.flow_control;
 		new_conn->params.rnr_retry_count =
@@ -743,8 +748,7 @@ dapls_ib_setup_conn_listener(IN DAPL_IA * ia_ptr,
 	dapls_cm_acquire(conn);
 
 	/* create CM_ID, bind to local device, create QP */
-	if (rdma_create_id
-	    (g_cm_events, &conn->cm_id, (void *)conn, RDMA_PS_TCP)) {
+	if (rdma_create_id(g_cm_events, &conn->cm_id, (void *)conn, RDMA_PS_TCP)) {
 		dapls_cm_release(conn);
 		return (dapl_convert_errno(errno, "rdma_create_id"));
 	}
@@ -752,7 +756,7 @@ dapls_ib_setup_conn_listener(IN DAPL_IA * ia_ptr,
 	/* open identifies the local device; per DAT specification */
 	/* Get family and address then set port to consumer's ServiceID */
 	dapl_os_memcpy(&addr, &ia_ptr->hca_ptr->hca_address, sizeof(addr));
-	((struct sockaddr_in *)&addr)->sin_port = SID_TO_PORT(ServiceID);
+	addr.sin6_port = SID_TO_PORT(ServiceID);
 
 	if (rdma_bind_addr(conn->cm_id, (struct sockaddr *)&addr)) {
 		if ((errno == EBUSY) || (errno == EADDRINUSE) || 
@@ -1091,7 +1095,7 @@ dapls_ib_cm_remote_addr(IN DAT_HANDLE dat_handle, OUT DAT_SOCK_ADDR6 * raddr)
  */
 int dapls_ib_private_data_size(IN DAPL_HCA * hca_ptr)
 {
-	return RDMA_MAX_PRIVATE_DATA;
+	return IB_MAX_REQ_PDATA_SIZE;
 }
 
 void dapli_cma_event_cb(void)

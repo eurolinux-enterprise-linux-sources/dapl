@@ -82,9 +82,7 @@ dapl_srq_set_lw(IN DAT_SRQ_HANDLE srq_handle, IN DAT_COUNT low_watermark)
 
 	srq_ptr = (DAPL_SRQ *) srq_handle;
 
-	/* XXX Put implementation here XXX */
-
-	/* XXX */ dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
+	dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
 
       bail:
 	return dat_status;

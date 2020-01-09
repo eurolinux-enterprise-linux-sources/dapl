@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2014 Intel Corporation.  All rights reserved.
+ *
  * This Software is licensed under one of the following licenses:
  *
  * 1) under the terms of the "Common Public License 1.0" a copy of which is
@@ -65,6 +67,7 @@ ib_thread_state_t g_ib_thread_state = 0;
 DAPL_OS_THREAD g_ib_thread;
 DAPL_OS_LOCK g_hca_lock;
 struct dapl_llist_entry *g_hca_list;
+char gid_str[INET6_ADDRSTRLEN];
 
 void dapli_thread(void *arg);
 DAT_RETURN  dapli_ib_thread_init(void);
@@ -113,7 +116,10 @@ static int dapls_os_init(void)
 
 static void dapls_os_release(void)
 {
-	/* close pipe? */
+	if (g_ib_pipe[0])
+		close(g_ib_pipe[0]);
+	if (g_ib_pipe[1])
+		close(g_ib_pipe[1]);
 }
 
 static int dapls_config_fd(int fd)
@@ -262,48 +268,49 @@ int32_t dapls_ib_release(void)
  *      dapl_convert_errno
  *
  */
-DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
+DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name,
+			     IN DAPL_HCA * hca_ptr,
+			     IN DAPL_OPEN_FLAGS flags)
 {
 	struct ibv_device **dev_list;
 	struct ibv_port_attr port_attr;
-	int i;
-	DAT_RETURN dat_status;
+	int i, nd = 0;
+	DAT_RETURN dat_status = DAT_SUCCESS;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: %s - %p\n", hca_name, hca_ptr);
+	dapl_log(DAPL_DBG_TYPE_UTIL, " open_hca: %s %s - %p in %s\n",
+		 PROVIDER_NAME, hca_name, hca_ptr,
+		 flags & DAPL_OPEN_QUERY ? "QUERY MODE":"STD MODE");
 
-	/* get the IP address of the device */
-	dat_status = getlocalipaddr((char *)&hca_ptr->hca_address,
-				    sizeof(DAT_SOCK_ADDR6));
-	if (dat_status != DAT_SUCCESS)
-		return dat_status;
+	if (flags & DAPL_OPEN_QUERY) {
+		dapl_log(DAPL_DBG_TYPE_WARN,
+			 " WARNING! open_hca: %s %s - %p in %s\n",
+			 PROVIDER_NAME, hca_name, hca_ptr,
+			 flags & DAPL_OPEN_QUERY ? "QUERY MODE":"");
+	}
 
-#ifdef DAPL_DBG
-	/* DBG: unused port, set process id, lower 16 bits of pid */
-	((struct sockaddr_in *)&hca_ptr->hca_address)->sin_port = 
-					htons((uint16_t)dapl_os_getpid());
-#endif
         /* Get list of all IB devices, find match, open */
-	dev_list = ibv_get_device_list(NULL);
+	dev_list = ibv_get_device_list(&nd);
 	if (!dev_list) {
-		dapl_dbg_log(DAPL_DBG_TYPE_ERR,
-			     " open_hca: ibv_get_device_list() failed\n",
-			     hca_name);
+		dapl_log(DAPL_DBG_TYPE_ERR,
+			 " open_hca: ibv_get_device_list() failed\n",
+			 hca_name);
 		return DAT_INTERNAL_ERROR;
 	}
+	hca_ptr->ib_trans.ib_dev = NULL;
+	for (i = 0; i < nd; ++i) {
+		if (!hca_ptr->ib_trans.guid &&
+		    dev_list[i]->transport_type == IBV_TRANSPORT_IB)
+			hca_ptr->ib_trans.guid = ibv_get_device_guid(dev_list[i]);
 
-	for (i = 0; dev_list[i]; ++i) {
-		hca_ptr->ib_trans.ib_dev = dev_list[i];
-		if (!strcmp(ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
-			    hca_name))
-			goto found;
+		if (!strcmp(dev_list[i]->name, hca_name))
+			hca_ptr->ib_trans.ib_dev = dev_list[i];
+	}
+	if (hca_ptr->ib_trans.ib_dev == NULL) {
+		dapl_log(DAPL_DBG_TYPE_ERR, " open_hca: device %s not found\n", hca_name);
+		dat_status = DAT_PROVIDER_NOT_FOUND;
+		goto err;
 	}
 
-	dapl_log(DAPL_DBG_TYPE_ERR,
-		 " open_hca: device %s not found\n", hca_name);
-	goto err;
-
-found:
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " open_hca: Found dev %s %016llx\n",
 		     ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
 		     (unsigned long long)
@@ -345,25 +352,36 @@ found:
 	}
 
 	/* set RC tunables via enviroment or default */
-	hca_ptr->ib_trans.max_inline_send =
-	    dapl_os_get_env_val("DAPL_MAX_INLINE", INLINE_SEND_DEFAULT);
-	hca_ptr->ib_trans.ack_retry =
+	if (dapl_ib_inline_data(hca_ptr->ib_hca_handle)) {
+		hca_ptr->ib_trans.ib_cm.max_inline =
+			dapl_os_get_env_val("DAPL_MAX_INLINE",
+					    INLINE_SEND_DEFAULT);
+	}
+	hca_ptr->ib_trans.ib_cm.ack_retry =
 	    dapl_os_get_env_val("DAPL_ACK_RETRY", SCM_ACK_RETRY);
-	hca_ptr->ib_trans.ack_timer =
+	hca_ptr->ib_trans.ib_cm.ack_timer =
 	    dapl_os_get_env_val("DAPL_ACK_TIMER", SCM_ACK_TIMER);
-	hca_ptr->ib_trans.rnr_retry =
+	hca_ptr->ib_trans.ib_cm.rnr_retry =
 	    dapl_os_get_env_val("DAPL_RNR_RETRY", SCM_RNR_RETRY);
-	hca_ptr->ib_trans.rnr_timer =
+	hca_ptr->ib_trans.ib_cm.rnr_timer =
 	    dapl_os_get_env_val("DAPL_RNR_TIMER", SCM_RNR_TIMER);
-	hca_ptr->ib_trans.global =
+	hca_ptr->ib_trans.ib_cm.global =
 	    dapl_os_get_env_val("DAPL_GLOBAL_ROUTING", SCM_GLOBAL);
-	hca_ptr->ib_trans.hop_limit =
+	hca_ptr->ib_trans.ib_cm.hop_limit =
 	    dapl_os_get_env_val("DAPL_HOP_LIMIT", SCM_HOP_LIMIT);
-	hca_ptr->ib_trans.tclass =
+	hca_ptr->ib_trans.ib_cm.tclass =
 	    dapl_os_get_env_val("DAPL_TCLASS", SCM_TCLASS);
-	hca_ptr->ib_trans.mtu =
+	hca_ptr->ib_trans.ib_cm.mtu =
 	    dapl_ib_mtu(dapl_os_get_env_val("DAPL_IB_MTU", SCM_IB_MTU));
 
+	if (flags & DAPL_OPEN_QUERY)
+		goto done;
+
+	/* get the IP address of the device */
+	dat_status = getlocalipaddr((char *)&hca_ptr->hca_address,
+				    sizeof(DAT_SOCK_ADDR6));
+	if (dat_status != DAT_SUCCESS)
+		return dat_status;
 
 	/* EVD events without direct CQ channels, CNO support */
 	hca_ptr->ib_trans.ib_cq =
@@ -432,31 +450,29 @@ found:
 		dapl_os_sleep_usec(1000);
 	}
 
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: devname %s, port %d, hostname_IP %s\n",
-		     ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
-		     hca_ptr->port_num, inet_ntoa(((struct sockaddr_in *)
-						   &hca_ptr->hca_address)->
-						  sin_addr));
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-		     " open_hca: LID 0x%x GID Subnet 0x" F64x " ID 0x" F64x
-		     "\n", ntohs(hca_ptr->ib_trans.lid), (unsigned long long)
-		     htonll(hca_ptr->ib_trans.gid.global.subnet_prefix),
-		     (unsigned long long)htonll(hca_ptr->ib_trans.gid.global.
-						interface_id));
-
 #ifdef DAT_IB_COLLECTIVES
 	if (dapli_create_collective_service(hca_ptr))
 		goto bail;
 #endif
 
+done:
+	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
+		     "%s open: dev %s port %d, GID %s, IP %s\n",
+		     PROVIDER_NAME, hca_name, hca_ptr->port_num,
+		     inet_ntop(AF_INET6, &hca_ptr->ib_trans.gid,
+				     gid_str, sizeof(gid_str)),
+		     inet_ntoa(((struct sockaddr_in *)
+				     &hca_ptr->hca_address)->sin_addr));
+
 	ibv_free_device_list(dev_list);
 	return dat_status;
 
-      bail:
+bail:
 	ibv_close_device(hca_ptr->ib_hca_handle);
 	hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
-      err:
+	hca_ptr->ib_trans.ib_dev = NULL;
+	hca_ptr->ib_trans.ib_ctx = NULL;
+err:
 	ibv_free_device_list(dev_list);
 	return DAT_INTERNAL_ERROR;
 }
@@ -479,12 +495,15 @@ found:
  */
 DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 {
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p\n", hca_ptr);
+	dapl_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p thread_state %d\n",
+		 hca_ptr, g_ib_thread_state);
+
+	if (!g_ib_thread_state) /* thread never started */
+		goto out;
 
 #ifdef DAT_IB_COLLECTIVES
-		dapli_free_collective_service(hca_ptr);
+	dapli_free_collective_service(hca_ptr);
 #endif
-
 	dapl_os_lock(&g_hca_lock);
 	if (g_ib_thread_state != IB_THREAD_RUN) {
 		dapl_os_unlock(&g_hca_lock);
@@ -493,34 +512,38 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 	dapl_os_unlock(&g_hca_lock);
 
 	/* destroy cr_thread and lock */
-	hca_ptr->ib_trans.cr_state = IB_THREAD_CANCEL;
-	send(hca_ptr->ib_trans.scm[1], "w", sizeof "w", 0);
-	while (hca_ptr->ib_trans.cr_state != IB_THREAD_EXIT) {
-		dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
-			     " close_hca: waiting for cr_thread\n");
+	if (hca_ptr->ib_trans.cr_state == IB_THREAD_RUN) {
+		hca_ptr->ib_trans.cr_state = IB_THREAD_CANCEL;
 		send(hca_ptr->ib_trans.scm[1], "w", sizeof "w", 0);
-		dapl_os_sleep_usec(1000);
+		while (hca_ptr->ib_trans.cr_state != IB_THREAD_EXIT) {
+			dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
+				     " close_hca: waiting for cr_thread\n");
+			send(hca_ptr->ib_trans.scm[1], "w", sizeof "w", 0);
+			dapl_os_sleep_usec(1000);
+		}
+		dapl_os_lock_destroy(&hca_ptr->ib_trans.lock);
+		destroy_cr_pipe(hca_ptr); /* no longer need pipe */
 	}
-	dapl_os_lock_destroy(&hca_ptr->ib_trans.lock);
-	destroy_cr_pipe(hca_ptr); /* no longer need pipe */
 	
-	/* 
+	/* HCA on active list:
 	 * Remove hca from async event processing list
 	 * Wakeup work thread to remove from polling list
 	 */
-	hca_ptr->ib_trans.destroy = 1;
-	if (dapls_thread_signal() == -1)
-		dapl_log(DAPL_DBG_TYPE_UTIL,
-			 " destroy: thread wakeup error = %s\n",
-			 strerror(errno));
-
-	/* wait for thread to remove HCA references */
-	while (hca_ptr->ib_trans.destroy != 2) {
+	if (hca_ptr->ib_trans.entry.list_head == &g_hca_list) {
+		hca_ptr->ib_trans.destroy = 1;
 		if (dapls_thread_signal() == -1)
 			dapl_log(DAPL_DBG_TYPE_UTIL,
 				 " destroy: thread wakeup error = %s\n",
 				 strerror(errno));
-		dapl_os_sleep_usec(1000);
+
+		/* wait for thread to remove HCA references */
+		while (hca_ptr->ib_trans.destroy != 2) {
+			if (dapls_thread_signal() == -1)
+				dapl_log(DAPL_DBG_TYPE_UTIL,
+					 " destroy: thread wakeup error = %s\n",
+					 strerror(errno));
+			dapl_os_sleep_usec(1000);
+		}
 	}
 
 out:
@@ -529,8 +552,8 @@ out:
 
 	if (hca_ptr->ib_trans.ib_cq_empty) {
 		struct ibv_comp_channel *channel;
-		channel = hca_ptr->ib_trans.ib_cq_empty->channel;
-		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty);
+		channel = hca_ptr->ib_trans.ib_cq_empty->cq->channel;
+		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty->cq);
 		ibv_destroy_comp_channel(channel);
 	}
 

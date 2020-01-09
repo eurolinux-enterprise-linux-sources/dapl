@@ -103,7 +103,7 @@ void DT_Tdep_PT_Printf(DT_Tdep_Print_Head * phead, const char *fmt, ...)
 	vsprintf(buffer, fmt, args);
 	va_end(args);
 
-	printf(buffer);
+	printf("%s", buffer);
 }
 
 DAT_RETURN DT_Tdep_evd_dequeue(DAT_EVD_HANDLE evd_handle, DAT_EVENT * event)

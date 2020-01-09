@@ -63,10 +63,6 @@ dapl_evd_un_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 	DAT_EVENT_NUMBER async_event;
 	DAT_RETURN dat_status;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK | DAPL_DBG_TYPE_EXCEPTION,
-		     "dapl_evd_un_async_error_callback (%p, %p, %p)\n",
-		     ib_hca_handle, cause_ptr, context);
-
 	if (NULL == context) {
 		dapl_os_panic("NULL == context\n");
 		return;
@@ -87,6 +83,4 @@ dapl_evd_un_async_error_callback(IN ib_hca_handle_t ib_hca_handle,
 						 async_event,
 						 async_evd->header.owner_ia);
 	}
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK | DAPL_DBG_TYPE_EXCEPTION,
-		     "dapl_evd_un_async_error_callback () returns\n");
 }

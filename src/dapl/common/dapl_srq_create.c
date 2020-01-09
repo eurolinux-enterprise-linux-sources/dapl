@@ -93,13 +93,7 @@ dapl_srq_create(IN DAT_IA_HANDLE ia_handle,
 
 	DAPL_CNTR(ia_ptr, DCNT_IA_SRQ_CREATE);
 
-	/*
-	 * Verify non-required parameters.
-	 * N.B. Assumption: any parameter that can be
-	 *      modified by dat_ep_modify() is not strictly
-	 *      required when the EP is created
-	 */
-	if (pz_handle != NULL && DAPL_BAD_HANDLE(pz_handle, DAPL_MAGIC_PZ)) {
+	if (DAPL_BAD_HANDLE(pz_handle, DAPL_MAGIC_PZ)) {
 		dat_status =
 		    DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_PZ);
 		goto bail;
@@ -114,10 +108,6 @@ dapl_srq_create(IN DAT_IA_HANDLE ia_handle,
 		goto bail;
 	}
 
-	/* SRQ provider not implemented */
-	dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
-	goto bail;
-
 	/* Allocate SRQ */
 	srq_ptr = dapl_srq_alloc(ia_ptr, srq_attr);
 	if (srq_ptr == NULL) {
@@ -127,17 +117,24 @@ dapl_srq_create(IN DAT_IA_HANDLE ia_handle,
 	}
 
 	srq_ptr->param.ia_handle = (DAT_IA_HANDLE) ia_ptr;
-	srq_ptr->param.srq_state = DAT_SRQ_STATE_OPERATIONAL;
 	srq_ptr->param.pz_handle = pz_handle;
 
 	/*
-	 * XXX Allocate provider resource here!!!
+	 * Get a SRQ from the IB provider
 	 */
+	dat_status = dapls_ib_srq_alloc(srq_ptr);
+	if (dat_status != DAT_SUCCESS) {
+		dapl_srq_dealloc(srq_ptr);
+		goto bail;
+	}
 
 	/* Link it onto the IA */
 	dapl_ia_link_srq(ia_ptr, srq_ptr);
 
 	*srq_handle = srq_ptr;
+
+	/* Ready */
+	srq_ptr->param.srq_state = DAT_SRQ_STATE_OPERATIONAL;
 
       bail:
 	return dat_status;

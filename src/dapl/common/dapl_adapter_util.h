@@ -50,6 +50,12 @@ typedef enum async_handler_type
 	DAPL_ASYNC_QP_ERROR
 } DAPL_ASYNC_HANDLER_TYPE;
 
+typedef enum dapl_open_flags
+{
+        DAPL_OPEN_NORMAL,
+        DAPL_OPEN_QUERY
+} DAPL_OPEN_FLAGS;
+
 
 int dapls_ib_init (void);
 
@@ -66,7 +72,8 @@ DAT_RETURN dapls_ib_get_instance_data(
 
 DAT_RETURN dapls_ib_open_hca (
 	IN   char	               *namestr,
-	IN   DAPL_HCA		       *hca_ptr);
+	IN   DAPL_HCA		       *hca_ptr,
+	IN   DAPL_OPEN_FLAGS		flags);
 
 DAT_RETURN dapls_ib_close_hca (
 	IN   DAPL_HCA		       *hca_ptr);
@@ -255,6 +262,19 @@ DAT_RETURN
 dapls_evd_dto_wait (
 	IN DAPL_EVD			*evd_ptr,
 	IN uint32_t 			timeout);
+
+DAT_RETURN
+dapls_ib_srq_alloc (
+	IN DAPL_SRQ 			*srq_ptr);
+
+DAT_RETURN
+dapls_ib_srq_free (
+	IN DAPL_SRQ 			*srq_ptr);
+
+DAT_RETURN
+dapls_ib_srq_resize(
+	IN DAPL_SRQ 			*srq_ptr,
+	IN uint32_t 			new_max_wr);
 
 #ifdef DAT_EXTENSIONS
 void

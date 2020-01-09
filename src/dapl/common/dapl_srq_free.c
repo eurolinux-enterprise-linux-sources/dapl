@@ -72,6 +72,16 @@ DAT_RETURN DAT_API dapl_srq_free(IN DAT_SRQ_HANDLE srq_handle)
 
 	srq_ptr = (DAPL_SRQ *) srq_handle;
 	param = &srq_ptr->param;
+	ia_ptr = srq_ptr->header.owner_ia;
+
+	/*
+	 * Verify parameters
+	 */
+	if (DAPL_BAD_HANDLE(ia_ptr, DAPL_MAGIC_IA)) {
+		dat_status =
+		    DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_IA);
+		goto bail;
+	}
 
 	/*
 	 * Verify parameter & state
@@ -82,6 +92,7 @@ DAT_RETURN DAT_API dapl_srq_free(IN DAT_SRQ_HANDLE srq_handle)
 		goto bail;
 	}
 
+	dapl_os_lock(&ia_ptr->header.lock);
 	if (dapl_os_atomic_read(&srq_ptr->srq_ref_count) != 0) {
 		/*
 		 * The DAPL 1.2 spec says to return DAT_SRQ_IN_USE, which does
@@ -89,32 +100,17 @@ DAT_RETURN DAT_API dapl_srq_free(IN DAT_SRQ_HANDLE srq_handle)
 		 */
 		dat_status =
 		    DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_SRQ_IN_USE);
+		dapl_os_unlock(&ia_ptr->header.lock);
 		goto bail;
 	}
-
-	ia_ptr = srq_ptr->header.owner_ia;
+	param->srq_state = DAT_SRQ_STATE_SHUTDOWN;
+	dapl_os_unlock(&ia_ptr->header.lock);
 
 	DAPL_CNTR(ia_ptr, DCNT_IA_SRQ_FREE);
 
-	/*
-	 * Do verification of parameters and the state change atomically.
-	 */
-	dapl_os_lock(&srq_ptr->header.lock);
+	dapl_ia_unlink_srq(srq_ptr->header.owner_ia, srq_ptr);
 
-	/* Remove the SRQ from the IA */
-	dapl_ia_unlink_srq(ia_ptr, srq_ptr);
-
-	dapl_os_unlock(&srq_ptr->header.lock);
-
-	/*
-	 * Finish tearing everything down.
-	 */
-
-	/*
-	 * Take care of the transport resource
-	 */
-
-	/* XXX Put provider code here!!! */
+	dapls_ib_srq_free(srq_ptr);
 
 	/* Free the resource */
 	dapl_srq_dealloc(srq_ptr);

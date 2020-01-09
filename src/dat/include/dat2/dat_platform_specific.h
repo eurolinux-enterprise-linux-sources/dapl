@@ -148,7 +148,8 @@ typedef DAT_UINT64		DAT_PADDR;
 #include <linux/types.h>
 #else
 #include <sys/types.h>
-#include <linux/stddef.h>
+#include <stddef.h>
+#include <stdio.h>
 #endif /* defined(__KERNEL__) */
 
 typedef u_int32_t               DAT_UINT32;	/* unsigned host order, 32 bits */

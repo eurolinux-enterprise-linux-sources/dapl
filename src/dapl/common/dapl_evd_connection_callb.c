@@ -153,8 +153,8 @@ dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 							DAPL_MAX_PRIVATE_DATA_SIZE));
 
 			dapl_dbg_log(DAPL_DBG_TYPE_CM | DAPL_DBG_TYPE_CALLBACK,
-				     "dapl_evd_connection_callback PEER REJ pd=%p sz=%d\n",
-				     prd_ptr, private_data_size);
+				     "dapl_evd_connection_callback PEER REJ ep=%p pd=%p sz=%d\n",
+				     ep_ptr, prd_ptr, private_data_size);
 		}
 	case DAT_CONNECTION_EVENT_DISCONNECTED:
 	case DAT_CONNECTION_EVENT_UNREACHABLE:

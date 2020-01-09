@@ -84,7 +84,6 @@ DAPL_SRQ *dapl_srq_alloc(IN DAPL_IA * ia_ptr, IN const DAT_SRQ_ATTR * srq_attr)
 
 	/*
 	 * Initialize the body. 
-	 * XXX Assume srq_attrs is required
 	 */
 	srq_ptr->param.max_recv_dtos = srq_attr->max_recv_dtos;
 	srq_ptr->param.max_recv_iov = srq_attr->max_recv_iov;
@@ -122,7 +121,6 @@ void dapl_srq_dealloc(IN DAPL_SRQ * srq_ptr)
 	dapl_os_assert(srq_ptr->header.magic == DAPL_MAGIC_SRQ);
 
 	srq_ptr->header.magic = DAPL_MAGIC_INVALID;	/* reset magic to prevent reuse */
-	dapl_ia_unlink_srq(srq_ptr->header.owner_ia, srq_ptr);
 	dapls_cb_free(&srq_ptr->recv_buffer);
 	dapl_os_lock_destroy(&srq_ptr->header.lock);
 

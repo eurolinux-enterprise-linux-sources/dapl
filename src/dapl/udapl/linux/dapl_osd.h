@@ -49,7 +49,9 @@
 #error UNDEFINED OS TYPE
 #endif /* __linux__ */
 
-#if !defined (__i386__) && !defined (__ia64__) && !defined(__x86_64__) && !defined(__PPC__) && !defined(__PPC64__)
+#if !defined (__i386__) && !defined (__ia64__) && !defined(__x86_64__) && \
+    !defined(__PPC__) && !defined(__PPC64__) && !defined(__s390x__) && \
+    !defined(__aarch64__)
 #error UNDEFINED ARCH
 #endif
 
@@ -90,6 +92,7 @@
 #include <signal.h>
 #include <netinet/tcp.h>
 #include <sys/utsname.h>
+#include <sys/sysinfo.h>
 #include <fcntl.h>
 
 #if !defined(SUSE_11) && !defined(REDHAT_EL5) && defined(__ia64__)
@@ -157,6 +160,23 @@ int dapl_os_get_env_val (
 
 /* atomic functions */
 
+#ifdef __s390x__
+#define DAPL_CS_ADD(ptr, op_val) ({			\
+	int old_val, new_val;				\
+	__asm__ __volatile__(				\
+		"	l	%0,%2\n"		\
+		"0:	lr	%1,%0\n"		\
+		"	ar	%1,%3\n"		\
+		"	cs	%0,%1,%2\n"		\
+		"	jl	0b"			\
+		: "=&d" (old_val), "=&d" (new_val),	\
+		  "=Q" (*ptr)				\
+		: "d" (op_val), "Q" (*ptr)		\
+		: "cc", "memory");			\
+	new_val;					\
+})
+#endif
+
 /* dapl_os_atomic_inc
  *
  * get the current value of '*v', and then increment it.
@@ -179,6 +199,11 @@ dapl_os_atomic_inc (
 #else
 	IA64_FETCHADD(old_value,v,1,4);
 #endif
+#elif defined(__s390x__)
+	DAT_COUNT	tmp;
+	DAT_COUNT	delta = 1;
+
+	tmp = DAPL_CS_ADD(v, delta);
 #elif defined(__PPC__) || defined(__PPC64__)
 	int tmp;
 
@@ -190,6 +215,8 @@ dapl_os_atomic_inc (
 	: "=&r" (tmp), "+m" (v)
 	: "b" (v)
 	: "cc");
+#elif defined(__aarch64__)
+    __atomic_fetch_add(v, 1, __ATOMIC_ACQ_REL);
 #else  /* !__ia64__ */
     __asm__ __volatile__ (
 	"lock;" "incl %0"
@@ -218,6 +245,11 @@ dapl_os_atomic_dec (
 #else
 	IA64_FETCHADD(old_value,v,-1,4);
 #endif
+#elif defined(__s390x__)
+	DAT_COUNT	tmp;
+	DAT_COUNT	delta = -1;
+
+	tmp = DAPL_CS_ADD(v, delta);
 #elif defined (__PPC__) || defined(__PPC64__)
 	int tmp;
 
@@ -229,6 +261,8 @@ dapl_os_atomic_dec (
 	: "=&r" (tmp), "+m" (v)
 	: "b" (v)
 	: "cc");
+#elif defined(__aarch64__)
+    __atomic_fetch_add(v, -1, __ATOMIC_ACQ_REL);
 #else  /* !__ia64__ */
     __asm__ __volatile__ (
 	"lock;" "decl %0"
@@ -273,6 +307,13 @@ dapl_os_atomic_assign (
 #else
     current_value = ia64_cmpxchg(acq,v,match_value,new_value,4);
 #endif /* __ia64__ */
+#elif defined(__s390x__)
+	__asm__ __volatile__(
+		"	cs	%0,%2,%1\n"
+		: "+d" (match_value), "=Q" (*v)
+		: "d" (new_value), "Q" (*v)
+		: "cc", "memory");
+	current_value = match_value;
 #elif defined(__PPC__) || defined(__PPC64__)
         __asm__ __volatile__ (
 "       lwsync\n\
@@ -286,6 +327,10 @@ dapl_os_atomic_assign (
         : "=&r" (current_value), "=m" (*v)
         : "r" (v), "r" (match_value), "r" (new_value), "m" (*v)
         : "cc", "memory");
+#elif defined(__aarch64__)
+    current_value = match_value;
+    __atomic_compare_exchange_n(v, &current_value, new_value, 1,
+				__ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
 #else
     __asm__ __volatile__ (
         "lock; cmpxchgl %1, %2"
@@ -434,6 +479,8 @@ dapl_os_wait_object_destroy (
  * Memory Functions
  */
 
+STATIC _INLINE_ void dapl_os_memchk(int percent, const char *txt);
+
 /* function prototypes */
 STATIC _INLINE_ void *dapl_os_alloc (int size);
 
@@ -448,10 +495,29 @@ STATIC _INLINE_ void * dapl_os_memcpy (void *dest, const void *src, int len);
 STATIC _INLINE_ int dapl_os_memcmp (const void *mem1, const void *mem2, int len);
 
 /* memory functions */
+STATIC _INLINE_ void dapl_os_memchk(int percent, const char *txt)
+{
+	struct sysinfo si;
+	double mfree, threshold = (double)percent/100;
 
+	sysinfo(&si);
+	mfree = si.freeram + si.sharedram + si.bufferram;
+
+	if (mfree/(double)si.totalram < threshold) {
+		dapl_log(DAPL_DBG_TYPE_SYS_WARN,
+			 " WARNING: LOW MEMORY: %s (Free %d Share %d, Bufs %d)"
+			 " < %2.2f percent of total (%d MB) memory\n",
+			 txt, si.freeram/(1024*1024), si.sharedram/(1024*1024),
+			 si.bufferram/(1024*1024), si.totalram/(1024*1024),
+			 (mfree/(double)si.totalram)*100);
+	}
+}
 
 STATIC _INLINE_ void *dapl_os_alloc (int size)
 {
+#ifdef DAPL_COUNTERS
+    dapl_os_memchk(g_dapl_dbg_mem, "malloc");
+#endif
     return malloc (size);
 }
 

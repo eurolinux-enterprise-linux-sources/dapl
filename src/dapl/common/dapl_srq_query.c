@@ -84,11 +84,9 @@ dapl_srq_query(IN DAT_SRQ_HANDLE srq_handle,
 
 	srq_ptr = (DAPL_SRQ *) srq_handle;
 
-	/*
-	 * XXX Need to calculate available_dto_count and outstanding_dto_count
-	 */
 	srq_ptr->param.available_dto_count = DAT_VALUE_UNKNOWN;
-	srq_ptr->param.outstanding_dto_count = DAT_VALUE_UNKNOWN;
+	srq_ptr->param.outstanding_dto_count =
+				dapl_os_atomic_read(&srq_ptr->recv_count);
 
 	*srq_param = srq_ptr->param;
 	dats_get_ia_handle(srq_ptr->header.owner_ia, &srq_param->ia_handle);

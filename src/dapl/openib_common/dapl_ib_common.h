@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2009-2015 Intel Corporation.  All rights reserved.
  *
  * This Software is licensed under one of the following licenses:
  *
@@ -43,26 +43,73 @@
 #define true  1
 #endif /*__cplusplus */
 
+#define DCM_AH_SPACE (0xC000) /* unicast LID range */
+
 /* Typedefs to map common DAPL provider types to IB verbs */
-typedef	struct ibv_qp		*ib_qp_handle_t;
-typedef	struct ibv_cq		*ib_cq_handle_t;
+struct dcm_ib_qp {
+	struct _ib_hca_transport *tp;
+	struct dapl_ep		 *ep;
+	struct ibv_qp		 *qp;	   /* local QP1 snd-rcv or rcv from PO */
+	struct ibv_ah		**ah;	   /* UD AH cache, LID index */
+#ifdef _OPENIB_MCM_
+	struct dcm_ib_cq	 *req_cq;  /* ref to req CQ for HST->MXS */
+	struct dcm_ib_cq	 *rcv_cq;  /* ref to rcv CQ for HST->MXS */
+	struct ibv_qp		 *qp2;     /* local QP2 snd-rcv to-from PI */
+	uint32_t		 qp_id;    /* proxy, SND or RCV */
+	uint32_t		 m_inline; /* proxy inline threshold */
+	uint32_t		 wr_hd;	   /* PO,PI work request head */
+	uint32_t		 wr_tl;	   /* PO,PI work request tail */
+	uint32_t		 wc_tl;	   /* local WC tail */
+	uint64_t		 wc_addr;  /* WC queue for remote PI */
+	struct ibv_mr		 *wc_mr;   /* WC IB mr info */
+	struct mcm_wrc_info	 wrc;	   /* local WC info */
+	struct mcm_wrc_info	 wrc_rem;  /* remote WR info */
+	DAPL_OS_LOCK		 lock;	   /* Proxy WR and WC queues */
+	uint8_t			 ep_map;   /* Peer EP mapping, MXS, MSS, HST */
+	uint32_t		 seg_sz;   /* Peer MXS Proxy-in segment size */
+	char			 *wr_buf_rx; /* mcm_wr_rx_t entries, devices without inline data  */
+	struct ibv_mr		 *wr_buf_rx_mr;
+#endif
+};
+
+#define DCM_CQ_TX 		0x1
+#define DCM_CQ_RX 		0x2
+#define DCM_CQ_TX_INDIRECT 	0x4
+#define DCM_CQ_RX_INDIRECT 	0x8
+
+struct dcm_ib_cq {
+	struct _ib_hca_transport *tp;
+	struct dapl_evd		 *evd;
+	struct ibv_cq		 *cq;      /* CQ -> QP1, local rcv, direct */
+	int			 flags;
+#ifdef _OPENIB_MCM_
+	struct dapl_llist_entry	 entry;
+	uint32_t		 cq_id;    /* proxy, SND or RCV */
+#endif
+};
+
+typedef	struct dcm_ib_cq	*ib_cq_handle_t;
+typedef	struct dcm_ib_qp	*ib_qp_handle_t;
 typedef	struct ibv_pd		*ib_pd_handle_t;
 typedef	struct ibv_mr		*ib_mr_handle_t;
 typedef	struct ibv_mw		*ib_mw_handle_t;
 typedef	struct ibv_wc		ib_work_completion_t;
 typedef struct ibv_ah		*ib_ah_handle_t;
 typedef union  ibv_gid		*ib_gid_handle_t;
+typedef struct ibv_srq		*ib_srq_handle_t;
 
 /* HCA context type maps to IB verbs  */
 typedef	struct ibv_context	*ib_hca_handle_t;
 typedef ib_hca_handle_t		dapl_ibal_ca_t;
 
 /* QP info to exchange, wire protocol version for these CM's */
-#define DCM_VER 7
+/* Version 8, 24-bit port space and rtns value */
+#define DCM_VER 8
+#define DCM_VER_XPS 8 /* extended port space, rtns */
 #define DCM_VER_MIN 6 /* backward compatibility limit */
 
 /* CM private data areas, same for all operations */
-#define        DCM_MAX_PDATA_SIZE      118
+#define        DCM_MAX_PDATA_SIZE      68
 
 /*
  * UCM DAPL IB/QP address (lid, qp_num, gid) mapping to
@@ -87,7 +134,6 @@ union dcm_addr {
        } ib;
 };
 
-/* 256 bytes total; default max_inline_send, min IB MTU size */
 typedef struct _ib_cm_msg
 {
 	uint16_t		ver;
@@ -100,7 +146,10 @@ typedef struct _ib_cm_msg
 	uint32_t		s_id;  /* src pid */
 	uint32_t		d_id;  /* dst pid */
 	uint8_t			rd_in; /* atomic_rd_in */
-	uint8_t			resv[5];
+	uint8_t			sportx; /* extend to 24 bits */
+	uint8_t			dportx; /* extend to 24 bits */
+	uint8_t			rtns; 	/* retransmissions */
+	uint8_t			resv[2];
 	union dcm_addr		saddr;
 	union dcm_addr		daddr;
 	union dcm_addr		saddr_alt;
@@ -108,6 +157,37 @@ typedef struct _ib_cm_msg
 	uint8_t			p_data[DCM_MAX_PDATA_SIZE];
 
 } ib_cm_msg_t;
+
+typedef struct _ib_named_attr
+{
+	 const char *dev;
+	 const char *mode;
+	 const char *read;
+	 const char *guid;
+	 const char *mtu;
+	 const char *port;
+	 const char *port_num;
+
+} ib_named_attr_t;
+
+typedef struct _ib_cm_attr
+{
+	uint8_t		ack_timer;
+	uint8_t		ack_retry;
+	uint8_t		rnr_timer;
+	uint8_t		rnr_retry;
+	uint8_t		global;
+	uint8_t		hop_limit;
+	uint8_t		tclass;
+	uint8_t		sl;
+	uint8_t		mtu;
+	uint8_t		rd_atom_in;
+	uint8_t		rd_atom_out;
+	uint8_t		pkey_idx;
+	uint16_t	pkey;
+	uint16_t	max_inline;
+
+}  ib_cm_attr_t;
 
 /* CM events */
 typedef enum {
@@ -170,12 +250,16 @@ typedef uint16_t		ib_hca_port_t;
 #define DCM_TCLASS	0
 
 /* DAPL uCM timers, default queue sizes */
-#define DCM_RETRY_CNT   15 
+#define DCM_RETRY_CNT   10
 #define DCM_REP_TIME    800	/* reply timeout in m_secs */
-#define DCM_RTU_TIME    400	/* rtu timeout in m_secs */
+#define DCM_RTU_TIME    800	/* rtu timeout in m_secs */
+#define DCM_WAIT_TIME   60000	/* wait timeout in m_secs */
 #define DCM_QP_SIZE     500     /* uCM tx, rx qp size */
 #define DCM_CQ_SIZE     500     /* uCM cq size */
 #define DCM_TX_BURST	50	/* uCM signal, every TX burst msgs posted */
+#define DCM_DREQ_CNT    1	/* DREQ retry count */
+#define DCM_DREP_TIME	200	/* disconnect reply timeout in m_secs */
+#define DCM_CM_TIMER	200	/* CM timer interval, m_secs */
 
 /* DTO OPs, ordered for DAPL ENUM definitions */
 #define OP_RDMA_WRITE           IBV_WR_RDMA_WRITE
@@ -285,12 +369,13 @@ typedef enum dapl_cm_state
 	DCM_REJECTED,
 	DCM_CONNECTED,
 	DCM_RELEASE,
-	DCM_DISC_PENDING,
+	DCM_DREQ_OUT,
 	DCM_DISCONNECTED,
 	DCM_DESTROY,
 	DCM_RTU_PENDING,
-	DCM_DISC_RECV,
+	DCM_DREQ_IN,
 	DCM_FREE,
+	DCM_TIMEWAIT
 
 } DAPL_CM_STATE;
 
@@ -304,20 +389,20 @@ int32_t	dapls_ib_release(void);
 
 /* util.c */
 enum ibv_mtu dapl_ib_mtu(int mtu);
-char *dapl_ib_mtu_str(enum ibv_mtu mtu);
+const char *dapl_ib_mtu_str(enum ibv_mtu mtu);
 int getipaddr_netdev(char *name, char *addr, int addr_len);
 DAT_RETURN getlocalipaddr(char *addr, int addr_len);
 
 /* qp.c */
-DAT_RETURN dapls_modify_qp_ud(IN DAPL_HCA *hca, IN ib_qp_handle_t qp);
-DAT_RETURN dapls_modify_qp_state(IN ib_qp_handle_t	qp_handle,
+DAT_RETURN dapls_modify_qp_ud(IN DAPL_HCA *hca, IN struct ibv_qp *qp);
+DAT_RETURN dapls_modify_qp_state(IN struct ibv_qp	*qp_handle,
                                 IN ib_qp_state_t	qp_state,
                                 IN uint32_t		qpn,
                                 IN uint16_t		lid,
                                 IN ib_gid_handle_t	gid);
 ib_ah_handle_t dapls_create_ah( IN DAPL_HCA		*hca,
 				IN ib_pd_handle_t	pd,
-				IN ib_qp_handle_t	qp,
+				IN struct ibv_qp	*qp,
 				IN uint16_t		lid,
 				IN ib_gid_handle_t	gid);
 
@@ -331,6 +416,45 @@ STATIC _INLINE_ IB_HCA_NAME dapl_ib_convert_name (IN char *name)
 STATIC _INLINE_ void dapl_ib_release_name (IN IB_HCA_NAME name)
 {
 	return;
+}
+
+STATIC _INLINE_ int dapl_ib_inline_data (IN struct ibv_context *ib_ctx)
+{
+	struct ibv_qp_init_attr qp_create;
+	struct ibv_pd *ib_pd = NULL;
+	struct ibv_cq *ib_cq = NULL;
+	struct ibv_qp *ib_qp = NULL;
+	int ret = 0;
+
+	ib_pd = ibv_alloc_pd(ib_ctx);
+	if (!ib_pd)
+		goto bail;
+
+	ib_cq = ibv_create_cq(ib_ctx, 10, ib_ctx, NULL, 0);
+	if (!ib_cq)
+		goto bail;
+
+	dapl_os_memzero((void *)&qp_create, sizeof(qp_create));
+	qp_create.qp_type = IBV_QPT_RC;
+	qp_create.send_cq = ib_cq;
+	qp_create.recv_cq = ib_cq;
+	qp_create.cap.max_send_wr = 1;
+	qp_create.cap.max_send_sge = 1;
+	qp_create.cap.max_inline_data = 64;
+	qp_create.qp_context = (void *)ib_ctx;
+
+	ib_qp = ibv_create_qp(ib_pd, &qp_create);
+	if (ib_qp && qp_create.cap.max_inline_data >= 64)
+		ret = 1;
+bail:
+	if (ib_qp)
+		ibv_destroy_qp(ib_qp);
+	if (ib_cq)
+		ibv_destroy_cq(ib_cq);
+	if (ib_pd)
+		ibv_dealloc_pd(ib_pd);
+
+	return ret;
 }
 
 /*
@@ -379,14 +503,15 @@ STATIC _INLINE_ char * dapl_cm_state_str(IN int st)
 		"CM_REJECTED",
 		"CM_CONNECTED",
 		"CM_RELEASE",
-		"CM_DISC_PENDING",
+		"CM_DREQ_OUT",
 		"CM_DISCONNECTED",
 		"CM_DESTROY",
 		"CM_RTU_PENDING",
-		"CM_DISC_RECV",
-		"CM_FREE"
+		"CM_DREQ_IN",
+		"CM_FREE",
+		"CM_TIMEWAIT"
         };
-        return ((st < 0 || st > 16) ? "Invalid CM state?" : state[st]);
+        return ((st < 0 || st > 17) ? "Invalid CM state?" : state[st]);
 }
 
 STATIC _INLINE_ char * dapl_cm_op_str(IN int op)
@@ -402,6 +527,31 @@ STATIC _INLINE_ char * dapl_cm_op_str(IN int op)
 		"DREP",
 	};
 	return ((op < 1 || op > 7) ? "Invalid OP?" : ops[op]);
+}
+
+static inline char * dapl_ib_async_str(IN int st)
+{
+	static char *state[] = {
+		"IBV_EVENT_CQ_ERR",
+		"IBV_EVENT_QP_FATAL",
+		"IBV_EVENT_QP_REQ_ERR",
+		"IBV_EVENT_QP_ACCESS_ERR",
+		"IBV_EVENT_COMM_EST",
+		"IBV_EVENT_SQ_DRAINED",
+		"IBV_EVENT_PATH_MIG",
+		"IBV_EVENT_PATH_MIG_ERR",
+		"IBV_EVENT_DEVICE_FATAL",
+		"IBV_EVENT_PORT_ACTIVE",
+		"IBV_EVENT_PORT_ERR",
+		"IBV_EVENT_LID_CHANGE",
+		"IBV_EVENT_PKEY_CHANGE",
+		"IBV_EVENT_SM_CHANGE",
+		"IBV_EVENT_SRQ_ERR",
+		"IBV_EVENT_SRQ_LIMIT_REACHED",
+		"IBV_EVENT_QP_LAST_WQE_REACHED",
+		"IBV_EVENT_CLIENT_REREGISTER",
+        };
+        return ((st < 0 || st > 17) ? "Invalid IB async event?" : state[st]);
 }
 
 #endif /*  _DAPL_IB_COMMON_H_ */

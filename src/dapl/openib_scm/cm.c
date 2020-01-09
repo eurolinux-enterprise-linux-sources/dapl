@@ -42,7 +42,7 @@
  *
  *    $Id: $
  *
- *	Copyright (c) 2005 Intel Corporation.  All rights reserved.
+ *	Copyright (c) 2005-2015 Intel Corporation.  All rights reserved.
  *
  **************************************************************************/
 
@@ -60,6 +60,8 @@
 #include "dapl_ep_util.h"
 #include "dapl_sp_util.h"
 #include "dapl_osd.h"
+
+extern char *gid_str;
 
 /* forward declarations */
 static DAT_RETURN
@@ -468,6 +470,11 @@ void dapls_cm_free(dp_ib_cm_handle_t cm_ptr)
 	dapl_ep_unlink_cm(cm_ptr->ep, cm_ptr);
 }
 
+DAT_RETURN dapls_ud_cm_free(DAPL_EP *ep_ptr, dp_ib_cm_handle_t cm_ptr)
+{
+	return DAT_NOT_IMPLEMENTED;
+}
+
 /*
  * ACTIVE/PASSIVE: called from CR thread or consumer via ep_disconnect
  *                 or from ep_free. 
@@ -489,7 +496,7 @@ DAT_RETURN dapli_socket_disconnect(dp_ib_cm_handle_t cm_ptr)
 	/* disconnect events for RC's only */
 	if (cm_ptr->ep->param.ep_attr.service_type == DAT_SERVICE_TYPE_RC) {
 		dapl_os_lock(&cm_ptr->ep->header.lock);
-		dapls_modify_qp_state(cm_ptr->ep->qp_handle, IBV_QPS_ERR, 0,0,0);
+		dapls_modify_qp_state(cm_ptr->ep->qp_handle->qp, IBV_QPS_ERR, 0,0,0);
 		dapl_os_unlock(&cm_ptr->ep->header.lock);
 		if (cm_ptr->ep->cr_ptr) {
 			dapls_cr_callback(cm_ptr,
@@ -583,11 +590,9 @@ static void dapli_socket_connected(dp_ib_cm_handle_t cm_ptr, int err)
 		     ntohl(cm_ptr->msg.saddr.ib.qpn), 
 		     ntohs(cm_ptr->msg.p_size));
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
-		     " CONN_PENDING: SRC GID subnet %016llx id %016llx\n",
-		     (unsigned long long)
-		     htonll(*(uint64_t*)&cm_ptr->msg.saddr.ib.gid[0]),
-		     (unsigned long long)
-		     htonll(*(uint64_t*)&cm_ptr->msg.saddr.ib.gid[8]));
+		     " CONN_PENDING: SRC GID %s\n",
+		     inet_ntop(AF_INET6, &cm_ptr->hca->ib_trans.gid,
+			       gid_str, sizeof(gid_str)));
 
 	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm_ptr->hca->ia_list_head)), DCNT_IA_CM_REQ_TX);
 	return;
@@ -646,12 +651,6 @@ dapli_socket_connect(DAPL_EP * ep_ptr,
 
 	/* save remote address */
 	dapl_os_memcpy(&cm_ptr->addr, r_addr, sizeof(*r_addr));
-
-#ifdef DAPL_DBG
-	/* DBG: Active PID [0], PASSIVE PID [2]*/
-	*(uint16_t*)&cm_ptr->msg.resv[0] = htons((uint16_t)dapl_os_getpid()); 
-	*(uint16_t*)&cm_ptr->msg.resv[2] = ((struct sockaddr_in *)&cm_ptr->addr)->sin_port;
-#endif
 	((struct sockaddr_in *)&cm_ptr->addr)->sin_port = htons(r_qual + 1000);
 	ret = dapl_connect_socket(cm_ptr->socket, (struct sockaddr *)&cm_ptr->addr,
 				  sizeof(cm_ptr->addr));
@@ -667,8 +666,8 @@ dapli_socket_connect(DAPL_EP * ep_ptr,
 	/* REQ: QP info in msg.saddr, IA address in msg.daddr, and pdata */
 	cm_ptr->hca = ia_ptr->hca_ptr;
 	cm_ptr->msg.op = ntohs(DCM_REQ);
-	cm_ptr->msg.saddr.ib.qpn = htonl(ep_ptr->qp_handle->qp_num);
-	cm_ptr->msg.saddr.ib.qp_type = ep_ptr->qp_handle->qp_type;
+	cm_ptr->msg.saddr.ib.qpn = htonl(ep_ptr->qp_handle->qp->qp_num);
+	cm_ptr->msg.saddr.ib.qp_type = ep_ptr->qp_handle->qp->qp_type;
 	cm_ptr->msg.saddr.ib.lid = ia_ptr->hca_ptr->ib_trans.lid;
 	dapl_os_memcpy(&cm_ptr->msg.saddr.ib.gid[0], 
 		       &ia_ptr->hca_ptr->ib_trans.gid, 16);
@@ -738,13 +737,12 @@ static void dapli_socket_connect_rtu(dp_ib_cm_handle_t cm_ptr)
 		int err = dapl_socket_errno();
 		dapl_log(DAPL_DBG_TYPE_CM_WARN,
 			 " CONN_REP_PENDING: sk %d ERR 0x%x, rcnt=%d, v=%d ->"
-			 " %s PORT L-%x R-%x PID L-%x R-%x %d\n",
+			 " %s PORT L-%x R-%x %d\n",
 			 cm_ptr->socket, err, len, ntohs(cm_ptr->msg.ver),
 			 inet_ntoa(((struct sockaddr_in *)&cm_ptr->addr)->sin_addr),
 			 ntohs(((struct sockaddr_in *)&cm_ptr->msg.daddr.so)->sin_port),
 			 ntohs(((struct sockaddr_in *)&cm_ptr->addr)->sin_port),
-			 ntohs(*(uint16_t*)&cm_ptr->msg.resv[0]),
-			 ntohs(*(uint16_t*)&cm_ptr->msg.resv[2]),cm_ptr->retry);
+			 cm_ptr->retry);
 
 		/* Retry; corner case where server tcp stack resets under load */
 		if (err == ECONNRESET && --cm_ptr->retry) {
@@ -838,15 +836,15 @@ static void dapli_socket_connect_rtu(dp_ib_cm_handle_t cm_ptr)
 
 	/* modify QP to RTR and then to RTS with remote info */
 	dapl_os_lock(&ep_ptr->header.lock);
-	if (dapls_modify_qp_state(ep_ptr->qp_handle,
+	if (dapls_modify_qp_state(ep_ptr->qp_handle->qp,
 				  IBV_QPS_RTR, 
 				  cm_ptr->msg.saddr.ib.qpn,
 				  cm_ptr->msg.saddr.ib.lid,
 				  (ib_gid_handle_t)cm_ptr->msg.saddr.ib.gid) != DAT_SUCCESS) {
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " CONN_RTU: QPS_RTR ERR %s (%d,%d,%x,%x,%x) -> %s %x\n",
-			 strerror(errno), ep_ptr->qp_handle->qp_type,
-			 ep_ptr->qp_state, ep_ptr->qp_handle->qp_num,
+			 strerror(errno), ep_ptr->qp_handle->qp->qp_type,
+			 ep_ptr->qp_state, ep_ptr->qp_handle->qp->qp_num,
 			 ntohl(cm_ptr->msg.saddr.ib.qpn), 
 			 ntohs(cm_ptr->msg.saddr.ib.lid),
 			 inet_ntoa(((struct sockaddr_in *)
@@ -856,15 +854,15 @@ static void dapli_socket_connect_rtu(dp_ib_cm_handle_t cm_ptr)
 		dapl_os_unlock(&ep_ptr->header.lock);
 		goto bail;
 	}
-	if (dapls_modify_qp_state(ep_ptr->qp_handle,
+	if (dapls_modify_qp_state(ep_ptr->qp_handle->qp,
 				  IBV_QPS_RTS, 
 				  cm_ptr->msg.saddr.ib.qpn,
 				  cm_ptr->msg.saddr.ib.lid,
 				  NULL) != DAT_SUCCESS) {
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " CONN_RTU: QPS_RTS ERR %s (%d,%d,%x,%x,%x) -> %s %x\n",
-			 strerror(errno), ep_ptr->qp_handle->qp_type,
-			 ep_ptr->qp_state, ep_ptr->qp_handle->qp_num,
+			 strerror(errno), ep_ptr->qp_handle->qp->qp_type,
+			 ep_ptr->qp_state, ep_ptr->qp_handle->qp->qp_num,
 			 ntohl(cm_ptr->msg.saddr.ib.qpn), 
 			 ntohs(cm_ptr->msg.saddr.ib.lid),
 			 inet_ntoa(((struct sockaddr_in *)
@@ -905,7 +903,7 @@ ud_bail:
 
 		if (event == IB_CME_CONNECTED) {
 			cm_ptr->ah = dapls_create_ah(cm_ptr->hca, pd_handle,
-						     ep_ptr->qp_handle,
+						     ep_ptr->qp_handle->qp,
 						     cm_ptr->msg.saddr.ib.lid, 
 						     NULL);
 			if (cm_ptr->ah) {
@@ -1239,7 +1237,7 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 
 #ifdef DAT_EXTENSIONS
 	if (cm_ptr->msg.saddr.ib.qp_type == IBV_QPT_UD &&
-	    ep_ptr->qp_handle->qp_type != IBV_QPT_UD) {
+	    ep_ptr->qp_handle->qp->qp_type != IBV_QPT_UD) {
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " ACCEPT_USR: ERR remote QP is UD,"
 			 ", but local QP is not\n");
@@ -1255,7 +1253,7 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 
 	/* modify QP to RTR and then to RTS with remote info already read */
 	dapl_os_lock(&ep_ptr->header.lock);
-	if (dapls_modify_qp_state(ep_ptr->qp_handle,
+	if (dapls_modify_qp_state(ep_ptr->qp_handle->qp,
 				  IBV_QPS_RTR, 
 				  cm_ptr->msg.saddr.ib.qpn,
 				  cm_ptr->msg.saddr.ib.lid,
@@ -1268,7 +1266,7 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 		dapl_os_unlock(&ep_ptr->header.lock);
 		goto bail;
 	}
-	if (dapls_modify_qp_state(ep_ptr->qp_handle,
+	if (dapls_modify_qp_state(ep_ptr->qp_handle->qp,
 				  IBV_QPS_RTS, 
 				  cm_ptr->msg.saddr.ib.qpn,
 				  cm_ptr->msg.saddr.ib.lid,
@@ -1292,8 +1290,8 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 	local.ver = htons(DCM_VER);
 	local.op = htons(DCM_REP);
 	local.rd_in = ep_ptr->param.ep_attr.max_rdma_read_in;
-	local.saddr.ib.qpn = htonl(ep_ptr->qp_handle->qp_num);
-	local.saddr.ib.qp_type = ep_ptr->qp_handle->qp_type;
+	local.saddr.ib.qpn = htonl(ep_ptr->qp_handle->qp->qp_num);
+	local.saddr.ib.qp_type = ep_ptr->qp_handle->qp->qp_type;
 	local.saddr.ib.lid = ia_ptr->hca_ptr->ib_trans.lid;
 	dapl_os_memcpy(&local.saddr.ib.gid[0], 
 		       &ia_ptr->hca_ptr->ib_trans.gid, 16);
@@ -1302,11 +1300,6 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 	sl = sizeof(local.daddr.so);
 	getsockname(cm_ptr->socket, (struct sockaddr *)&local.daddr.so, &sl);
 
-#ifdef DAPL_DBG
-	/* DBG: Active PID [0], PASSIVE PID [2] */
-	*(uint16_t*)&cm_ptr->msg.resv[2] = htons((uint16_t)dapl_os_getpid()); 
-	dapl_os_memcpy(local.resv, cm_ptr->msg.resv, 4); 
-#endif
 	cm_ptr->hca = ia_ptr->hca_ptr;
 	dapl_os_lock(&cm_ptr->lock);
 	cm_ptr->state = DCM_ACCEPTED;
@@ -1341,15 +1334,11 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 	}
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
-		     " ACCEPT_USR: local lid=0x%x qpn=0x%x psz=%d\n",
-		     ntohs(local.saddr.ib.lid),
-		     ntohl(local.saddr.ib.qpn), ntohs(local.p_size));
-	dapl_dbg_log(DAPL_DBG_TYPE_CM,
-		     " ACCEPT_USR: local GID subnet %016llx id %016llx\n",
-		     (unsigned long long)
-		     htonll(*(uint64_t*)&local.saddr.ib.gid[0]),
-		     (unsigned long long)
-		     htonll(*(uint64_t*)&local.saddr.ib.gid[8]));
+		     " ACCEPT_USR: local GID %s lid=0x%x qpn=0x%x psz=%d\n",
+		     inet_ntop(AF_INET6, &cm_ptr->hca->ib_trans.gid,
+			       gid_str, sizeof(gid_str)),
+		     ntohs(local.saddr.ib.lid), ntohl(local.saddr.ib.qpn),
+		     ntohs(local.p_size));
 
 	dapl_dbg_log(DAPL_DBG_TYPE_EP, " PASSIVE: accepted!\n");
 
@@ -1402,7 +1391,7 @@ ud_bail:
 		
 		if (event == IB_CME_CONNECTED) {
 			cm_ptr->ah = dapls_create_ah(cm_ptr->hca, pd_handle,
-						cm_ptr->ep->qp_handle,
+						cm_ptr->ep->qp_handle->qp,
 						cm_ptr->msg.saddr.ib.lid, 
 						NULL);
 			if (cm_ptr->ah) { 
@@ -1488,17 +1477,17 @@ bail:
  */
 DAT_RETURN
 dapls_ib_connect(IN DAT_EP_HANDLE ep_handle,
-		 IN DAT_IA_ADDRESS_PTR remote_ia_address,
-		 IN DAT_CONN_QUAL remote_conn_qual,
+		 IN DAT_IA_ADDRESS_PTR r_address,
+		 IN DAT_CONN_QUAL r_qual,
 		 IN DAT_COUNT private_data_size, IN void *private_data)
 {
 	DAPL_EP *ep_ptr = (DAPL_EP *) ep_handle;
+	struct sockaddr_in *scm_ia = (struct sockaddr_in *)r_address;
 	
-	dapl_dbg_log(DAPL_DBG_TYPE_EP,
-		     " connect(ep_handle %p ....)\n", ep_handle);
+	dapl_log(DAPL_DBG_TYPE_CM, " SCM connect -> IP %s port 0x%x,%d)\n",
+		 inet_ntoa(scm_ia->sin_addr), r_qual + 1000, r_qual + 1000);
 
-	return (dapli_socket_connect(ep_ptr, remote_ia_address,
-				     remote_conn_qual,
+	return (dapli_socket_connect(ep_ptr, r_address, r_qual,
 				     private_data_size, private_data, SCM_CR_RETRY));
 }
 
@@ -1976,7 +1965,8 @@ void dapls_print_cm_list(IN DAPL_IA *ia_ptr)
 				 &ia_ptr->hca_ptr->ib_trans.list,
 				(DAPL_LLIST_ENTRY*)&cr->local_entry);
 
-		printf( "  CONN[%d]: sp %p ep %p sock %d %s %s %s %s %s %s PORT L-%x R-%x PID L-%x R-%x\n",
+		printf( "  CONN[%d]: sp %p ep %p sock %d %s %s %s %s %s %s "
+			" PORT L-%x R-%x \n",
 			i, cr->sp, cr->ep, cr->socket,
 			cr->msg.saddr.ib.qp_type == IBV_QPT_RC ? "RC" : "UD",
 			dapl_cm_state_str(cr->state), dapl_cm_op_str(ntohs(cr->msg.op)),
@@ -1994,11 +1984,7 @@ void dapls_print_cm_list(IN DAPL_IA *ia_ptr)
 
 			ntohs(cr->msg.op) == DCM_REQ ? /* remote port */
 				ntohs(((struct sockaddr_in *)&cr->addr)->sin_port) :
-				ntohs(((struct sockaddr_in *)&cr->msg.daddr.so)->sin_port),
-
-			cr->sp ? ntohs(*(uint16_t*)&cr->msg.resv[2]) : ntohs(*(uint16_t*)&cr->msg.resv[0]),
-			cr->sp ? ntohs(*(uint16_t*)&cr->msg.resv[0]) : ntohs(*(uint16_t*)&cr->msg.resv[2]));
-
+				ntohs(((struct sockaddr_in *)&cr->msg.daddr.so)->sin_port) );
 		i++;
 	}
 	printf("\n");

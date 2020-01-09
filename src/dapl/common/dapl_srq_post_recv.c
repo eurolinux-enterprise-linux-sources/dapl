@@ -95,7 +95,7 @@ dapl_srq_post_recv(IN DAT_SRQ_HANDLE srq_handle,
 	 * app must syncronize access to the SRQ.
 	 */
 	dat_status = dapls_dto_cookie_alloc(&srq_ptr->recv_buffer,
-					    DAPL_DTO_TYPE_RECV,
+					    DAPL_DTO_TYPE_RECV_SRQ,
 					    user_cookie, &cookie);
 	if (DAT_SUCCESS != dat_status) {
 		goto bail;
@@ -110,8 +110,8 @@ dapl_srq_post_recv(IN DAT_SRQ_HANDLE srq_handle,
 	/*
 	 * Invoke provider specific routine to post DTO
 	 */
-	/* XXX Put code here XXX */
-	/* XXX */ dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
+	dat_status = dapls_ib_post_srq_recv(srq_ptr, cookie,
+					    num_segments, local_iov);
 
 	if (dat_status != DAT_SUCCESS) {
 		dapl_os_atomic_dec(&srq_ptr->recv_count);

@@ -38,6 +38,7 @@ typedef struct
     char        device_name[256];   /* -D */
     DAT_UINT32  debug;		    /* -d */
     DAT_QOS     ReliabilityLevel;   /* -R */
+    DAT_CONN_QUAL  port;	    /* -n */
 } Quit_Cmd_t;
 #pragma pack ()
 
