@@ -161,6 +161,9 @@ DAT_RETURN DAT_API dat_cno_query(IN DAT_CNO_HANDLE cno_handle,
 				 IN DAT_CNO_PARAM_MASK cno_param_mask,
 				 OUT DAT_CNO_PARAM * cno_param)
 {
+	if (cno_handle == NULL) {
+		return DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_CNO);
+	}
 	return DAT_CNO_QUERY(cno_handle, cno_param_mask, cno_param);
 }
 

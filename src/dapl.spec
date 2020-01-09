@@ -32,7 +32,7 @@
 #
 # $Id: $
 Name: dapl
-Version: 2.0.32
+Version: 2.0.34
 Release: 1%{?dist}
 Summary: A Library for userspace access to RDMA devices using OS Agnostic DAT APIs.
 
@@ -144,6 +144,12 @@ fi
 %{_mandir}/man5/*.5*
 
 %changelog
+* Wed Nov 2 2011 Arlin Davis <ardavis@ichips.intel.com> - 2.0.34
+- DAT/DAPL Version 2.0.34 Release 1, OFED 1.5.4 GA
+
+* Mon Aug 29 2011 Arlin Davis <ardavis@ichips.intel.com> - 2.0.33
+- DAT/DAPL Version 2.0.33 Release 1, OFED 1.5.4 RC1 
+
 * Sun Feb 13 2011 Arlin Davis <ardavis@ichips.intel.com> - 2.0.32
 - DAT/DAPL Version 2.0.32 Release 1, OFED 1.5.3 GA 
 

@@ -9,8 +9,14 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `fca' library (-lfca). */
+#undef HAVE_LIBFCA
+
 /* Define to 1 if you have the `ibverbs' library (-libverbs). */
 #undef HAVE_LIBIBVERBS
+
+/* Define to 1 if you have the `mverbs' library (-lmverbs). */
+#undef HAVE_LIBMVERBS
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H

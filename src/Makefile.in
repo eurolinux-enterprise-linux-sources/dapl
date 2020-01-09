@@ -44,7 +44,12 @@ host_triplet = @host@
 @OS_RHEL4_TRUE@am__append_1 = -DREDHAT_EL4
 @OS_RHEL5_TRUE@am__append_2 = -DREDHAT_EL5
 @OS_SUSE11_TRUE@am__append_3 = -DSUSE_11
-@DEFINE_ATTR_LINK_LAYER_TRUE@am__append_4 = -DDEFINE_ATTR_LINK_LAYER
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__append_4 = -DDAT_IB_COLLECTIVES -DDAT_FCA_PROVIDER
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__append_5 = dapl/openib_common/collectives/fca_provider.c
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__append_6 = dapl/openib_common/collectives/ib_collectives.h dapl/openib_common/collectives/fca_provider.h
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__append_7 = -lfca
+@DAPL_USE_IBACM_TRUE@am__append_8 = -lrdmacm
+@DEFINE_ATTR_LINK_LAYER_TRUE@am__append_9 = -DDEFINE_ATTR_LINK_LAYER
 DIST_COMMON = README $(am__configure_deps) $(libdatinclude_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in $(srcdir)/dapl.spec.in \
@@ -145,117 +150,124 @@ am__dapl_udapl_libdaplofa_la_SOURCES_DIST = dapl/udapl/dapl_init.c \
 	dapl/openib_common/mem.c dapl/openib_common/cq.c \
 	dapl/openib_common/qp.c dapl/openib_common/util.c \
 	dapl/openib_cma/cm.c dapl/openib_cma/device.c \
-	dapl/openib_common/ib_extensions.c
-@EXT_TYPE_IB_TRUE@am__objects_1 =  \
-@EXT_TYPE_IB_TRUE@	dapl_udapl_libdaplofa_la-ib_extensions.lo
-am_dapl_udapl_libdaplofa_la_OBJECTS =  \
-	dapl_udapl_libdaplofa_la-dapl_init.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_cno_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_cno_modify_agent.lo \
-	dapl_udapl_libdaplofa_la-dapl_cno_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_cno_wait.lo \
-	dapl_udapl_libdaplofa_la-dapl_cno_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_lmr_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_wait.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_disable.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_enable.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_modify_cno.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_set_unwaitable.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_clear_unwaitable.lo \
-	dapl_udapl_libdaplofa_la-dapl_osd.lo \
-	dapl_udapl_libdaplofa_la-dapl_cookie.lo \
-	dapl_udapl_libdaplofa_la-dapl_cr_accept.lo \
-	dapl_udapl_libdaplofa_la-dapl_cr_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_cr_reject.lo \
-	dapl_udapl_libdaplofa_la-dapl_cr_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_cr_callback.lo \
-	dapl_udapl_libdaplofa_la-dapl_cr_handoff.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_connect.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_disconnect.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_dup_connect.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_reset.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_get_status.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_modify.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_post_rdma_read.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_post_rdma_write.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_post_recv.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_post_send.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_dequeue.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_post_se.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_resize.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_cq_async_error_callb.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_qp_async_error_callb.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_un_async_error_callb.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_connection_callb.lo \
-	dapl_udapl_libdaplofa_la-dapl_evd_dto_callb.lo \
-	dapl_udapl_libdaplofa_la-dapl_get_consumer_context.lo \
-	dapl_udapl_libdaplofa_la-dapl_get_handle_type.lo \
-	dapl_udapl_libdaplofa_la-dapl_hash.lo \
-	dapl_udapl_libdaplofa_la-dapl_hca_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_ia_close.lo \
-	dapl_udapl_libdaplofa_la-dapl_ia_open.lo \
-	dapl_udapl_libdaplofa_la-dapl_ia_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_ia_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_llist.lo \
-	dapl_udapl_libdaplofa_la-dapl_lmr_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_lmr_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_lmr_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_lmr_sync_rdma_read.lo \
-	dapl_udapl_libdaplofa_la-dapl_lmr_sync_rdma_write.lo \
-	dapl_udapl_libdaplofa_la-dapl_mr_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_provider.lo \
-	dapl_udapl_libdaplofa_la-dapl_sp_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_psp_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_psp_create_any.lo \
-	dapl_udapl_libdaplofa_la-dapl_psp_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_psp_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_pz_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_pz_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_pz_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_pz_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_rmr_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_rmr_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_rmr_bind.lo \
-	dapl_udapl_libdaplofa_la-dapl_rmr_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_rmr_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_rsp_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_rsp_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_rsp_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_cno_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_set_consumer_context.lo \
-	dapl_udapl_libdaplofa_la-dapl_ring_buffer_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_name_service.lo \
-	dapl_udapl_libdaplofa_la-dapl_timer_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_create_with_srq.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_recv_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_set_watermark.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_create.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_free.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_query.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_resize.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_post_recv.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_set_lw.lo \
-	dapl_udapl_libdaplofa_la-dapl_srq_util.lo \
-	dapl_udapl_libdaplofa_la-dapl_debug.lo \
-	dapl_udapl_libdaplofa_la-dapl_ia_ha.lo \
-	dapl_udapl_libdaplofa_la-dapl_csp.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_post_send_invalidate.lo \
-	dapl_udapl_libdaplofa_la-dapl_ep_post_rdma_read_to_rmr.lo \
-	dapl_udapl_libdaplofa_la-mem.lo dapl_udapl_libdaplofa_la-cq.lo \
-	dapl_udapl_libdaplofa_la-qp.lo \
-	dapl_udapl_libdaplofa_la-util.lo \
-	dapl_udapl_libdaplofa_la-cm.lo \
-	dapl_udapl_libdaplofa_la-device.lo $(am__objects_1)
+	dapl/openib_common/ib_extensions.c \
+	dapl/openib_common/collectives/fca_provider.c
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__objects_1 = dapl_udapl_libdaplofa_la-fca_provider.lo
+@EXT_TYPE_IB_TRUE@am__objects_2 =  \
+@EXT_TYPE_IB_TRUE@	dapl_udapl_libdaplofa_la-ib_extensions.lo \
+@EXT_TYPE_IB_TRUE@	$(am__objects_1)
+@DEFINE_CMA_TRUE@am_dapl_udapl_libdaplofa_la_OBJECTS =  \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_init.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cno_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cno_modify_agent.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cno_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cno_wait.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cno_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_lmr_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_wait.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_disable.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_enable.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_modify_cno.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_set_unwaitable.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_clear_unwaitable.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_osd.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cookie.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cr_accept.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cr_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cr_reject.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cr_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cr_callback.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cr_handoff.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_connect.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_disconnect.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_dup_connect.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_reset.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_get_status.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_modify.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_post_rdma_read.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_post_rdma_write.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_post_recv.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_post_send.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_dequeue.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_post_se.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_resize.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_cq_async_error_callb.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_qp_async_error_callb.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_un_async_error_callb.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_connection_callb.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_evd_dto_callb.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_get_consumer_context.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_get_handle_type.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_hash.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_hca_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ia_close.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ia_open.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ia_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ia_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_llist.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_lmr_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_lmr_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_lmr_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_lmr_sync_rdma_read.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_lmr_sync_rdma_write.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_mr_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_provider.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_sp_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_psp_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_psp_create_any.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_psp_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_psp_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_pz_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_pz_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_pz_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_pz_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rmr_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rmr_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rmr_bind.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rmr_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rmr_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rsp_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rsp_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_rsp_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_cno_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_set_consumer_context.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ring_buffer_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_name_service.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_timer_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_create_with_srq.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_recv_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_set_watermark.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_create.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_free.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_query.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_resize.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_post_recv.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_set_lw.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_srq_util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_debug.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ia_ha.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_csp.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_post_send_invalidate.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-dapl_ep_post_rdma_read_to_rmr.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-mem.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-cq.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-qp.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-util.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-cm.lo \
+@DEFINE_CMA_TRUE@	dapl_udapl_libdaplofa_la-device.lo \
+@DEFINE_CMA_TRUE@	$(am__objects_2)
 dapl_udapl_libdaplofa_la_OBJECTS =  \
 	$(am_dapl_udapl_libdaplofa_la_OBJECTS)
+@DEFINE_CMA_TRUE@am_dapl_udapl_libdaplofa_la_rpath = -rpath \
+@DEFINE_CMA_TRUE@	$(dapllibofadir)
 am__dirstamp = $(am__leading_dot)dirstamp
 dapl_udapl_libdaploscm_la_LIBADD =
 am__dapl_udapl_libdaploscm_la_SOURCES_DIST = dapl/udapl/dapl_init.c \
@@ -324,118 +336,124 @@ am__dapl_udapl_libdaploscm_la_SOURCES_DIST = dapl/udapl/dapl_init.c \
 	dapl/openib_common/mem.c dapl/openib_common/cq.c \
 	dapl/openib_common/qp.c dapl/openib_common/util.c \
 	dapl/openib_scm/cm.c dapl/openib_scm/device.c \
-	dapl/openib_common/ib_extensions.c
-@EXT_TYPE_IB_TRUE@am__objects_2 =  \
-@EXT_TYPE_IB_TRUE@	dapl_udapl_libdaploscm_la-ib_extensions.lo
-am_dapl_udapl_libdaploscm_la_OBJECTS =  \
-	dapl_udapl_libdaploscm_la-dapl_init.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_cno_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_cno_modify_agent.lo \
-	dapl_udapl_libdaploscm_la-dapl_cno_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_cno_wait.lo \
-	dapl_udapl_libdaploscm_la-dapl_cno_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_lmr_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_wait.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_disable.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_enable.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_modify_cno.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_set_unwaitable.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_clear_unwaitable.lo \
-	dapl_udapl_libdaploscm_la-dapl_osd.lo \
-	dapl_udapl_libdaploscm_la-dapl_cookie.lo \
-	dapl_udapl_libdaploscm_la-dapl_cr_accept.lo \
-	dapl_udapl_libdaploscm_la-dapl_cr_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_cr_reject.lo \
-	dapl_udapl_libdaploscm_la-dapl_cr_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_cr_callback.lo \
-	dapl_udapl_libdaploscm_la-dapl_cr_handoff.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_connect.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_disconnect.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_dup_connect.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_reset.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_get_status.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_modify.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_post_rdma_read.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_post_rdma_write.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_post_recv.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_post_send.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_dequeue.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_post_se.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_resize.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_cq_async_error_callb.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_qp_async_error_callb.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_un_async_error_callb.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_connection_callb.lo \
-	dapl_udapl_libdaploscm_la-dapl_evd_dto_callb.lo \
-	dapl_udapl_libdaploscm_la-dapl_get_consumer_context.lo \
-	dapl_udapl_libdaploscm_la-dapl_get_handle_type.lo \
-	dapl_udapl_libdaploscm_la-dapl_hash.lo \
-	dapl_udapl_libdaploscm_la-dapl_hca_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_ia_close.lo \
-	dapl_udapl_libdaploscm_la-dapl_ia_open.lo \
-	dapl_udapl_libdaploscm_la-dapl_ia_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_ia_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_llist.lo \
-	dapl_udapl_libdaploscm_la-dapl_lmr_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_lmr_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_lmr_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_lmr_sync_rdma_read.lo \
-	dapl_udapl_libdaploscm_la-dapl_lmr_sync_rdma_write.lo \
-	dapl_udapl_libdaploscm_la-dapl_mr_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_provider.lo \
-	dapl_udapl_libdaploscm_la-dapl_sp_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_psp_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_psp_create_any.lo \
-	dapl_udapl_libdaploscm_la-dapl_psp_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_psp_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_pz_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_pz_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_pz_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_pz_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_rmr_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_rmr_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_rmr_bind.lo \
-	dapl_udapl_libdaploscm_la-dapl_rmr_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_rmr_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_rsp_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_rsp_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_rsp_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_cno_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_set_consumer_context.lo \
-	dapl_udapl_libdaploscm_la-dapl_ring_buffer_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_name_service.lo \
-	dapl_udapl_libdaploscm_la-dapl_timer_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_create_with_srq.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_recv_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_set_watermark.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_create.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_free.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_query.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_resize.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_post_recv.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_set_lw.lo \
-	dapl_udapl_libdaploscm_la-dapl_srq_util.lo \
-	dapl_udapl_libdaploscm_la-dapl_debug.lo \
-	dapl_udapl_libdaploscm_la-dapl_ia_ha.lo \
-	dapl_udapl_libdaploscm_la-dapl_csp.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_post_send_invalidate.lo \
-	dapl_udapl_libdaploscm_la-dapl_ep_post_rdma_read_to_rmr.lo \
-	dapl_udapl_libdaploscm_la-mem.lo \
-	dapl_udapl_libdaploscm_la-cq.lo \
-	dapl_udapl_libdaploscm_la-qp.lo \
-	dapl_udapl_libdaploscm_la-util.lo \
-	dapl_udapl_libdaploscm_la-cm.lo \
-	dapl_udapl_libdaploscm_la-device.lo $(am__objects_2)
+	dapl/openib_common/ib_extensions.c \
+	dapl/openib_common/collectives/fca_provider.c
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__objects_3 = dapl_udapl_libdaploscm_la-fca_provider.lo
+@EXT_TYPE_IB_TRUE@am__objects_4 =  \
+@EXT_TYPE_IB_TRUE@	dapl_udapl_libdaploscm_la-ib_extensions.lo \
+@EXT_TYPE_IB_TRUE@	$(am__objects_3)
+@DEFINE_SCM_TRUE@am_dapl_udapl_libdaploscm_la_OBJECTS =  \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_init.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cno_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cno_modify_agent.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cno_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cno_wait.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cno_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_lmr_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_wait.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_disable.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_enable.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_modify_cno.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_set_unwaitable.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_clear_unwaitable.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_osd.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cookie.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cr_accept.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cr_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cr_reject.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cr_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cr_callback.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cr_handoff.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_connect.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_disconnect.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_dup_connect.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_reset.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_get_status.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_modify.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_post_rdma_read.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_post_rdma_write.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_post_recv.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_post_send.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_dequeue.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_post_se.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_resize.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_cq_async_error_callb.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_qp_async_error_callb.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_un_async_error_callb.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_connection_callb.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_evd_dto_callb.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_get_consumer_context.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_get_handle_type.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_hash.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_hca_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ia_close.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ia_open.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ia_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ia_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_llist.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_lmr_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_lmr_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_lmr_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_lmr_sync_rdma_read.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_lmr_sync_rdma_write.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_mr_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_provider.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_sp_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_psp_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_psp_create_any.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_psp_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_psp_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_pz_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_pz_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_pz_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_pz_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rmr_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rmr_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rmr_bind.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rmr_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rmr_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rsp_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rsp_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_rsp_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_cno_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_set_consumer_context.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ring_buffer_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_name_service.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_timer_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_create_with_srq.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_recv_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_set_watermark.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_create.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_free.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_query.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_resize.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_post_recv.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_set_lw.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_srq_util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_debug.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ia_ha.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_csp.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_post_send_invalidate.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-dapl_ep_post_rdma_read_to_rmr.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-mem.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-cq.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-qp.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-util.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-cm.lo \
+@DEFINE_SCM_TRUE@	dapl_udapl_libdaploscm_la-device.lo \
+@DEFINE_SCM_TRUE@	$(am__objects_4)
 dapl_udapl_libdaploscm_la_OBJECTS =  \
 	$(am_dapl_udapl_libdaploscm_la_OBJECTS)
+@DEFINE_SCM_TRUE@am_dapl_udapl_libdaploscm_la_rpath = -rpath \
+@DEFINE_SCM_TRUE@	$(daplliboscmdir)
 dapl_udapl_libdaploucm_la_LIBADD =
 am__dapl_udapl_libdaploucm_la_SOURCES_DIST = dapl/udapl/dapl_init.c \
 	dapl/udapl/dapl_evd_create.c dapl/udapl/dapl_evd_query.c \
@@ -503,118 +521,124 @@ am__dapl_udapl_libdaploucm_la_SOURCES_DIST = dapl/udapl/dapl_init.c \
 	dapl/openib_common/mem.c dapl/openib_common/cq.c \
 	dapl/openib_common/qp.c dapl/openib_common/util.c \
 	dapl/openib_ucm/cm.c dapl/openib_ucm/device.c \
-	dapl/openib_common/ib_extensions.c
-@EXT_TYPE_IB_TRUE@am__objects_3 =  \
-@EXT_TYPE_IB_TRUE@	dapl_udapl_libdaploucm_la-ib_extensions.lo
-am_dapl_udapl_libdaploucm_la_OBJECTS =  \
-	dapl_udapl_libdaploucm_la-dapl_init.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_cno_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_cno_modify_agent.lo \
-	dapl_udapl_libdaploucm_la-dapl_cno_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_cno_wait.lo \
-	dapl_udapl_libdaploucm_la-dapl_cno_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_lmr_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_wait.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_disable.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_enable.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_modify_cno.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_set_unwaitable.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_clear_unwaitable.lo \
-	dapl_udapl_libdaploucm_la-dapl_osd.lo \
-	dapl_udapl_libdaploucm_la-dapl_cookie.lo \
-	dapl_udapl_libdaploucm_la-dapl_cr_accept.lo \
-	dapl_udapl_libdaploucm_la-dapl_cr_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_cr_reject.lo \
-	dapl_udapl_libdaploucm_la-dapl_cr_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_cr_callback.lo \
-	dapl_udapl_libdaploucm_la-dapl_cr_handoff.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_connect.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_disconnect.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_dup_connect.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_reset.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_get_status.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_modify.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_post_rdma_read.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_post_rdma_write.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_post_recv.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_post_send.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_dequeue.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_post_se.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_resize.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_cq_async_error_callb.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_qp_async_error_callb.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_un_async_error_callb.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_connection_callb.lo \
-	dapl_udapl_libdaploucm_la-dapl_evd_dto_callb.lo \
-	dapl_udapl_libdaploucm_la-dapl_get_consumer_context.lo \
-	dapl_udapl_libdaploucm_la-dapl_get_handle_type.lo \
-	dapl_udapl_libdaploucm_la-dapl_hash.lo \
-	dapl_udapl_libdaploucm_la-dapl_hca_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_ia_close.lo \
-	dapl_udapl_libdaploucm_la-dapl_ia_open.lo \
-	dapl_udapl_libdaploucm_la-dapl_ia_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_ia_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_llist.lo \
-	dapl_udapl_libdaploucm_la-dapl_lmr_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_lmr_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_lmr_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_lmr_sync_rdma_read.lo \
-	dapl_udapl_libdaploucm_la-dapl_lmr_sync_rdma_write.lo \
-	dapl_udapl_libdaploucm_la-dapl_mr_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_provider.lo \
-	dapl_udapl_libdaploucm_la-dapl_sp_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_psp_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_psp_create_any.lo \
-	dapl_udapl_libdaploucm_la-dapl_psp_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_psp_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_pz_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_pz_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_pz_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_pz_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_rmr_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_rmr_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_rmr_bind.lo \
-	dapl_udapl_libdaploucm_la-dapl_rmr_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_rmr_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_rsp_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_rsp_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_rsp_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_cno_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_set_consumer_context.lo \
-	dapl_udapl_libdaploucm_la-dapl_ring_buffer_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_name_service.lo \
-	dapl_udapl_libdaploucm_la-dapl_timer_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_create_with_srq.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_recv_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_set_watermark.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_create.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_free.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_query.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_resize.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_post_recv.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_set_lw.lo \
-	dapl_udapl_libdaploucm_la-dapl_srq_util.lo \
-	dapl_udapl_libdaploucm_la-dapl_debug.lo \
-	dapl_udapl_libdaploucm_la-dapl_ia_ha.lo \
-	dapl_udapl_libdaploucm_la-dapl_csp.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_post_send_invalidate.lo \
-	dapl_udapl_libdaploucm_la-dapl_ep_post_rdma_read_to_rmr.lo \
-	dapl_udapl_libdaploucm_la-mem.lo \
-	dapl_udapl_libdaploucm_la-cq.lo \
-	dapl_udapl_libdaploucm_la-qp.lo \
-	dapl_udapl_libdaploucm_la-util.lo \
-	dapl_udapl_libdaploucm_la-cm.lo \
-	dapl_udapl_libdaploucm_la-device.lo $(am__objects_3)
+	dapl/openib_common/ib_extensions.c \
+	dapl/openib_common/collectives/fca_provider.c
+@COLL_TYPE_FCA_TRUE@@EXT_TYPE_IB_TRUE@am__objects_5 = dapl_udapl_libdaploucm_la-fca_provider.lo
+@EXT_TYPE_IB_TRUE@am__objects_6 =  \
+@EXT_TYPE_IB_TRUE@	dapl_udapl_libdaploucm_la-ib_extensions.lo \
+@EXT_TYPE_IB_TRUE@	$(am__objects_5)
+@DEFINE_UCM_TRUE@am_dapl_udapl_libdaploucm_la_OBJECTS =  \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_init.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cno_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cno_modify_agent.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cno_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cno_wait.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cno_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_lmr_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_wait.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_disable.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_enable.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_modify_cno.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_set_unwaitable.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_clear_unwaitable.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_osd.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cookie.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cr_accept.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cr_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cr_reject.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cr_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cr_callback.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cr_handoff.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_connect.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_disconnect.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_dup_connect.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_reset.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_get_status.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_modify.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_post_rdma_read.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_post_rdma_write.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_post_recv.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_post_send.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_dequeue.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_post_se.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_resize.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_cq_async_error_callb.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_qp_async_error_callb.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_un_async_error_callb.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_connection_callb.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_evd_dto_callb.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_get_consumer_context.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_get_handle_type.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_hash.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_hca_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ia_close.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ia_open.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ia_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ia_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_llist.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_lmr_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_lmr_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_lmr_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_lmr_sync_rdma_read.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_lmr_sync_rdma_write.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_mr_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_provider.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_sp_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_psp_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_psp_create_any.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_psp_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_psp_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_pz_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_pz_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_pz_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_pz_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rmr_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rmr_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rmr_bind.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rmr_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rmr_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rsp_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rsp_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_rsp_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_cno_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_set_consumer_context.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ring_buffer_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_name_service.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_timer_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_create_with_srq.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_recv_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_set_watermark.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_create.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_free.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_query.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_resize.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_post_recv.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_set_lw.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_srq_util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_debug.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ia_ha.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_csp.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_post_send_invalidate.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-dapl_ep_post_rdma_read_to_rmr.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-mem.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-cq.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-qp.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-util.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-cm.lo \
+@DEFINE_UCM_TRUE@	dapl_udapl_libdaploucm_la-device.lo \
+@DEFINE_UCM_TRUE@	$(am__objects_6)
 dapl_udapl_libdaploucm_la_OBJECTS =  \
 	$(am_dapl_udapl_libdaploucm_la_OBJECTS)
+@DEFINE_UCM_TRUE@am_dapl_udapl_libdaploucm_la_rpath = -rpath \
+@DEFINE_UCM_TRUE@	$(daplliboucmdir)
 dat_udat_libdat2_la_LIBADD =
 am_dat_udat_libdat2_la_OBJECTS = dat_udat_libdat2_la-udat.lo \
 	dat_udat_libdat2_la-udat_api.lo \
@@ -682,6 +706,8 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+COLL_TYPE_FCA_FALSE = @COLL_TYPE_FCA_FALSE@
+COLL_TYPE_FCA_TRUE = @COLL_TYPE_FCA_TRUE@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CXX = @CXX@
@@ -689,10 +715,18 @@ CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
+DAPL_USE_IBACM_FALSE = @DAPL_USE_IBACM_FALSE@
+DAPL_USE_IBACM_TRUE = @DAPL_USE_IBACM_TRUE@
 DEBUG_FALSE = @DEBUG_FALSE@
 DEBUG_TRUE = @DEBUG_TRUE@
 DEFINE_ATTR_LINK_LAYER_FALSE = @DEFINE_ATTR_LINK_LAYER_FALSE@
 DEFINE_ATTR_LINK_LAYER_TRUE = @DEFINE_ATTR_LINK_LAYER_TRUE@
+DEFINE_CMA_FALSE = @DEFINE_CMA_FALSE@
+DEFINE_CMA_TRUE = @DEFINE_CMA_TRUE@
+DEFINE_SCM_FALSE = @DEFINE_SCM_FALSE@
+DEFINE_SCM_TRUE = @DEFINE_SCM_TRUE@
+DEFINE_UCM_FALSE = @DEFINE_UCM_FALSE@
+DEFINE_UCM_TRUE = @DEFINE_UCM_TRUE@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -784,56 +818,62 @@ target_alias = @target_alias@
 OSFLAGS = -DOS_RELEASE=$(shell expr `uname -r | cut -f1 -d.` \* 65536 \
 	+ `uname -r | cut -f2 -d.`) $(am__append_1) $(am__append_2) \
 	$(am__append_3)
-@EXT_TYPE_IB_FALSE@XFLAGS = $(am__append_4)
-@EXT_TYPE_IB_TRUE@XFLAGS = -DDAT_EXTENSIONS $(am__append_4)
+@EXT_TYPE_IB_FALSE@XFLAGS = $(am__append_9)
+@EXT_TYPE_IB_TRUE@XFLAGS = -DDAT_EXTENSIONS $(am__append_4) \
+@EXT_TYPE_IB_TRUE@	$(am__append_9)
 @EXT_TYPE_IB_FALSE@XPROGRAMS = 
-@EXT_TYPE_IB_TRUE@XPROGRAMS = dapl/openib_common/ib_extensions.c
+@EXT_TYPE_IB_TRUE@XPROGRAMS = dapl/openib_common/ib_extensions.c \
+@EXT_TYPE_IB_TRUE@	$(am__append_5)
+@EXT_TYPE_IB_FALSE@XHEADERS = 
+@EXT_TYPE_IB_TRUE@XHEADERS = $(am__append_6)
+@EXT_TYPE_IB_FALSE@XLIBS = $(am__append_8)
+@EXT_TYPE_IB_TRUE@XLIBS = $(am__append_7) $(am__append_8)
 @DEBUG_FALSE@AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DDAT_CONF="\"$(sysconfdir)/dat.conf\""
 @DEBUG_TRUE@AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DDAPL_DBG -DDAT_CONF="\"$(sysconfdir)/dat.conf\""
 datlibdir = $(libdir)
-dapllibofadir = $(libdir)
-daplliboscmdir = $(libdir)
-daplliboucmdir = $(libdir)
+@DEFINE_CMA_TRUE@dapllibofadir = $(libdir)
+@DEFINE_SCM_TRUE@daplliboscmdir = $(libdir)
+@DEFINE_UCM_TRUE@daplliboucmdir = $(libdir)
 datlib_LTLIBRARIES = dat/udat/libdat2.la
-dapllibofa_LTLIBRARIES = dapl/udapl/libdaplofa.la
-daplliboscm_LTLIBRARIES = dapl/udapl/libdaploscm.la
-daplliboucm_LTLIBRARIES = dapl/udapl/libdaploucm.la
+@DEFINE_CMA_TRUE@dapllibofa_LTLIBRARIES = dapl/udapl/libdaplofa.la
+@DEFINE_SCM_TRUE@daplliboscm_LTLIBRARIES = dapl/udapl/libdaploscm.la
+@DEFINE_UCM_TRUE@daplliboucm_LTLIBRARIES = dapl/udapl/libdaploucm.la
 dat_udat_libdat2_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
 				-I$(srcdir)/dat/include/ -I$(srcdir)/dat/udat/ \
 				-I$(srcdir)/dat/udat/linux -I$(srcdir)/dat/common/ 
 
-dapl_udapl_libdaplofa_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
-				-DOPENIB -DCQ_WAIT_OBJECT \
-				-I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
-				-I$(srcdir)/dapl/common -I$(srcdir)/dapl/udapl/linux \
-				-I$(srcdir)/dapl/openib_common \
-				-I$(srcdir)/dapl/openib_cma \
-				-I$(srcdir)/dapl/openib_cma/linux
+@DEFINE_CMA_TRUE@dapl_udapl_libdaplofa_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
+@DEFINE_CMA_TRUE@				-DOPENIB -DCQ_WAIT_OBJECT \
+@DEFINE_CMA_TRUE@				-I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
+@DEFINE_CMA_TRUE@				-I$(srcdir)/dapl/common -I$(srcdir)/dapl/udapl/linux \
+@DEFINE_CMA_TRUE@				-I$(srcdir)/dapl/openib_common \
+@DEFINE_CMA_TRUE@				-I$(srcdir)/dapl/openib_cma \
+@DEFINE_CMA_TRUE@				-I$(srcdir)/dapl/openib_cma/linux
 
-dapl_udapl_libdaploscm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
-                                -DOPENIB -DCQ_WAIT_OBJECT \
-                                -I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
-                                -I$(srcdir)/dapl/common -I$(srcdir)/dapl/udapl/linux \
-				-I$(srcdir)/dapl/openib_common \
-                                -I$(srcdir)/dapl/openib_scm \
-				-I$(srcdir)/dapl/openib_scm/linux
+@DEFINE_SCM_TRUE@dapl_udapl_libdaploscm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
+@DEFINE_SCM_TRUE@                                -DOPENIB -DCQ_WAIT_OBJECT \
+@DEFINE_SCM_TRUE@                                -I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
+@DEFINE_SCM_TRUE@                                -I$(srcdir)/dapl/common -I$(srcdir)/dapl/udapl/linux \
+@DEFINE_SCM_TRUE@				-I$(srcdir)/dapl/openib_common \
+@DEFINE_SCM_TRUE@                                -I$(srcdir)/dapl/openib_scm \
+@DEFINE_SCM_TRUE@				-I$(srcdir)/dapl/openib_scm/linux
 
-dapl_udapl_libdaploucm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
-                                -DOPENIB -DCQ_WAIT_OBJECT \
-                                -I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
-                                -I$(srcdir)/dapl/common -I$(srcdir)/dapl/udapl/linux \
-				-I$(srcdir)/dapl/openib_common \
-                                -I$(srcdir)/dapl/openib_ucm \
-				-I$(srcdir)/dapl/openib_ucm/linux				
+@DEFINE_UCM_TRUE@dapl_udapl_libdaploucm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
+@DEFINE_UCM_TRUE@                                -DOPENIB -DCQ_WAIT_OBJECT \
+@DEFINE_UCM_TRUE@                                -I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
+@DEFINE_UCM_TRUE@                                -I$(srcdir)/dapl/common -I$(srcdir)/dapl/udapl/linux \
+@DEFINE_UCM_TRUE@				-I$(srcdir)/dapl/openib_common \
+@DEFINE_UCM_TRUE@                                -I$(srcdir)/dapl/openib_ucm \
+@DEFINE_UCM_TRUE@				-I$(srcdir)/dapl/openib_ucm/linux				
 
 @HAVE_LD_VERSION_SCRIPT_FALSE@dat_version_script = 
 @HAVE_LD_VERSION_SCRIPT_TRUE@dat_version_script = -Wl,--version-script=$(srcdir)/dat/udat/libdat2.map
-@HAVE_LD_VERSION_SCRIPT_FALSE@daplofa_version_script = 
-@HAVE_LD_VERSION_SCRIPT_TRUE@daplofa_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaplofa.map
-@HAVE_LD_VERSION_SCRIPT_FALSE@daploscm_version_script = 
-@HAVE_LD_VERSION_SCRIPT_TRUE@daploscm_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaploscm.map
-@HAVE_LD_VERSION_SCRIPT_FALSE@daploucm_version_script = 
-@HAVE_LD_VERSION_SCRIPT_TRUE@daploucm_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaploucm.map
+@DEFINE_CMA_TRUE@@HAVE_LD_VERSION_SCRIPT_FALSE@daplofa_version_script = 
+@DEFINE_CMA_TRUE@@HAVE_LD_VERSION_SCRIPT_TRUE@daplofa_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaplofa.map
+@DEFINE_SCM_TRUE@@HAVE_LD_VERSION_SCRIPT_FALSE@daploscm_version_script = 
+@DEFINE_SCM_TRUE@@HAVE_LD_VERSION_SCRIPT_TRUE@daploscm_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaploscm.map
+@DEFINE_UCM_TRUE@@HAVE_LD_VERSION_SCRIPT_FALSE@daploucm_version_script = 
+@DEFINE_UCM_TRUE@@HAVE_LD_VERSION_SCRIPT_TRUE@daploucm_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaploucm.map
 
 #
 # uDAT: libdat2.so
@@ -854,346 +894,344 @@ dat_udat_libdat2_la_LDFLAGS = -version-info 2:0:0 $(dat_version_script) -ldl
 #
 # uDAPL OpenFabrics rdma_cm version: libdaplofa.so
 #
-dapl_udapl_libdaplofa_la_SOURCES = dapl/udapl/dapl_init.c \
-        dapl/udapl/dapl_evd_create.c               \
-        dapl/udapl/dapl_evd_query.c                \
-        dapl/udapl/dapl_cno_create.c               \
-        dapl/udapl/dapl_cno_modify_agent.c         \
-        dapl/udapl/dapl_cno_free.c                 \
-        dapl/udapl/dapl_cno_wait.c                 \
-        dapl/udapl/dapl_cno_query.c                \
-        dapl/udapl/dapl_lmr_create.c               \
-        dapl/udapl/dapl_evd_wait.c                 \
-        dapl/udapl/dapl_evd_disable.c              \
-        dapl/udapl/dapl_evd_enable.c               \
-        dapl/udapl/dapl_evd_modify_cno.c           \
-        dapl/udapl/dapl_evd_set_unwaitable.c       \
-        dapl/udapl/dapl_evd_clear_unwaitable.c     \
-        dapl/udapl/linux/dapl_osd.c                \
-        dapl/common/dapl_cookie.c                   \
-        dapl/common/dapl_cr_accept.c                \
-        dapl/common/dapl_cr_query.c                 \
-        dapl/common/dapl_cr_reject.c                \
-        dapl/common/dapl_cr_util.c                  \
-        dapl/common/dapl_cr_callback.c              \
-        dapl/common/dapl_cr_handoff.c               \
-        dapl/common/dapl_ep_connect.c               \
-        dapl/common/dapl_ep_create.c                \
-        dapl/common/dapl_ep_disconnect.c            \
-        dapl/common/dapl_ep_dup_connect.c           \
-        dapl/common/dapl_ep_free.c                  \
-        dapl/common/dapl_ep_reset.c                 \
-        dapl/common/dapl_ep_get_status.c            \
-        dapl/common/dapl_ep_modify.c                \
-        dapl/common/dapl_ep_post_rdma_read.c        \
-        dapl/common/dapl_ep_post_rdma_write.c       \
-        dapl/common/dapl_ep_post_recv.c             \
-        dapl/common/dapl_ep_post_send.c             \
-        dapl/common/dapl_ep_query.c                 \
-        dapl/common/dapl_ep_util.c                  \
-        dapl/common/dapl_evd_dequeue.c              \
-        dapl/common/dapl_evd_free.c                 \
-        dapl/common/dapl_evd_post_se.c              \
-        dapl/common/dapl_evd_resize.c               \
-        dapl/common/dapl_evd_util.c                 \
-        dapl/common/dapl_evd_cq_async_error_callb.c \
-        dapl/common/dapl_evd_qp_async_error_callb.c \
-        dapl/common/dapl_evd_un_async_error_callb.c \
-        dapl/common/dapl_evd_connection_callb.c     \
-        dapl/common/dapl_evd_dto_callb.c            \
-        dapl/common/dapl_get_consumer_context.c     \
-        dapl/common/dapl_get_handle_type.c          \
-        dapl/common/dapl_hash.c                     \
-        dapl/common/dapl_hca_util.c                 \
-        dapl/common/dapl_ia_close.c                 \
-        dapl/common/dapl_ia_open.c                  \
-        dapl/common/dapl_ia_query.c                 \
-        dapl/common/dapl_ia_util.c                  \
-        dapl/common/dapl_llist.c                    \
-        dapl/common/dapl_lmr_free.c                 \
-        dapl/common/dapl_lmr_query.c                \
-        dapl/common/dapl_lmr_util.c                 \
-        dapl/common/dapl_lmr_sync_rdma_read.c       \
-        dapl/common/dapl_lmr_sync_rdma_write.c      \
-        dapl/common/dapl_mr_util.c                  \
-        dapl/common/dapl_provider.c                 \
-        dapl/common/dapl_sp_util.c                  \
-        dapl/common/dapl_psp_create.c               \
-        dapl/common/dapl_psp_create_any.c           \
-        dapl/common/dapl_psp_free.c                 \
-        dapl/common/dapl_psp_query.c                \
-        dapl/common/dapl_pz_create.c                \
-        dapl/common/dapl_pz_free.c                  \
-        dapl/common/dapl_pz_query.c                 \
-        dapl/common/dapl_pz_util.c                  \
-        dapl/common/dapl_rmr_create.c               \
-        dapl/common/dapl_rmr_free.c                 \
-        dapl/common/dapl_rmr_bind.c                 \
-        dapl/common/dapl_rmr_query.c                \
-        dapl/common/dapl_rmr_util.c                 \
-        dapl/common/dapl_rsp_create.c               \
-        dapl/common/dapl_rsp_free.c                 \
-        dapl/common/dapl_rsp_query.c                \
-        dapl/common/dapl_cno_util.c                 \
-        dapl/common/dapl_set_consumer_context.c     \
-        dapl/common/dapl_ring_buffer_util.c         \
-        dapl/common/dapl_name_service.c             \
-        dapl/common/dapl_timer_util.c               \
-        dapl/common/dapl_ep_create_with_srq.c       \
-        dapl/common/dapl_ep_recv_query.c            \
-        dapl/common/dapl_ep_set_watermark.c         \
-        dapl/common/dapl_srq_create.c               \
-        dapl/common/dapl_srq_free.c                 \
-        dapl/common/dapl_srq_query.c                \
-        dapl/common/dapl_srq_resize.c               \
-        dapl/common/dapl_srq_post_recv.c            \
-        dapl/common/dapl_srq_set_lw.c               \
-        dapl/common/dapl_srq_util.c                 \
-        dapl/common/dapl_debug.c                    \
-        dapl/common/dapl_ia_ha.c                    \
-        dapl/common/dapl_csp.c                      \
-        dapl/common/dapl_ep_post_send_invalidate.c  \
-        dapl/common/dapl_ep_post_rdma_read_to_rmr.c \
-        dapl/openib_common/mem.c                    \
-        dapl/openib_common/cq.c                     \
-        dapl/openib_common/qp.c                     \
-        dapl/openib_common/util.c                   \
-        dapl/openib_cma/cm.c                        \
-        dapl/openib_cma/device.c $(XPROGRAMS)
+@DEFINE_CMA_TRUE@dapl_udapl_libdaplofa_la_SOURCES = dapl/udapl/dapl_init.c \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_create.c               \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_query.c                \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_cno_create.c               \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_cno_modify_agent.c         \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_cno_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_cno_wait.c                 \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_cno_query.c                \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_lmr_create.c               \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_wait.c                 \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_disable.c              \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_enable.c               \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_modify_cno.c           \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_set_unwaitable.c       \
+@DEFINE_CMA_TRUE@        dapl/udapl/dapl_evd_clear_unwaitable.c     \
+@DEFINE_CMA_TRUE@        dapl/udapl/linux/dapl_osd.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cookie.c                   \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cr_accept.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cr_query.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cr_reject.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cr_util.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cr_callback.c              \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cr_handoff.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_connect.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_create.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_disconnect.c            \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_dup_connect.c           \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_free.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_reset.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_get_status.c            \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_modify.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_post_rdma_read.c        \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_post_rdma_write.c       \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_post_recv.c             \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_post_send.c             \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_query.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_util.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_dequeue.c              \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_post_se.c              \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_resize.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_util.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_cq_async_error_callb.c \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_qp_async_error_callb.c \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_un_async_error_callb.c \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_connection_callb.c     \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_evd_dto_callb.c            \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_get_consumer_context.c     \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_get_handle_type.c          \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_hash.c                     \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_hca_util.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ia_close.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ia_open.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ia_query.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ia_util.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_llist.c                    \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_lmr_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_lmr_query.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_lmr_util.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_lmr_sync_rdma_read.c       \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_lmr_sync_rdma_write.c      \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_mr_util.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_provider.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_sp_util.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_psp_create.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_psp_create_any.c           \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_psp_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_psp_query.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_pz_create.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_pz_free.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_pz_query.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_pz_util.c                  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rmr_create.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rmr_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rmr_bind.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rmr_query.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rmr_util.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rsp_create.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rsp_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_rsp_query.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_cno_util.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_set_consumer_context.c     \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ring_buffer_util.c         \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_name_service.c             \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_timer_util.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_create_with_srq.c       \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_recv_query.c            \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_set_watermark.c         \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_create.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_free.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_query.c                \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_resize.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_post_recv.c            \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_set_lw.c               \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_srq_util.c                 \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_debug.c                    \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ia_ha.c                    \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_csp.c                      \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_post_send_invalidate.c  \
+@DEFINE_CMA_TRUE@        dapl/common/dapl_ep_post_rdma_read_to_rmr.c \
+@DEFINE_CMA_TRUE@        dapl/openib_common/mem.c                    \
+@DEFINE_CMA_TRUE@        dapl/openib_common/cq.c                     \
+@DEFINE_CMA_TRUE@        dapl/openib_common/qp.c                     \
+@DEFINE_CMA_TRUE@        dapl/openib_common/util.c                   \
+@DEFINE_CMA_TRUE@        dapl/openib_cma/cm.c                        \
+@DEFINE_CMA_TRUE@        dapl/openib_cma/device.c $(XPROGRAMS)
 
-dapl_udapl_libdaplofa_la_LDFLAGS = -version-info 2:0:0 $(daplofa_version_script) \
-				   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-				   -lpthread -libverbs -lrdmacm 
-
+@DEFINE_CMA_TRUE@dapl_udapl_libdaplofa_la_LDFLAGS = -version-info 2:0:0 $(daplofa_version_script) \
+@DEFINE_CMA_TRUE@				   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
+@DEFINE_CMA_TRUE@				   -lpthread -libverbs -lrdmacm $(XLIBS)
 
 #
 # uDAPL OpenFabrics Socket CM version for IB: libdaplscm.so
 #
-dapl_udapl_libdaploscm_la_SOURCES = dapl/udapl/dapl_init.c \
-        dapl/udapl/dapl_evd_create.c               \
-        dapl/udapl/dapl_evd_query.c                \
-        dapl/udapl/dapl_cno_create.c               \
-        dapl/udapl/dapl_cno_modify_agent.c         \
-        dapl/udapl/dapl_cno_free.c                 \
-        dapl/udapl/dapl_cno_wait.c                 \
-        dapl/udapl/dapl_cno_query.c                \
-        dapl/udapl/dapl_lmr_create.c               \
-        dapl/udapl/dapl_evd_wait.c                 \
-        dapl/udapl/dapl_evd_disable.c              \
-        dapl/udapl/dapl_evd_enable.c               \
-        dapl/udapl/dapl_evd_modify_cno.c           \
-        dapl/udapl/dapl_evd_set_unwaitable.c       \
-        dapl/udapl/dapl_evd_clear_unwaitable.c     \
-        dapl/udapl/linux/dapl_osd.c                \
-        dapl/common/dapl_cookie.c                   \
-        dapl/common/dapl_cr_accept.c                \
-        dapl/common/dapl_cr_query.c                 \
-        dapl/common/dapl_cr_reject.c                \
-        dapl/common/dapl_cr_util.c                  \
-        dapl/common/dapl_cr_callback.c              \
-        dapl/common/dapl_cr_handoff.c               \
-        dapl/common/dapl_ep_connect.c               \
-        dapl/common/dapl_ep_create.c                \
-        dapl/common/dapl_ep_disconnect.c            \
-        dapl/common/dapl_ep_dup_connect.c           \
-        dapl/common/dapl_ep_free.c                  \
-        dapl/common/dapl_ep_reset.c                 \
-        dapl/common/dapl_ep_get_status.c            \
-        dapl/common/dapl_ep_modify.c                \
-        dapl/common/dapl_ep_post_rdma_read.c        \
-        dapl/common/dapl_ep_post_rdma_write.c       \
-        dapl/common/dapl_ep_post_recv.c             \
-        dapl/common/dapl_ep_post_send.c             \
-        dapl/common/dapl_ep_query.c                 \
-        dapl/common/dapl_ep_util.c                  \
-        dapl/common/dapl_evd_dequeue.c              \
-        dapl/common/dapl_evd_free.c                 \
-        dapl/common/dapl_evd_post_se.c              \
-        dapl/common/dapl_evd_resize.c               \
-        dapl/common/dapl_evd_util.c                 \
-        dapl/common/dapl_evd_cq_async_error_callb.c \
-        dapl/common/dapl_evd_qp_async_error_callb.c \
-        dapl/common/dapl_evd_un_async_error_callb.c \
-        dapl/common/dapl_evd_connection_callb.c     \
-        dapl/common/dapl_evd_dto_callb.c            \
-        dapl/common/dapl_get_consumer_context.c     \
-        dapl/common/dapl_get_handle_type.c          \
-        dapl/common/dapl_hash.c                     \
-        dapl/common/dapl_hca_util.c                 \
-        dapl/common/dapl_ia_close.c                 \
-        dapl/common/dapl_ia_open.c                  \
-        dapl/common/dapl_ia_query.c                 \
-        dapl/common/dapl_ia_util.c                  \
-        dapl/common/dapl_llist.c                    \
-        dapl/common/dapl_lmr_free.c                 \
-        dapl/common/dapl_lmr_query.c                \
-        dapl/common/dapl_lmr_util.c                 \
-        dapl/common/dapl_lmr_sync_rdma_read.c       \
-        dapl/common/dapl_lmr_sync_rdma_write.c      \
-        dapl/common/dapl_mr_util.c                  \
-        dapl/common/dapl_provider.c                 \
-        dapl/common/dapl_sp_util.c                  \
-        dapl/common/dapl_psp_create.c               \
-        dapl/common/dapl_psp_create_any.c           \
-        dapl/common/dapl_psp_free.c                 \
-        dapl/common/dapl_psp_query.c                \
-        dapl/common/dapl_pz_create.c                \
-        dapl/common/dapl_pz_free.c                  \
-        dapl/common/dapl_pz_query.c                 \
-        dapl/common/dapl_pz_util.c                  \
-        dapl/common/dapl_rmr_create.c               \
-        dapl/common/dapl_rmr_free.c                 \
-        dapl/common/dapl_rmr_bind.c                 \
-        dapl/common/dapl_rmr_query.c                \
-        dapl/common/dapl_rmr_util.c                 \
-        dapl/common/dapl_rsp_create.c               \
-        dapl/common/dapl_rsp_free.c                 \
-        dapl/common/dapl_rsp_query.c                \
-        dapl/common/dapl_cno_util.c                 \
-        dapl/common/dapl_set_consumer_context.c     \
-        dapl/common/dapl_ring_buffer_util.c         \
-        dapl/common/dapl_name_service.c             \
-        dapl/common/dapl_timer_util.c               \
-        dapl/common/dapl_ep_create_with_srq.c       \
-        dapl/common/dapl_ep_recv_query.c            \
-        dapl/common/dapl_ep_set_watermark.c         \
-        dapl/common/dapl_srq_create.c               \
-        dapl/common/dapl_srq_free.c                 \
-        dapl/common/dapl_srq_query.c                \
-        dapl/common/dapl_srq_resize.c               \
-        dapl/common/dapl_srq_post_recv.c            \
-        dapl/common/dapl_srq_set_lw.c               \
-        dapl/common/dapl_srq_util.c                 \
-        dapl/common/dapl_debug.c                    \
-        dapl/common/dapl_ia_ha.c                    \
-        dapl/common/dapl_csp.c                      \
-        dapl/common/dapl_ep_post_send_invalidate.c  \
-        dapl/common/dapl_ep_post_rdma_read_to_rmr.c \
-        dapl/openib_common/mem.c                    \
-        dapl/openib_common/cq.c                     \
-        dapl/openib_common/qp.c                     \
-        dapl/openib_common/util.c                   \
-        dapl/openib_scm/cm.c                        \
-        dapl/openib_scm/device.c $(XPROGRAMS)
+@DEFINE_SCM_TRUE@dapl_udapl_libdaploscm_la_SOURCES = dapl/udapl/dapl_init.c \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_create.c               \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_query.c                \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_cno_create.c               \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_cno_modify_agent.c         \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_cno_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_cno_wait.c                 \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_cno_query.c                \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_lmr_create.c               \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_wait.c                 \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_disable.c              \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_enable.c               \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_modify_cno.c           \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_set_unwaitable.c       \
+@DEFINE_SCM_TRUE@        dapl/udapl/dapl_evd_clear_unwaitable.c     \
+@DEFINE_SCM_TRUE@        dapl/udapl/linux/dapl_osd.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cookie.c                   \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cr_accept.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cr_query.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cr_reject.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cr_util.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cr_callback.c              \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cr_handoff.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_connect.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_create.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_disconnect.c            \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_dup_connect.c           \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_free.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_reset.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_get_status.c            \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_modify.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_post_rdma_read.c        \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_post_rdma_write.c       \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_post_recv.c             \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_post_send.c             \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_query.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_util.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_dequeue.c              \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_post_se.c              \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_resize.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_util.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_cq_async_error_callb.c \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_qp_async_error_callb.c \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_un_async_error_callb.c \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_connection_callb.c     \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_evd_dto_callb.c            \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_get_consumer_context.c     \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_get_handle_type.c          \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_hash.c                     \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_hca_util.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ia_close.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ia_open.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ia_query.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ia_util.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_llist.c                    \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_lmr_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_lmr_query.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_lmr_util.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_lmr_sync_rdma_read.c       \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_lmr_sync_rdma_write.c      \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_mr_util.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_provider.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_sp_util.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_psp_create.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_psp_create_any.c           \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_psp_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_psp_query.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_pz_create.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_pz_free.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_pz_query.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_pz_util.c                  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rmr_create.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rmr_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rmr_bind.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rmr_query.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rmr_util.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rsp_create.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rsp_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_rsp_query.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_cno_util.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_set_consumer_context.c     \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ring_buffer_util.c         \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_name_service.c             \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_timer_util.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_create_with_srq.c       \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_recv_query.c            \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_set_watermark.c         \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_create.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_free.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_query.c                \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_resize.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_post_recv.c            \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_set_lw.c               \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_srq_util.c                 \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_debug.c                    \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ia_ha.c                    \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_csp.c                      \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_post_send_invalidate.c  \
+@DEFINE_SCM_TRUE@        dapl/common/dapl_ep_post_rdma_read_to_rmr.c \
+@DEFINE_SCM_TRUE@        dapl/openib_common/mem.c                    \
+@DEFINE_SCM_TRUE@        dapl/openib_common/cq.c                     \
+@DEFINE_SCM_TRUE@        dapl/openib_common/qp.c                     \
+@DEFINE_SCM_TRUE@        dapl/openib_common/util.c                   \
+@DEFINE_SCM_TRUE@        dapl/openib_scm/cm.c                        \
+@DEFINE_SCM_TRUE@        dapl/openib_scm/device.c $(XPROGRAMS)
 
-dapl_udapl_libdaploscm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
-                                   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-                                   -lpthread -libverbs -lrdmacm
-
+@DEFINE_SCM_TRUE@dapl_udapl_libdaploscm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
+@DEFINE_SCM_TRUE@                                   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
+@DEFINE_SCM_TRUE@                                   -lpthread -libverbs $(XLIBS)
 
 #
 # uDAPL OpenFabrics UD CM version for IB: libdaplucm.so
 #
-dapl_udapl_libdaploucm_la_SOURCES = dapl/udapl/dapl_init.c \
-        dapl/udapl/dapl_evd_create.c               \
-        dapl/udapl/dapl_evd_query.c                \
-        dapl/udapl/dapl_cno_create.c               \
-        dapl/udapl/dapl_cno_modify_agent.c         \
-        dapl/udapl/dapl_cno_free.c                 \
-        dapl/udapl/dapl_cno_wait.c                 \
-        dapl/udapl/dapl_cno_query.c                \
-        dapl/udapl/dapl_lmr_create.c               \
-        dapl/udapl/dapl_evd_wait.c                 \
-        dapl/udapl/dapl_evd_disable.c              \
-        dapl/udapl/dapl_evd_enable.c               \
-        dapl/udapl/dapl_evd_modify_cno.c           \
-        dapl/udapl/dapl_evd_set_unwaitable.c       \
-        dapl/udapl/dapl_evd_clear_unwaitable.c     \
-        dapl/udapl/linux/dapl_osd.c                \
-        dapl/common/dapl_cookie.c                   \
-        dapl/common/dapl_cr_accept.c                \
-        dapl/common/dapl_cr_query.c                 \
-        dapl/common/dapl_cr_reject.c                \
-        dapl/common/dapl_cr_util.c                  \
-        dapl/common/dapl_cr_callback.c              \
-        dapl/common/dapl_cr_handoff.c               \
-        dapl/common/dapl_ep_connect.c               \
-        dapl/common/dapl_ep_create.c                \
-        dapl/common/dapl_ep_disconnect.c            \
-        dapl/common/dapl_ep_dup_connect.c           \
-        dapl/common/dapl_ep_free.c                  \
-        dapl/common/dapl_ep_reset.c                 \
-        dapl/common/dapl_ep_get_status.c            \
-        dapl/common/dapl_ep_modify.c                \
-        dapl/common/dapl_ep_post_rdma_read.c        \
-        dapl/common/dapl_ep_post_rdma_write.c       \
-        dapl/common/dapl_ep_post_recv.c             \
-        dapl/common/dapl_ep_post_send.c             \
-        dapl/common/dapl_ep_query.c                 \
-        dapl/common/dapl_ep_util.c                  \
-        dapl/common/dapl_evd_dequeue.c              \
-        dapl/common/dapl_evd_free.c                 \
-        dapl/common/dapl_evd_post_se.c              \
-        dapl/common/dapl_evd_resize.c               \
-        dapl/common/dapl_evd_util.c                 \
-        dapl/common/dapl_evd_cq_async_error_callb.c \
-        dapl/common/dapl_evd_qp_async_error_callb.c \
-        dapl/common/dapl_evd_un_async_error_callb.c \
-        dapl/common/dapl_evd_connection_callb.c     \
-        dapl/common/dapl_evd_dto_callb.c            \
-        dapl/common/dapl_get_consumer_context.c     \
-        dapl/common/dapl_get_handle_type.c          \
-        dapl/common/dapl_hash.c                     \
-        dapl/common/dapl_hca_util.c                 \
-        dapl/common/dapl_ia_close.c                 \
-        dapl/common/dapl_ia_open.c                  \
-        dapl/common/dapl_ia_query.c                 \
-        dapl/common/dapl_ia_util.c                  \
-        dapl/common/dapl_llist.c                    \
-        dapl/common/dapl_lmr_free.c                 \
-        dapl/common/dapl_lmr_query.c                \
-        dapl/common/dapl_lmr_util.c                 \
-        dapl/common/dapl_lmr_sync_rdma_read.c       \
-        dapl/common/dapl_lmr_sync_rdma_write.c      \
-        dapl/common/dapl_mr_util.c                  \
-        dapl/common/dapl_provider.c                 \
-        dapl/common/dapl_sp_util.c                  \
-        dapl/common/dapl_psp_create.c               \
-        dapl/common/dapl_psp_create_any.c           \
-        dapl/common/dapl_psp_free.c                 \
-        dapl/common/dapl_psp_query.c                \
-        dapl/common/dapl_pz_create.c                \
-        dapl/common/dapl_pz_free.c                  \
-        dapl/common/dapl_pz_query.c                 \
-        dapl/common/dapl_pz_util.c                  \
-        dapl/common/dapl_rmr_create.c               \
-        dapl/common/dapl_rmr_free.c                 \
-        dapl/common/dapl_rmr_bind.c                 \
-        dapl/common/dapl_rmr_query.c                \
-        dapl/common/dapl_rmr_util.c                 \
-        dapl/common/dapl_rsp_create.c               \
-        dapl/common/dapl_rsp_free.c                 \
-        dapl/common/dapl_rsp_query.c                \
-        dapl/common/dapl_cno_util.c                 \
-        dapl/common/dapl_set_consumer_context.c     \
-        dapl/common/dapl_ring_buffer_util.c         \
-        dapl/common/dapl_name_service.c             \
-        dapl/common/dapl_timer_util.c               \
-        dapl/common/dapl_ep_create_with_srq.c       \
-        dapl/common/dapl_ep_recv_query.c            \
-        dapl/common/dapl_ep_set_watermark.c         \
-        dapl/common/dapl_srq_create.c               \
-        dapl/common/dapl_srq_free.c                 \
-        dapl/common/dapl_srq_query.c                \
-        dapl/common/dapl_srq_resize.c               \
-        dapl/common/dapl_srq_post_recv.c            \
-        dapl/common/dapl_srq_set_lw.c               \
-        dapl/common/dapl_srq_util.c                 \
-        dapl/common/dapl_debug.c                    \
-        dapl/common/dapl_ia_ha.c                    \
-        dapl/common/dapl_csp.c                      \
-        dapl/common/dapl_ep_post_send_invalidate.c  \
-        dapl/common/dapl_ep_post_rdma_read_to_rmr.c \
-        dapl/openib_common/mem.c                    \
-        dapl/openib_common/cq.c                     \
-        dapl/openib_common/qp.c                     \
-        dapl/openib_common/util.c                   \
-        dapl/openib_ucm/cm.c                        \
-        dapl/openib_ucm/device.c $(XPROGRAMS)
+@DEFINE_UCM_TRUE@dapl_udapl_libdaploucm_la_SOURCES = dapl/udapl/dapl_init.c \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_create.c               \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_query.c                \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_cno_create.c               \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_cno_modify_agent.c         \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_cno_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_cno_wait.c                 \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_cno_query.c                \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_lmr_create.c               \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_wait.c                 \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_disable.c              \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_enable.c               \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_modify_cno.c           \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_set_unwaitable.c       \
+@DEFINE_UCM_TRUE@        dapl/udapl/dapl_evd_clear_unwaitable.c     \
+@DEFINE_UCM_TRUE@        dapl/udapl/linux/dapl_osd.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cookie.c                   \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cr_accept.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cr_query.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cr_reject.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cr_util.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cr_callback.c              \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cr_handoff.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_connect.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_create.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_disconnect.c            \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_dup_connect.c           \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_free.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_reset.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_get_status.c            \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_modify.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_post_rdma_read.c        \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_post_rdma_write.c       \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_post_recv.c             \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_post_send.c             \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_query.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_util.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_dequeue.c              \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_post_se.c              \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_resize.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_util.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_cq_async_error_callb.c \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_qp_async_error_callb.c \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_un_async_error_callb.c \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_connection_callb.c     \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_evd_dto_callb.c            \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_get_consumer_context.c     \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_get_handle_type.c          \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_hash.c                     \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_hca_util.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ia_close.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ia_open.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ia_query.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ia_util.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_llist.c                    \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_lmr_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_lmr_query.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_lmr_util.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_lmr_sync_rdma_read.c       \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_lmr_sync_rdma_write.c      \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_mr_util.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_provider.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_sp_util.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_psp_create.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_psp_create_any.c           \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_psp_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_psp_query.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_pz_create.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_pz_free.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_pz_query.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_pz_util.c                  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rmr_create.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rmr_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rmr_bind.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rmr_query.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rmr_util.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rsp_create.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rsp_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_rsp_query.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_cno_util.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_set_consumer_context.c     \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ring_buffer_util.c         \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_name_service.c             \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_timer_util.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_create_with_srq.c       \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_recv_query.c            \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_set_watermark.c         \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_create.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_free.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_query.c                \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_resize.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_post_recv.c            \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_set_lw.c               \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_srq_util.c                 \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_debug.c                    \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ia_ha.c                    \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_csp.c                      \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_post_send_invalidate.c  \
+@DEFINE_UCM_TRUE@        dapl/common/dapl_ep_post_rdma_read_to_rmr.c \
+@DEFINE_UCM_TRUE@        dapl/openib_common/mem.c                    \
+@DEFINE_UCM_TRUE@        dapl/openib_common/cq.c                     \
+@DEFINE_UCM_TRUE@        dapl/openib_common/qp.c                     \
+@DEFINE_UCM_TRUE@        dapl/openib_common/util.c                   \
+@DEFINE_UCM_TRUE@        dapl/openib_ucm/cm.c                        \
+@DEFINE_UCM_TRUE@        dapl/openib_ucm/device.c $(XPROGRAMS)
 
-dapl_udapl_libdaploucm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
-                                   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-                                   -lpthread -libverbs -lrdmacm
+@DEFINE_UCM_TRUE@dapl_udapl_libdaploucm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
+@DEFINE_UCM_TRUE@                                   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
+@DEFINE_UCM_TRUE@                                   -lpthread -libverbs $(XLIBS)
 
 libdatincludedir = $(includedir)/dat2
 libdatinclude_HEADERS = dat/include/dat2/dat.h \
@@ -1293,7 +1331,7 @@ EXTRA_DIST = dat/common/dat_dictionary.h \
 	     test/dapltest/include/dapl_transaction_stats.h \
 	     test/dapltest/include/dapl_transaction_test.h \
 	     test/dapltest/include/dapl_version.h \
-	     test/dapltest/mdep/linux/dapl_mdep_user.h
+	     test/dapltest/mdep/linux/dapl_mdep_user.h $(XHEADERS)
 
 SUBDIRS = . test/dtest test/dapltest
 all: config.h
@@ -1465,11 +1503,11 @@ dapl/udapl/$(am__dirstamp):
 	@$(mkdir_p) dapl/udapl
 	@: > dapl/udapl/$(am__dirstamp)
 dapl/udapl/libdaplofa.la: $(dapl_udapl_libdaplofa_la_OBJECTS) $(dapl_udapl_libdaplofa_la_DEPENDENCIES) dapl/udapl/$(am__dirstamp)
-	$(LINK) -rpath $(dapllibofadir) $(dapl_udapl_libdaplofa_la_LDFLAGS) $(dapl_udapl_libdaplofa_la_OBJECTS) $(dapl_udapl_libdaplofa_la_LIBADD) $(LIBS)
+	$(LINK) $(am_dapl_udapl_libdaplofa_la_rpath) $(dapl_udapl_libdaplofa_la_LDFLAGS) $(dapl_udapl_libdaplofa_la_OBJECTS) $(dapl_udapl_libdaplofa_la_LIBADD) $(LIBS)
 dapl/udapl/libdaploscm.la: $(dapl_udapl_libdaploscm_la_OBJECTS) $(dapl_udapl_libdaploscm_la_DEPENDENCIES) dapl/udapl/$(am__dirstamp)
-	$(LINK) -rpath $(daplliboscmdir) $(dapl_udapl_libdaploscm_la_LDFLAGS) $(dapl_udapl_libdaploscm_la_OBJECTS) $(dapl_udapl_libdaploscm_la_LIBADD) $(LIBS)
+	$(LINK) $(am_dapl_udapl_libdaploscm_la_rpath) $(dapl_udapl_libdaploscm_la_LDFLAGS) $(dapl_udapl_libdaploscm_la_OBJECTS) $(dapl_udapl_libdaploscm_la_LIBADD) $(LIBS)
 dapl/udapl/libdaploucm.la: $(dapl_udapl_libdaploucm_la_OBJECTS) $(dapl_udapl_libdaploucm_la_DEPENDENCIES) dapl/udapl/$(am__dirstamp)
-	$(LINK) -rpath $(daplliboucmdir) $(dapl_udapl_libdaploucm_la_LDFLAGS) $(dapl_udapl_libdaploucm_la_OBJECTS) $(dapl_udapl_libdaploucm_la_LIBADD) $(LIBS)
+	$(LINK) $(am_dapl_udapl_libdaploucm_la_rpath) $(dapl_udapl_libdaploucm_la_LDFLAGS) $(dapl_udapl_libdaploucm_la_OBJECTS) $(dapl_udapl_libdaploucm_la_LIBADD) $(LIBS)
 dat/udat/$(am__dirstamp):
 	@$(mkdir_p) dat/udat
 	@: > dat/udat/$(am__dirstamp)
@@ -1585,6 +1623,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-dapl_srq_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-dapl_timer_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-device.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-fca_provider.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-ib_extensions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-mem.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaplofa_la-qp.Plo@am__quote@
@@ -1692,6 +1731,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-dapl_srq_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-dapl_timer_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-device.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-fca_provider.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-ib_extensions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-mem.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploscm_la-qp.Plo@am__quote@
@@ -1799,6 +1839,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-dapl_srq_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-dapl_timer_util.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-device.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-fca_provider.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-ib_extensions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-mem.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dapl_udapl_libdaploucm_la-qp.Plo@am__quote@
@@ -2584,6 +2625,13 @@ dapl_udapl_libdaplofa_la-ib_extensions.lo: dapl/openib_common/ib_extensions.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaplofa_la_CFLAGS) $(CFLAGS) -c -o dapl_udapl_libdaplofa_la-ib_extensions.lo `test -f 'dapl/openib_common/ib_extensions.c' || echo '$(srcdir)/'`dapl/openib_common/ib_extensions.c
 
+dapl_udapl_libdaplofa_la-fca_provider.lo: dapl/openib_common/collectives/fca_provider.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaplofa_la_CFLAGS) $(CFLAGS) -MT dapl_udapl_libdaplofa_la-fca_provider.lo -MD -MP -MF "$(DEPDIR)/dapl_udapl_libdaplofa_la-fca_provider.Tpo" -c -o dapl_udapl_libdaplofa_la-fca_provider.lo `test -f 'dapl/openib_common/collectives/fca_provider.c' || echo '$(srcdir)/'`dapl/openib_common/collectives/fca_provider.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/dapl_udapl_libdaplofa_la-fca_provider.Tpo" "$(DEPDIR)/dapl_udapl_libdaplofa_la-fca_provider.Plo"; else rm -f "$(DEPDIR)/dapl_udapl_libdaplofa_la-fca_provider.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='dapl/openib_common/collectives/fca_provider.c' object='dapl_udapl_libdaplofa_la-fca_provider.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaplofa_la_CFLAGS) $(CFLAGS) -c -o dapl_udapl_libdaplofa_la-fca_provider.lo `test -f 'dapl/openib_common/collectives/fca_provider.c' || echo '$(srcdir)/'`dapl/openib_common/collectives/fca_provider.c
+
 dapl_udapl_libdaploscm_la-dapl_init.lo: dapl/udapl/dapl_init.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploscm_la_CFLAGS) $(CFLAGS) -MT dapl_udapl_libdaploscm_la-dapl_init.lo -MD -MP -MF "$(DEPDIR)/dapl_udapl_libdaploscm_la-dapl_init.Tpo" -c -o dapl_udapl_libdaploscm_la-dapl_init.lo `test -f 'dapl/udapl/dapl_init.c' || echo '$(srcdir)/'`dapl/udapl/dapl_init.c; \
 @am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/dapl_udapl_libdaploscm_la-dapl_init.Tpo" "$(DEPDIR)/dapl_udapl_libdaploscm_la-dapl_init.Plo"; else rm -f "$(DEPDIR)/dapl_udapl_libdaploscm_la-dapl_init.Tpo"; exit 1; fi
@@ -3332,6 +3380,13 @@ dapl_udapl_libdaploscm_la-ib_extensions.lo: dapl/openib_common/ib_extensions.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='dapl/openib_common/ib_extensions.c' object='dapl_udapl_libdaploscm_la-ib_extensions.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploscm_la_CFLAGS) $(CFLAGS) -c -o dapl_udapl_libdaploscm_la-ib_extensions.lo `test -f 'dapl/openib_common/ib_extensions.c' || echo '$(srcdir)/'`dapl/openib_common/ib_extensions.c
+
+dapl_udapl_libdaploscm_la-fca_provider.lo: dapl/openib_common/collectives/fca_provider.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploscm_la_CFLAGS) $(CFLAGS) -MT dapl_udapl_libdaploscm_la-fca_provider.lo -MD -MP -MF "$(DEPDIR)/dapl_udapl_libdaploscm_la-fca_provider.Tpo" -c -o dapl_udapl_libdaploscm_la-fca_provider.lo `test -f 'dapl/openib_common/collectives/fca_provider.c' || echo '$(srcdir)/'`dapl/openib_common/collectives/fca_provider.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/dapl_udapl_libdaploscm_la-fca_provider.Tpo" "$(DEPDIR)/dapl_udapl_libdaploscm_la-fca_provider.Plo"; else rm -f "$(DEPDIR)/dapl_udapl_libdaploscm_la-fca_provider.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='dapl/openib_common/collectives/fca_provider.c' object='dapl_udapl_libdaploscm_la-fca_provider.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploscm_la_CFLAGS) $(CFLAGS) -c -o dapl_udapl_libdaploscm_la-fca_provider.lo `test -f 'dapl/openib_common/collectives/fca_provider.c' || echo '$(srcdir)/'`dapl/openib_common/collectives/fca_provider.c
 
 dapl_udapl_libdaploucm_la-dapl_init.lo: dapl/udapl/dapl_init.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploucm_la_CFLAGS) $(CFLAGS) -MT dapl_udapl_libdaploucm_la-dapl_init.lo -MD -MP -MF "$(DEPDIR)/dapl_udapl_libdaploucm_la-dapl_init.Tpo" -c -o dapl_udapl_libdaploucm_la-dapl_init.lo `test -f 'dapl/udapl/dapl_init.c' || echo '$(srcdir)/'`dapl/udapl/dapl_init.c; \
@@ -4082,6 +4137,13 @@ dapl_udapl_libdaploucm_la-ib_extensions.lo: dapl/openib_common/ib_extensions.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploucm_la_CFLAGS) $(CFLAGS) -c -o dapl_udapl_libdaploucm_la-ib_extensions.lo `test -f 'dapl/openib_common/ib_extensions.c' || echo '$(srcdir)/'`dapl/openib_common/ib_extensions.c
 
+dapl_udapl_libdaploucm_la-fca_provider.lo: dapl/openib_common/collectives/fca_provider.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploucm_la_CFLAGS) $(CFLAGS) -MT dapl_udapl_libdaploucm_la-fca_provider.lo -MD -MP -MF "$(DEPDIR)/dapl_udapl_libdaploucm_la-fca_provider.Tpo" -c -o dapl_udapl_libdaploucm_la-fca_provider.lo `test -f 'dapl/openib_common/collectives/fca_provider.c' || echo '$(srcdir)/'`dapl/openib_common/collectives/fca_provider.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/dapl_udapl_libdaploucm_la-fca_provider.Tpo" "$(DEPDIR)/dapl_udapl_libdaploucm_la-fca_provider.Plo"; else rm -f "$(DEPDIR)/dapl_udapl_libdaploucm_la-fca_provider.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='dapl/openib_common/collectives/fca_provider.c' object='dapl_udapl_libdaploucm_la-fca_provider.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dapl_udapl_libdaploucm_la_CFLAGS) $(CFLAGS) -c -o dapl_udapl_libdaploucm_la-fca_provider.lo `test -f 'dapl/openib_common/collectives/fca_provider.c' || echo '$(srcdir)/'`dapl/openib_common/collectives/fca_provider.c
+
 dat_udat_libdat2_la-udat.lo: dat/udat/udat.c
 @am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dat_udat_libdat2_la_CFLAGS) $(CFLAGS) -MT dat_udat_libdat2_la-udat.lo -MD -MP -MF "$(DEPDIR)/dat_udat_libdat2_la-udat.Tpo" -c -o dat_udat_libdat2_la-udat.lo `test -f 'dat/udat/udat.c' || echo '$(srcdir)/'`dat/udat/udat.c; \
 @am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/dat_udat_libdat2_la-udat.Tpo" "$(DEPDIR)/dat_udat_libdat2_la-udat.Plo"; else rm -f "$(DEPDIR)/dat_udat_libdat2_la-udat.Tpo"; exit 1; fi
@@ -4406,7 +4468,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/. $(distdir)/config $(distdir)/dapl/common $(distdir)/dapl/include $(distdir)/dapl/openib_cma $(distdir)/dapl/openib_cma/linux $(distdir)/dapl/openib_common $(distdir)/dapl/openib_scm $(distdir)/dapl/openib_scm/linux $(distdir)/dapl/openib_ucm $(distdir)/dapl/openib_ucm/linux $(distdir)/dapl/udapl $(distdir)/dapl/udapl/linux $(distdir)/dat/common $(distdir)/dat/include/dat2 $(distdir)/dat/udat $(distdir)/dat/udat/linux $(distdir)/man $(distdir)/test/dapltest/include $(distdir)/test/dapltest/mdep/linux
+	$(mkdir_p) $(distdir)/. $(distdir)/config $(distdir)/dapl/common $(distdir)/dapl/include $(distdir)/dapl/openib_cma $(distdir)/dapl/openib_cma/linux $(distdir)/dapl/openib_common $(distdir)/dapl/openib_common/collectives $(distdir)/dapl/openib_scm $(distdir)/dapl/openib_scm/linux $(distdir)/dapl/openib_ucm $(distdir)/dapl/openib_ucm/linux $(distdir)/dapl/udapl $(distdir)/dapl/udapl/linux $(distdir)/dat/common $(distdir)/dat/include/dat2 $(distdir)/dat/udat $(distdir)/dat/udat/linux $(distdir)/man $(distdir)/test/dapltest/include $(distdir)/test/dapltest/mdep/linux
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \

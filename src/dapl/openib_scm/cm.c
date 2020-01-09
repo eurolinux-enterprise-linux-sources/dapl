@@ -64,7 +64,7 @@
 static DAT_RETURN
 dapli_socket_connect(DAPL_EP * ep_ptr,
 		     DAT_IA_ADDRESS_PTR r_addr,
-		     DAT_CONN_QUAL r_qual, DAT_COUNT p_size, DAT_PVOID p_data);
+		     DAT_CONN_QUAL r_qual, DAT_COUNT p_size, DAT_PVOID p_data, int retries);
 
 #ifdef DAPL_DBG
 /* Check for EP linking to IA and proper connect state */
@@ -505,8 +505,8 @@ static void dapli_socket_connected(dp_ib_cm_handle_t cm_ptr, int err)
 	struct dapl_ep *ep_ptr = cm_ptr->ep;
 
 	if (err) {
-		dapl_log(DAPL_DBG_TYPE_ERR,
-			 " CONN_PENDING: %s ERR %s -> %s %d - %s\n",
+		dapl_log(DAPL_DBG_TYPE_WARN,
+			 " CONN_REQUEST: %s ERR %s -> %s %d - %s %d\n",
 			 err == -1 ? "POLL" : "SOCKOPT",
 			 err == -1 ? strerror(dapl_socket_errno()) : strerror(err), 
 			 inet_ntoa(((struct sockaddr_in *)
@@ -514,7 +514,7 @@ static void dapli_socket_connected(dp_ib_cm_handle_t cm_ptr, int err)
 			 ntohs(((struct sockaddr_in *)
 				&cm_ptr->addr)->sin_port),
 			 (err == ETIMEDOUT || err == ECONNREFUSED) ? 
-			 "RETRYING...":"ABORTING");
+			 "RETRYING...":"ABORTING", cm_ptr->retry);
 
 		/* retry a timeout */
 		if ((err == ETIMEDOUT) || (err == ECONNREFUSED && --cm_ptr->retry)) {
@@ -522,12 +522,11 @@ static void dapli_socket_connected(dp_ib_cm_handle_t cm_ptr, int err)
 			cm_ptr->socket = DAPL_INVALID_SOCKET;
 			dapli_socket_connect(cm_ptr->ep, (DAT_IA_ADDRESS_PTR)&cm_ptr->addr, 
 					     ntohs(((struct sockaddr_in *)&cm_ptr->addr)->sin_port) - 1000,
-					     ntohs(cm_ptr->msg.p_size), &cm_ptr->msg.p_data);
+					     ntohs(cm_ptr->msg.p_size), &cm_ptr->msg.p_data, cm_ptr->retry);
 			dapl_ep_unlink_cm(cm_ptr->ep, cm_ptr);
 			dapli_cm_free(cm_ptr);
 			return;
 		}
-
 		goto bail;
 	}
 
@@ -579,7 +578,7 @@ static void dapli_socket_connected(dp_ib_cm_handle_t cm_ptr, int err)
 bail:
 	/* mark CM object for cleanup */
 	dapli_cm_free(cm_ptr);
-	dapl_evd_connection_callback(NULL, IB_CME_LOCAL_FAILURE, NULL, 0, ep_ptr);
+	dapl_evd_connection_callback(NULL, IB_CME_TIMEOUT, NULL, 0, ep_ptr);
 }
 
 /*
@@ -589,7 +588,7 @@ bail:
 static DAT_RETURN
 dapli_socket_connect(DAPL_EP * ep_ptr,
 		     DAT_IA_ADDRESS_PTR r_addr,
-		     DAT_CONN_QUAL r_qual, DAT_COUNT p_size, DAT_PVOID p_data)
+		     DAT_CONN_QUAL r_qual, DAT_COUNT p_size, DAT_PVOID p_data, int retries)
 {
 	dp_ib_cm_handle_t cm_ptr;
 	int ret;
@@ -603,6 +602,8 @@ dapli_socket_connect(DAPL_EP * ep_ptr,
 	cm_ptr = dapli_cm_alloc(ep_ptr);
 	if (cm_ptr == NULL)
 		return dat_ret;
+
+	cm_ptr->retry = retries;
 
 	/* create, connect, sockopt, and exchange QP information */
 	if ((cm_ptr->socket =
@@ -712,7 +713,7 @@ static void dapli_socket_connect_rtu(dp_ib_cm_handle_t cm_ptr)
 	dapl_dbg_log(DAPL_DBG_TYPE_EP, " connect_rtu: recv peer QP data\n");
 
 	len = recv(cm_ptr->socket, (char *)&cm_ptr->msg, exp, 0);
-	if (len != exp || ntohs(cm_ptr->msg.ver) != DCM_VER) {
+	if (len != exp || ntohs(cm_ptr->msg.ver) < DCM_VER_MIN) {
 		int err = dapl_socket_errno();
 		dapl_log(DAPL_DBG_TYPE_WARN,
 			 " CONN_RTU read: sk %d ERR 0x%x, rcnt=%d, v=%d -> %s PORT L-%x R-%x PID L-%x R-%x\n",
@@ -724,12 +725,12 @@ static void dapli_socket_connect_rtu(dp_ib_cm_handle_t cm_ptr)
 			 ntohs(*(uint16_t*)&cm_ptr->msg.resv[2]));
 
 		/* Retry; corner case where server tcp stack resets under load */
-		if (err == ECONNRESET) {
+		if (err == ECONNRESET && --cm_ptr->retry) {
 			closesocket(cm_ptr->socket);
 			cm_ptr->socket = DAPL_INVALID_SOCKET;
 			dapli_socket_connect(cm_ptr->ep, (DAT_IA_ADDRESS_PTR)&cm_ptr->addr, 
 					     ntohs(((struct sockaddr_in *)&cm_ptr->addr)->sin_port) - 1000,
-					     ntohs(cm_ptr->msg.p_size), &cm_ptr->msg.p_data);
+					     ntohs(cm_ptr->msg.p_size), &cm_ptr->msg.p_data, cm_ptr->retry);
 			dapl_ep_unlink_cm(cm_ptr->ep, cm_ptr);
 			dapli_cm_free(cm_ptr);
 			return;
@@ -807,8 +808,10 @@ static void dapli_socket_connect_rtu(dp_ib_cm_handle_t cm_ptr)
 	}
 
 	/* rdma_out, initiator, cannot exceed remote rdma_in max */
-	ep_ptr->param.ep_attr.max_rdma_read_out = 
-		DAPL_MIN(ep_ptr->param.ep_attr.max_rdma_read_out, cm_ptr->msg.rd_in);
+	if (ntohs(cm_ptr->msg.ver) >= 7)
+		ep_ptr->param.ep_attr.max_rdma_read_out =
+				DAPL_MIN(ep_ptr->param.ep_attr.max_rdma_read_out,
+					 cm_ptr->msg.rd_in);
 
 	/* modify QP to RTR and then to RTS with remote info */
 	dapl_os_lock(&ep_ptr->header.lock);
@@ -988,13 +991,14 @@ dapli_socket_listen(DAPL_IA * ia_ptr, DAT_CONN_QUAL serviceID, DAPL_SP * sp_ptr)
 	if ((bind(cm_ptr->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 	    || (listen(cm_ptr->socket, 128) < 0)) {
 		int err = dapl_socket_errno();
-		dapl_log(DAPL_DBG_TYPE_CM,
-			 " listen: ERROR 0x%x %s on port %d\n",
-			 err, strerror(err), serviceID + 1000);
 		if (err == EADDRINUSE)
 			dat_status = DAT_CONN_QUAL_IN_USE;
-		else
-			dat_status = DAT_CONN_QUAL_UNAVAILABLE;
+		else {
+			dapl_log(DAPL_DBG_TYPE_CM_WARN,
+				 " listen: ERROR 0x%x %s on port %d\n",
+				 err, strerror(err), serviceID + 1000);
+			dat_status = DAT_INVALID_PARAMETER;
+		}
 		goto bail;
 	}
 
@@ -1089,7 +1093,7 @@ static void dapli_socket_accept_data(ib_cm_srvc_handle_t acm_ptr)
 
 	/* read in DST QP info, IA address. check for private data */
 	len = recv(acm_ptr->socket, (char *)&acm_ptr->msg, exp, 0);
-	if (len != exp || ntohs(acm_ptr->msg.ver) != DCM_VER) {
+	if (len != exp || ntohs(acm_ptr->msg.ver) < DCM_VER_MIN) {
 		int err = dapl_socket_errno();
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " ACCEPT read: ERR 0x%x %s, rcnt=%d, ver=%d\n",
@@ -1209,8 +1213,10 @@ dapli_socket_accept_usr(DAPL_EP * ep_ptr,
 	}
 #endif
 	/* rdma_out, initiator, cannot exceed remote rdma_in max */
-	ep_ptr->param.ep_attr.max_rdma_read_out = 
-		DAPL_MIN(ep_ptr->param.ep_attr.max_rdma_read_out, cm_ptr->msg.rd_in);
+	if (ntohs(cm_ptr->msg.ver) >= 7)
+		ep_ptr->param.ep_attr.max_rdma_read_out =
+				DAPL_MIN(ep_ptr->param.ep_attr.max_rdma_read_out,
+					 cm_ptr->msg.rd_in);
 
 	/* modify QP to RTR and then to RTS with remote info already read */
 	dapl_os_lock(&ep_ptr->header.lock);
@@ -1451,7 +1457,7 @@ dapls_ib_connect(IN DAT_EP_HANDLE ep_handle,
 
 	return (dapli_socket_connect(ep_ptr, remote_ia_address,
 				     remote_conn_qual,
-				     private_data_size, private_data));
+				     private_data_size, private_data, SCM_CR_RETRY));
 }
 
 /*

@@ -1,5 +1,5 @@
 Name: dapl
-Version: 2.0.32
+Version: 2.0.34
 Release: 1%{?dist}
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
@@ -86,6 +86,11 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
+* Mon Jan 23 2012 Doug Ledford <dledford@redhat.com> - 2.0.34-1
+- Update to latest upstream version
+- Rebuild against new libibverbs (FDR link speed capable and IBoE enabled)
+- Related: bz750609
+
 * Fri Jul 22 2011 Doug Ledford <dledford@redhat.com> - 2.0.32-1
 - Update to latest upstream version (2.0.25 -> 2.0.32)
 - Remove 4 patches folded into upstream release

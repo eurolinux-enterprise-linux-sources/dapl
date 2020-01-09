@@ -111,6 +111,13 @@ dapls_evd_post_generic_event (
 
 #ifdef DAT_EXTENSIONS
 DAT_RETURN
+dapls_evd_post_event_ext(
+    IN DAPL_EVD				*evd_ptr,
+    IN DAT_EVENT_NUMBER			event_number,
+    IN DAT_EVENT_DATA			*data,
+    IN DAT_UINT64			*data_ext);
+
+DAT_RETURN
 dapls_evd_post_cr_event_ext (
     IN DAPL_SP				*sp_ptr,
     IN DAT_EVENT_NUMBER			event_number,

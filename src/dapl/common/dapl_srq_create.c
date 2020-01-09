@@ -114,6 +114,10 @@ dapl_srq_create(IN DAT_IA_HANDLE ia_handle,
 		goto bail;
 	}
 
+	/* SRQ provider not implemented */
+	dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
+	goto bail;
+
 	/* Allocate SRQ */
 	srq_ptr = dapl_srq_alloc(ia_ptr, srq_attr);
 	if (srq_ptr == NULL) {
@@ -129,9 +133,6 @@ dapl_srq_create(IN DAT_IA_HANDLE ia_handle,
 	/*
 	 * XXX Allocate provider resource here!!!
 	 */
-	/* XXX */ dat_status = DAT_ERROR(DAT_NOT_IMPLEMENTED, DAT_NO_SUBTYPE);
-	/* XXX */ dapl_srq_dealloc(srq_ptr);
-	/* XXX */ goto bail;
 
 	/* Link it onto the IA */
 	dapl_ia_link_srq(ia_ptr, srq_ptr);

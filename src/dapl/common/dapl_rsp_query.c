@@ -81,7 +81,7 @@ dapl_rsp_query(IN DAT_RSP_HANDLE rsp_handle,
 	/*
 	 * Fill in the RSP params
 	 */
-	rsp_param->ia_handle = sp_ptr->header.owner_ia;
+	dats_get_ia_handle(sp_ptr->header.owner_ia, &rsp_param->ia_handle);
 	rsp_param->conn_qual = sp_ptr->conn_qual;
 	rsp_param->evd_handle = sp_ptr->evd_handle;
 	rsp_param->ep_handle = sp_ptr->ep_handle;

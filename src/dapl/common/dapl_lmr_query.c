@@ -80,6 +80,7 @@ dapl_lmr_query(IN DAT_LMR_HANDLE lmr_handle,
 	lmr = (DAPL_LMR *) lmr_handle;
 
 	dapl_os_memcpy(lmr_param, &lmr->param, sizeof(DAT_LMR_PARAM));
+	dats_get_ia_handle(lmr->param.ia_handle, &lmr_param->ia_handle);
 
       bail:
 	return dat_status;

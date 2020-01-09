@@ -402,9 +402,9 @@ uint8_t dapls_get_sl(DAPL_HCA *hca_ptr, uint16_t dlid)
 		sl = ntohs(((struct ibv_path_record *) res->ai_route)->
 			   qosclass_sl) & 0xF;
 	else 
-		dapl_log(DAPL_DBG_TYPE_CM_WARNING,
+		dapl_log(DAPL_DBG_TYPE_CM_WARN,
 			" dapls_get_sl: Warning, route miss 0x%x -> 0x%x\n",
-			slid, dlid);
+			path.slid, path.dlid);
 
 	rdma_freeaddrinfo(res);
 out:	

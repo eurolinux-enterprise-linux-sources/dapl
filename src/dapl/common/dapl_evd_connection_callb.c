@@ -181,9 +181,10 @@ dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 	default:
 		{
 			dapl_os_unlock(&ep_ptr->header.lock);
+			dapl_log(DAPL_DBG_TYPE_WARN,
+				"dapl_evd_conn_cb() unknown event 0x%x\n",
+				dat_event_num);
 			evd_ptr = NULL;
-
-			dapl_os_assert(0);	/* shouldn't happen */
 			break;
 		}
 	}

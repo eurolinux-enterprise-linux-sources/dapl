@@ -91,6 +91,7 @@ dapl_srq_query(IN DAT_SRQ_HANDLE srq_handle,
 	srq_ptr->param.outstanding_dto_count = DAT_VALUE_UNKNOWN;
 
 	*srq_param = srq_ptr->param;
+	dats_get_ia_handle(srq_ptr->header.owner_ia, &srq_param->ia_handle);
 
       bail:
 	return dat_status;

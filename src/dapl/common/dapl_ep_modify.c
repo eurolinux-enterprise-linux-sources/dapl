@@ -385,6 +385,12 @@ dapli_ep_modify_validate_parameters(IN DAT_EP_HANDLE ep_handle,
 		goto bail;
 	}
 
+	if (ep_param == NULL) {
+		dat_status =
+		    DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG3);
+		goto bail;
+	}
+
 	ep = (DAPL_EP *) ep_handle;
 	ia = ep->header.owner_ia;
 

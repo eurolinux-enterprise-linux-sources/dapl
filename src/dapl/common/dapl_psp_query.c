@@ -83,7 +83,7 @@ dapl_psp_query(IN DAT_PSP_HANDLE psp_handle,
 	/*
 	 * Fill in the PSP params
 	 */
-	psp_param->ia_handle = sp_ptr->header.owner_ia;
+	dats_get_ia_handle(sp_ptr->header.owner_ia, &psp_param->ia_handle);
 	psp_param->conn_qual = sp_ptr->conn_qual;
 	psp_param->evd_handle = sp_ptr->evd_handle;
 	psp_param->psp_flags = sp_ptr->psp_flags;

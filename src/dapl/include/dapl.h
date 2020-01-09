@@ -739,6 +739,10 @@ extern DAT_RETURN DAT_API dapl_get_handle_type (
 	IN	DAT_HANDLE,
 	OUT	DAT_HANDLE_TYPE * );
 
+extern DAT_RETURN DAT_API dats_get_ia_handle (
+	IN      DAT_HANDLE,		/* dat_handle           */
+	OUT     DAT_IA_HANDLE * );	/* ia handle            */
+
 /* CNO functions */
 
 #if !defined(__KERNEL__)

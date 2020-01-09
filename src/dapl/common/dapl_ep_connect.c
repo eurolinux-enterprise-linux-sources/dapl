@@ -81,6 +81,11 @@ dapl_ep_connect(IN DAT_EP_HANDLE ep_handle,
 	DAT_COUNT req_hdr_size;
 	void *private_data_ptr;
 
+	if (remote_ia_address == NULL) {
+		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG2);
+		goto bail;
+	}
+
 	dapl_dbg_log(DAPL_DBG_TYPE_API | DAPL_DBG_TYPE_CM,
 		     "dapl_ep_connect (%p, {%u.%u.%u.%u}, %X, %d, %d, %p, %x, %x)\n",
 		     ep_handle,

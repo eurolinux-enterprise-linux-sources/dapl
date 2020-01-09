@@ -91,7 +91,7 @@ char *dapl_event_str(IN DAT_EVENT_NUMBER event_num)
 		{"DAT_SOFTWARE_EVENT", DAT_SOFTWARE_EVENT},
 #ifdef DAT_EXTENSIONS
 		{"DAT_EXTENSION_EVENT", DAT_EXTENSION_EVENT},
-		{"DAT_IB_EXTENSION_RANGE_BASE", DAT_IB_EXTENSION_RANGE_BASE},
+		{"DAT_IB_DTO_EVENT", DAT_IB_EXTENSION_RANGE_BASE},
 		{"DAT_IB_UD_CONNECTION_REQUEST_EVENT",
 		 DAT_IB_EXTENSION_RANGE_BASE + 1},
 		{"DAT_IB_UD_CONNECTION_EVENT_ESTABLISHED",
@@ -100,6 +100,8 @@ char *dapl_event_str(IN DAT_EVENT_NUMBER event_num)
 		 DAT_IB_EXTENSION_RANGE_BASE + 3},
 		{"DAT_IB_UD_CONNECTION_ERROR_EVENT",
 		 DAT_IB_EXTENSION_RANGE_BASE + 4},
+		{"DAT_IB_COLLECTIVE_EVENT",
+		 DAT_IB_EXTENSION_RANGE_BASE + 5},
 		{"DAT_IW_EXTENSION_RANGE_BASE", DAT_IW_EXTENSION_RANGE_BASE},
 #endif				/* DAT_EXTENSIONS */
 		{NULL, 0},
@@ -710,7 +712,7 @@ dapls_evd_post_cr_arrival_event(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 
 DAT_RETURN
@@ -739,7 +741,7 @@ dapls_evd_post_connection_event(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 
 DAT_RETURN
@@ -768,7 +770,7 @@ dapls_evd_post_async_error_event(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 
 DAT_RETURN
@@ -792,7 +794,7 @@ dapls_evd_post_software_event(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 
 /*
@@ -833,10 +835,66 @@ dapls_evd_post_generic_event(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 
 #ifdef DAT_EXTENSIONS
+
+/*
+ * dapls_evd_post_event_ext
+ *
+ * Post a extended event type. Not used by all providers
+ *
+ * Input:
+ *	evd_ptr
+ * 	event_number
+ *	data
+ *	data_ext
+ *
+ * Output:
+ * 	none
+ *
+ * Returns:
+ * 	DAT_SUCCESS
+ *
+ */
+DAT_RETURN
+dapls_evd_post_event_ext(IN DAPL_EVD * evd_ptr,
+			 IN DAT_EVENT_NUMBER event_number,
+			 IN DAT_EVENT_DATA * data,
+			 IN DAT_UINT64 * data_ext)
+{
+	DAT_EVENT *event_ptr;
+
+	dapl_os_lock(&evd_ptr->header.lock);
+	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
+	/*
+	 * Note event lock may be held on successful return
+	 * to be released by dapli_evd_post_event(), if provider side locking
+	 * is needed.
+	 */
+
+	if (event_ptr == NULL) {
+		dapl_os_unlock(&evd_ptr->header.lock);
+		return DAT_ERROR(DAT_QUEUE_FULL,0);
+	}
+
+	/* copy event and extended data */
+	if (data)
+		event_ptr->event_data = *data;
+	else
+		dapl_os_memzero(&event_ptr->event_data,
+				sizeof(event_ptr->event_data));
+
+	dapl_os_memcpy( (void*)event_ptr->event_extension_data,
+			(void *)data_ext,
+			sizeof(event_ptr->event_extension_data));
+
+	dapli_evd_post_event(evd_ptr, event_ptr);
+	dapl_os_unlock(&evd_ptr->header.lock);
+	return DAT_SUCCESS;
+}
+
 DAT_RETURN
 dapls_evd_do_post_cr_event_ext(IN DAPL_EVD * evd_ptr,
 				IN DAT_EVENT_NUMBER event_number,
@@ -867,7 +925,7 @@ dapls_evd_do_post_cr_event_ext(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 
 DAT_RETURN
@@ -1000,7 +1058,7 @@ dapls_evd_post_connection_event_ext(IN DAPL_EVD * evd_ptr,
 err:
 	dapl_os_unlock(&evd_ptr->header.lock);
 	dapls_evd_post_overflow_event(evd_ptr);
-	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	return DAT_ERROR(DAT_QUEUE_FULL, 0);
 }
 #endif
 

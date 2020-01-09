@@ -59,6 +59,7 @@ typedef ib_hca_handle_t		dapl_ibal_ca_t;
 
 /* QP info to exchange, wire protocol version for these CM's */
 #define DCM_VER 7
+#define DCM_VER_MIN 6 /* backward compatibility limit */
 
 /* CM private data areas, same for all operations */
 #define        DCM_MAX_PDATA_SIZE      118
@@ -157,8 +158,8 @@ typedef uint16_t		ib_hca_port_t;
 #define DAT_UD_QKEY	0x78654321
 
 /* RC timer - retry count defaults */
-#define DCM_ACK_TIMER	16 /* 5 bits, 4.096us*2^ack_timer. 16== 268ms */
-#define DCM_ACK_RETRY	7  /* 3 bits, 7 * 268ms = 1.8 seconds */
+#define DCM_ACK_TIMER	20 /* 5 bits, 4.096us*2^ack_timer. 16== 268ms, 20==4.2s */
+#define DCM_ACK_RETRY	7  /* 3 bits, 7 * 4.2  == 30 seconds */
 #define DCM_RNR_TIMER	12 /* 5 bits, 12 =.64ms, 28 =163ms, 31 =491ms */
 #define DCM_RNR_RETRY	7  /* 3 bits, 7 == infinite */
 #define DCM_IB_MTU	2048
@@ -295,6 +296,7 @@ typedef enum dapl_cm_state
 
 /* provider specfic fields for shared memory support */
 typedef uint32_t ib_shm_transport_t;
+typedef void user_progress_func_t( void );
 
 /* prototypes */
 int32_t	dapls_ib_init(void);
@@ -347,7 +349,7 @@ dapl_convert_errno( IN int err, IN const char *str )
 	case EOVERFLOW	: return DAT_LENGTH_ERROR;
 	case EACCES	: return DAT_PRIVILEGES_VIOLATION;
 	case EPERM	: return DAT_PROTECTION_VIOLATION;		  
-	case EINVAL	: return DAT_INVALID_HANDLE;
+	case EINVAL	: return DAT_INVALID_PARAMETER;
     	case EISCONN	: return DAT_INVALID_STATE | DAT_INVALID_STATE_EP_CONNECTED;
     	case ECONNREFUSED : return DAT_INVALID_STATE | DAT_INVALID_STATE_EP_NOTREADY;
 	case ETIMEDOUT	: return DAT_TIMEOUT_EXPIRED;

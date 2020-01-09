@@ -83,9 +83,9 @@ DAT_RETURN DAT_API dapl_cno_query(IN DAT_CNO_HANDLE cno_handle,	/* cno_handle */
 	}
 
 	cno_ptr = (DAPL_CNO *) cno_handle;
-	cno_param->ia_handle = cno_ptr->header.owner_ia;
 	cno_param->proxy_type = DAT_PROXY_TYPE_AGENT;
 	cno_param->proxy.agent = cno_ptr->cno_wait_agent;
+	dats_get_ia_handle(cno_ptr->header.owner_ia, &cno_param->ia_handle);
 
       bail:
 	return dat_status;

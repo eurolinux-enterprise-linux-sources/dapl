@@ -1,3 +1,376 @@
+commit be8891b39ab9817216fd5736c6e2cce98ec78e91
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 2 10:40:02 2011 -0700
+
+    scm: change debug message level for listen/bind errors
+    
+    reduce to CM_WARN instead of general WARN level.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a938e5db62a0fbbf8020eb1b526b090f44bc67c2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 2 10:29:34 2011 -0700
+
+    common: increase default IB ack timer from 16 to 20
+    
+    For larger, more congested fabrics, a larger ACK timer is needed.
+    Consumers can still change default with environment variable
+    DAPL_ACK_TIMER if they need to increase or decrease.
+    
+    This applies to SCM and UCM providers only. The CMA provider, which
+    uses rdma_cm, has no way to control ack timer with current API.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 989628832a12f4f0124947f1896bef51b9bbb3c9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 1 13:44:24 2011 -0700
+
+    common: remote ia address null pointer creates seg fault
+    
+    add NULL ptr check and return DAT_INVALID_PARAMETER, DAT_INVALID_ARG2
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3c2dbc16a09a0fb430e44ba023e1cc5bb87fa529
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 1 12:40:21 2011 -0700
+
+    common: posting events on full queue returns wrong error code
+    
+    Return DAT_QUEUE_FULL instead of DAT_INSUFFICIENT_RESOURCES
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ae55f888f976de8225178fdec343a89bdeb28001
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 1 11:43:55 2011 -0700
+
+    common: dat_ep_modify seg faults with null ep_param ptr
+    
+    add additional NULL ptr check for arg3 ep_param
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit edbd39693482397ec6d1e4b6783d42be8c66332b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 28 12:27:16 2011 -0700
+
+    common: dat_evd_free seg faults with resized software EVD
+    
+    dapl_evd_resize is attempting to resize a CQ but there is no
+    CQ attached to a software EVD. Add check for cq_handle
+    before resizing.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6d23b0cf6487fc39367528e7673e9629fcc04ee2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 28 10:23:51 2011 -0700
+
+    common: remove assert for incorrect events during cm_request
+    
+    Simply print a warning message. Connection callback doesn't
+    forward invalid events to consumer so no need to assert.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e42b630d9866ec5ad4d2425c7ad96507a6e16b96
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 26 16:02:56 2011 -0700
+
+    dat: dat_cno_query with NULL cno_handle causes segmentation fault
+    
+    add check for NULL handle in dat library
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f179ce281b382f005d1553d2401b05f50284aede
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 26 13:03:50 2011 -0700
+
+    scm: dat_psp_create returns wrong error code on bind/listen failure
+    
+    The SCM provider changed to return DAT_INVALID_PARAMTER instead of
+    incorrect DAT_CONN_QUAL_UNAVAILABLE error code on any bind or
+    listen failure.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e8c41c05b356fc1a1305dbb80b41f0d3218a6aa2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 26 09:12:10 2011 -0700
+
+    scm: socket connect request count is reset improperly on retry
+    
+    Include the current retry count with the new connect request call
+    and set according after creating the new cm object.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e8d3537444e311b68d47f015d6de952e31234bc8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 24 13:59:55 2011 -0700
+
+    scm: when hostname has loopback addr assigned, default to eth0 instead of failing
+    
+    There are some cases where the eth0 device is configured with an IP address
+    but the getaddrinfo() will only return loopback address because the
+    hostname is configured in the /etc/hosts file with 127.0.0.1. In this case,
+    the provider will now retry address on eth0 before failing the open.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0c13d50320cd8aeac6be809d2dd6f3d6ca675ab0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 24 13:57:01 2011 -0700
+
+    scm: add port number to error log during hca_open failures
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit eb026ba0e9f37f131b84ea8971ba18ee2101d592
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 24 13:40:45 2011 -0700
+
+    common: query calls return incorrect IA handle to consumer
+    
+    The IA handle from the consumer perspective is an IA vector and
+    not the provider IA address handle. Need to convert IA handle
+    to IA vector for consumer calls.
+    
+    Modify dats_ia_get_handle call to convert both ways depending
+    on handle type provided so a dapl provider can convert to vector
+    on query calls. This fix is backward compatible with older libdat2
+    libraries. Function is already exported and syntax is unchanged.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9b891e7ec048cdc8905c70780ef9ca27af0a4002
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 22 13:42:15 2011 -0700
+
+    common: srq create asserts with !dapl_llist_is_empty(head) failed
+    
+    return DAT_NOT_IMPLEMENTED before allocating any resources
+    until there is a provider that supports SRQ's.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7707d4d19e0359b621a3be1cee7ae59edb0a11b0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Aug 29 12:31:38 2011 -0700
+
+    Release 2.0.33
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit c4fc0ba2038c771f3f2cd9d262c3a802603e6c7b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 28 19:10:37 2011 -0700
+
+    scm,ucm: fix compatibility issues and set minimum protocol support
+    
+    allow latest version to work with previous versions to allow
+    compatibility back to OFED 1.5, dapl-2.0.23. If rdma_atomic_in
+    is not exchanged default back to original settings set by
+    consumer.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2b118e5549e1d7a5cba0cf0f5e7877935c259360
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 19 13:19:38 2011 -0700
+
+    build: link librdmacm dependency to ib_acm usage for ucm and scm providers
+    
+    Add -lrdmacm to XLIBS for ucm and scm providers. Only set with
+    conditional use of ib_acm as defined by DAPL_USE_IBACM.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 648d46ae8964cddee521aa6b8f2c00a37d286c32
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 19 12:40:24 2011 -0700
+
+    build: add selective enable/disable-xxx build switch for each provider
+    
+    The following switches have been added to configure:
+    
+    --disable-cma (disables the rdma_cm dapl provider build)
+    --disable-scm (disables the socket cm provider build)
+    --disable-ucm (disables the IB UD cm provider build)
+    
+    all providers are enabled by default.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d083cd1d0ee9dfceb14c9cc75a1129f2a247a8bf
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 19 10:24:32 2011 -0700
+
+    build: add extended header files to EXTRA_DIST and fix missing backslash
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e76221985709bc2aee356e621ec78dffabdc0aef
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 19 10:23:42 2011 -0700
+
+    build: set IB extended coll-type to none by default
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a55bac341a6d9e95965290d0c73cfe8b252b0dd5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 23:02:54 2011 -0700
+
+    common: change errno mapping of EINVAL to DAT_INVALID_PARAMETER
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit aea52cce4dbc5fb42debbc77282784c64a826653
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:59:27 2011 -0700
+
+    build: add IB collective and FCA provider to dapl build package as an option
+    
+    New collective support and the FCA provider will only be built with
+    configure option of "--enable-coll-type=fca". Dependencies include
+    fca devel package, fca library, and mverbs library. This will not
+    be included in default builds.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 66399e8a751474be605cc62050b2b1408f3418b6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:54:36 2011 -0700
+
+    common: add new dapls_evd_post_event_ext call for extended events
+    
+    Add prototype and code to post extended events on dispatcher and
+    include collective definitions to dat_event_str function.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit cf704c68249f9f93c0624ebaf552b1811013f15f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:53:45 2011 -0700
+
+    ucm: add support for IB collective providers
+    
+    Add collective member address and threading information
+    on a per transport basis. Call create/free service with
+    HCA open/close.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9911d103d8aa4c0ecf797fe653979aaa6b82b40d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:53:09 2011 -0700
+
+    scm: add support for IB collective providers
+    
+    Add collective member address and threading information
+    on a per transport basis. Call create/free service with
+    HCA open/close.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 65946e9ed1b4e57dda85ee8254f6bca4c8232b96
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:47:21 2011 -0700
+
+    cma: add support for IB collective providers
+    
+    Add collective member address and threading information
+    on a per transport basis. Call create/free service with
+    HCA open/close.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d7f275728eeca3341f10c720ed3325295327e2c1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:45:04 2011 -0700
+
+    common: add supported collective types in named attributes for query
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f5817ec85e0d43ee6aca287327cce06a92f65cc4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:41:48 2011 -0700
+
+    common: add collective call mappings via standard dapli_post_ext()
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit cab8890d96b20e5afa7f8afe3af5fb087af9a104
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:39:32 2011 -0700
+
+    common: new debug bitmask definition for extension logging
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 09ab18c78faf698811ec08fcfc001c755fa44faa
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 17 10:29:01 2011 -0700
+
+    common: new IB collective provider for Mellanox Fabric Collective Agent
+    
+    Support for bcast, barrier, reduce, allreduce, allgather, allgatherv
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 5dc60f1aba17becf0788bcb519b17a47dc4be69c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 7 22:06:09 2011 -0700
+
+    dat: add definitions for MPI offloaded collectives in IB transport extensions
+    
+    The collective extensions are designed to support MPI and general
+    multicast operations over IB fabrics that support offloaded collectives.
+    Where feasible, they come as close to MPI semantics as possible.
+    Unless otherwise stated, all members participating in a data collective
+    operation must call the associated collective routine for the data
+    transfer operation to complete. Unless otherwise stated, the
+    root collective member of a data operation will receive its own portion
+    of the collective data. In most cases, the root member can prevent
+    sending/receiving data when such operations would be redundant. When root
+    data is already "in place" the root member may set the send and/or receive
+    buffer pointer argument to NULL.
+    
+    Unlike standard DAPL movement operations that require registered
+    memory and LMR objects, collective data movement operations employ
+    pointers to user-virtual address space that do not require
+    pre-registration by the application. From a resource usage point
+    of view, the API user should consider that the provider implementation
+    my perform memory registrations/deregistration on behalf of the
+    application to accomplish a data transfer.
+    
+    Most collective calls are asynchronous. Upon completion, an event
+    will be posted to the EVD specified when the collective was created.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d3ac07bc2caf82e8d2cd9d0ad50472f697538bd0
+Author: sean.hefty@intel.com <arlin.r.davis@intel.com>
+Date:   Wed Jun 22 10:40:17 2011 -0700
+
+    common: cleanup debug messages when building with ibacm feature
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d7778868d352e97be618523eeb0468e485490c0e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Feb 13 21:14:33 2011 -0800
+
+    Release 2.0.32
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
 commit ef80301e5799bd5657071e6bf4a1787711b5c878
 Author: Arlin Davis <arlin.r.davis@intel.com>
 Date:   Sat Feb 12 12:03:19 2011 -0800

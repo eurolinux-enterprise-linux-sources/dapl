@@ -170,26 +170,37 @@ DAT_IA_HANDLE dats_set_ia_handle(IN DAT_IA_HANDLE ia_handle)
 /***********************************************************************
  * Function: dats_get_ia_handle(
  *
- * Get a handle from a handle vector and return it in an OUT parameter
+ * Get handle from vector OR vector from handle, return in OUT parameter
+ *
  ***********************************************************************/
 DAT_RETURN
 dats_get_ia_handle(IN DAT_IA_HANDLE handle, OUT DAT_IA_HANDLE * ia_handle_p)
 {
-	DAT_RETURN dat_status;
+	DAT_RETURN dat_status = DAT_SUCCESS;
 
+	/* handle to vector */
 	if (DAT_IA_HANDLE_TO_UL(handle) >= g_hv.handle_max) {
-		dat_status =
-		    DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_IA);
-		goto bail;
-	}
-	*ia_handle_p = g_hv.handle_array[DAT_IA_HANDLE_TO_UL(handle)];
+		unsigned long i;
 
-	if (*ia_handle_p == NULL) {
-		dat_status =
-		    DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_IA);
-		goto bail;
+		dat_os_lock(&g_hv.handle_lock);
+		for (i = 1; i < g_hv.handle_max; i++) {
+			if (g_hv.handle_array[i] == handle) {
+				dat_os_unlock(&g_hv.handle_lock);
+				*ia_handle_p = DAT_UL_TO_IA_HANDLE(i);
+				goto bail;
+			}
+		}
+		dat_os_unlock(&g_hv.handle_lock);
+		dat_status = DAT_ERROR(DAT_INVALID_HANDLE,
+				       DAT_INVALID_HANDLE_IA);
+	/* vector to handle */
+	} else {
+		*ia_handle_p = g_hv.handle_array[DAT_IA_HANDLE_TO_UL(handle)];
+
+		if (*ia_handle_p == NULL)
+			dat_status = DAT_ERROR(DAT_INVALID_HANDLE,
+					       DAT_INVALID_HANDLE_IA);
 	}
-	dat_status = DAT_SUCCESS;
 
       bail:
 	dat_os_dbg_print(DAT_OS_DBG_TYPE_PROVIDER_API,

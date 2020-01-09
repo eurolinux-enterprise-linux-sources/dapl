@@ -160,14 +160,15 @@ DAT_RETURN getlocalipaddr(char *addr, int addr_len)
 	char hostname[256];
 	char *netdev = getenv("DAPL_SCM_NETDEV");
 
+retry:
 	/* use provided netdev instead of default hostname */
 	if (netdev != NULL) {
 		ret = getipaddr_netdev(netdev, addr, addr_len);
 		if (ret) {			
 			dapl_log(DAPL_DBG_TYPE_ERR,
-				 " getlocalipaddr: DAPL_SCM_NETDEV provided %s"
-				" but not configured on system? ERR = %s\n",
-				netdev, strerror(ret));
+				 " getlocalipaddr: NETDEV = %s"
+				 " but not configured on system? ERR = %s\n",
+				 netdev, strerror(ret));
 			return dapl_convert_errno(ret, "getlocalipaddr");
 		} else 
 			return DAT_SUCCESS;
@@ -205,6 +206,13 @@ DAT_RETURN getlocalipaddr(char *addr, int addr_len)
 	}
 
 	freeaddrinfo(res);
+
+	/* only loopback found, retry netdev eth0 */
+	if (ret == DAT_INVALID_ADDRESS) {
+		netdev = "eth0";
+		goto retry;
+	}
+
 	return ret;
 }
 
@@ -591,6 +599,26 @@ DAT_NAMED_ATTR ib_attrs[] = {
 	{
 	 DAT_IB_ATTR_IMMED_DATA, "TRUE"}
 	,
+#ifdef DAT_IB_COLLECTIVES
+	{
+	 DAT_IB_COLL_BARRIER, "TRUE"}
+	,
+	{
+	 DAT_IB_COLL_BROADCAST, "TRUE"}
+	,
+	{
+	 DAT_IB_COLL_REDUCE, "TRUE"}
+	,
+	{
+	 DAT_IB_COLL_ALLREDUCE, "TRUE"}
+	,
+	{
+	 DAT_IB_COLL_ALLGATHER, "TRUE"}
+	,
+	{
+	 DAT_IB_COLL_ALLGATHERV, "TRUE"}
+	,
+#endif /* DAT_IB_COLLECTIVES */
 #ifndef _OPENIB_CMA_
 	{
 	 DAT_IB_ATTR_UD, "TRUE"}

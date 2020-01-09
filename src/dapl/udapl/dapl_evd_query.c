@@ -101,7 +101,7 @@ dapl_evd_query(IN DAT_EVD_HANDLE evd_handle,
 		    (evd_ptr->
 		     evd_waitable ? DAT_EVD_STATE_WAITABLE :
 		     DAT_EVD_STATE_UNWAITABLE);
-		evd_param->ia_handle = evd_ptr->header.owner_ia;
+		dats_get_ia_handle(evd_ptr->header.owner_ia, &evd_param->ia_handle);
 		evd_param->evd_qlen = evd_ptr->qlen;
 		evd_param->cno_handle = (DAT_CNO_HANDLE) evd_ptr->cno_ptr;
 		evd_param->evd_flags = evd_ptr->evd_flags;

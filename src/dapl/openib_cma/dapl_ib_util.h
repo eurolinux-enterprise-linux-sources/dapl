@@ -124,6 +124,23 @@ typedef struct _ib_hca_transport
 	uint8_t			sl;
 	uint16_t		pkey;
 	int			pkey_idx;
+#ifdef DAT_IB_COLLECTIVES
+	/* Collective member device and address information */
+	ib_thread_state_t 	coll_thread_state;
+	DAPL_OS_THREAD 		coll_thread;
+	DAPL_OS_LOCK 		coll_lock;
+	DAPL_OS_WAIT_OBJECT 	coll_event;
+	struct dapl_llist_entry *grp_list;
+	user_progress_func_t 	*user_func;
+	int 			l_sock;
+	struct sockaddr_in	m_addr;
+	void 			*m_ctx;
+	void			*m_info;
+	void			*f_info;
+	int			m_size;
+	int			f_size;
+	int			t_id;
+#endif
 } ib_hca_transport_t;
 
 /* prototypes */

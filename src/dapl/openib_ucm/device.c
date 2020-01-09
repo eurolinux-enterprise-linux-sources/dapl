@@ -33,6 +33,10 @@
 
 #include <stdlib.h>
 
+#ifdef DAT_IB_COLLECTIVES
+#include <collectives/ib_collectives.h>
+#endif
+
 static void ucm_service_destroy(IN DAPL_HCA *hca);
 static int  ucm_service_create(IN DAPL_HCA *hca);
 
@@ -347,6 +351,11 @@ found:
 	       &hca_ptr->ib_trans.addr, 
 	       sizeof(union dcm_addr));
 
+#ifdef DAT_IB_COLLECTIVES
+	if (dapli_create_collective_service(hca_ptr))
+		goto bail;
+#endif
+
 	ibv_free_device_list(dev_list);
 
 	/* wait for cm_thread */
@@ -384,6 +393,10 @@ err:
 DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 {
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p\n", hca_ptr);
+
+#ifdef DAT_IB_COLLECTIVES
+	dapli_free_collective_service(hca_ptr);
+#endif
 
 	if (hca_ptr->ib_trans.cm_state == IB_THREAD_RUN) {
 		hca_ptr->ib_trans.cm_state = IB_THREAD_CANCEL;

@@ -554,7 +554,7 @@ retry:
 			     (void*)wc[i].wr_id, wc[i].src_qp);
 
 		/* validate CM message, version */
-		if (ntohs(msg->ver) != DCM_VER) {
+		if (ntohs(msg->ver) < DCM_VER_MIN) {
 			dapl_log(DAPL_DBG_TYPE_WARN,
 				 " ucm_recv: UNKNOWN msg %p, ver %d\n", 
 				 msg, msg->ver);
@@ -1092,8 +1092,10 @@ static void ucm_connect_rtu(dp_ib_cm_handle_t cm, ib_cm_msg_t *msg)
 	dapl_os_unlock(&cm->lock);
 
         /* rdma_out, initiator, cannot exceed remote rdma_in max */
-        cm->ep->param.ep_attr.max_rdma_read_out =
-                DAPL_MIN(cm->ep->param.ep_attr.max_rdma_read_out, cm->msg.rd_in);
+	if (ntohs(cm->msg.ver) >= 7)
+		cm->ep->param.ep_attr.max_rdma_read_out =
+				DAPL_MIN(cm->ep->param.ep_attr.max_rdma_read_out,
+					 cm->msg.rd_in);
 
 	/* modify QP to RTR and then to RTS with remote info */
 	dapl_os_lock(&cm->ep->header.lock);
@@ -1526,8 +1528,10 @@ dapli_accept_usr(DAPL_EP *ep, DAPL_CR *cr, DAT_COUNT p_size, DAT_PVOID p_data)
 #endif
 
         /* rdma_out, initiator, cannot exceed remote rdma_in max */
-        ep->param.ep_attr.max_rdma_read_out =
-                DAPL_MIN(ep->param.ep_attr.max_rdma_read_out, cm->msg.rd_in);
+	if (ntohs(cm->msg.ver) >= 7)
+		ep->param.ep_attr.max_rdma_read_out =
+				DAPL_MIN(ep->param.ep_attr.max_rdma_read_out,
+					 cm->msg.rd_in);
 
 	/* modify QP to RTR and then to RTS with remote info already read */
 	dapl_os_lock(&ep->header.lock);

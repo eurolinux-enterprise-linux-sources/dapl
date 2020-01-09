@@ -47,6 +47,10 @@ static const char rcsid[] = "$Id:  $";
 
 #include <stdlib.h>
 
+#ifdef DAT_IB_COLLECTIVES
+#include <collectives/ib_collectives.h>
+#endif
+
 struct rdma_event_channel *g_cm_events = NULL;
 ib_thread_state_t g_ib_thread_state = 0;
 DAPL_OS_THREAD g_ib_thread;
@@ -376,6 +380,11 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 		     &hca_ptr->hca_address)->sin_addr.s_addr >> 24 & 0xff, 
 		     hca_ptr->ib_trans.max_inline_send);
 
+#ifdef DAT_IB_COLLECTIVES
+	if (dapli_create_collective_service(hca_ptr))
+		return DAT_INTERNAL_ERROR;
+#endif
+
 	return DAT_SUCCESS;
 }
 
@@ -399,6 +408,10 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 {
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p->%p\n",
 		     hca_ptr, hca_ptr->ib_hca_handle);
+
+#ifdef DAT_IB_COLLECTIVES
+	dapli_free_collective_service(hca_ptr);
+#endif
 
 	dapl_os_lock(&g_hca_lock);
 	if (g_ib_thread_state != IB_THREAD_RUN) {

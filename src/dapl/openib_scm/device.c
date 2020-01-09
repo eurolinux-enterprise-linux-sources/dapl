@@ -57,6 +57,10 @@ static const char rcsid[] = "$Id:  $";
 
 #include <stdlib.h>
 
+#ifdef DAT_IB_COLLECTIVES
+#include <collectives/ib_collectives.h>
+#endif
+
 ib_thread_state_t g_ib_thread_state = 0;
 DAPL_OS_THREAD g_ib_thread;
 DAPL_OS_LOCK g_hca_lock;
@@ -320,8 +324,9 @@ found:
 	if (ibv_query_port(hca_ptr->ib_hca_handle,
 			   (uint8_t) hca_ptr->port_num, &port_attr)) {
 		dapl_log(DAPL_DBG_TYPE_ERR,
-			 " open_hca: get lid ERR for %s, err=%s\n",
+			 " open_hca: get lid ERR for %s port=%d, err=%s\n",
 			 ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
+			 hca_ptr->port_num,
 			 strerror(errno));
 		goto err;
 	} else {
@@ -440,6 +445,11 @@ found:
 		     (unsigned long long)htonll(hca_ptr->ib_trans.gid.global.
 						interface_id));
 
+#ifdef DAT_IB_COLLECTIVES
+	if (dapli_create_collective_service(hca_ptr))
+		goto bail;
+#endif
+
 	ibv_free_device_list(dev_list);
 	return dat_status;
 
@@ -470,6 +480,10 @@ found:
 DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 {
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p\n", hca_ptr);
+
+#ifdef DAT_IB_COLLECTIVES
+		dapli_free_collective_service(hca_ptr);
+#endif
 
 	dapl_os_lock(&g_hca_lock);
 	if (g_ib_thread_state != IB_THREAD_RUN) {

@@ -18,9 +18,23 @@ endif
 if EXT_TYPE_IB
 XFLAGS = -DDAT_EXTENSIONS
 XPROGRAMS = dapl/openib_common/ib_extensions.c
+XHEADERS =
+XLIBS =
+if COLL_TYPE_FCA
+XFLAGS += -DDAT_IB_COLLECTIVES -DDAT_FCA_PROVIDER
+XPROGRAMS += dapl/openib_common/collectives/fca_provider.c
+XHEADERS += dapl/openib_common/collectives/ib_collectives.h dapl/openib_common/collectives/fca_provider.h
+XLIBS += -lfca
+endif
 else
 XFLAGS =
 XPROGRAMS =
+XHEADERS =
+XLIBS =
+endif
+
+if DAPL_USE_IBACM
+XLIBS += -lrdmacm
 endif
 
 if DEFINE_ATTR_LINK_LAYER
@@ -34,19 +48,31 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DDAT_CONF="\"$(sysconfdir)/dat.conf\""
 endif
 
 datlibdir = $(libdir)
+if DEFINE_CMA
 dapllibofadir = $(libdir)
+endif
+if DEFINE_SCM
 daplliboscmdir = $(libdir)
+endif
+if DEFINE_UCM
 daplliboucmdir = $(libdir)
+endif
 
 datlib_LTLIBRARIES = dat/udat/libdat2.la
+if DEFINE_CMA
 dapllibofa_LTLIBRARIES = dapl/udapl/libdaplofa.la
+endif
+if DEFINE_SCM
 daplliboscm_LTLIBRARIES = dapl/udapl/libdaploscm.la
+endif
+if DEFINE_UCM
 daplliboucm_LTLIBRARIES = dapl/udapl/libdaploucm.la
+endif
 
 dat_udat_libdat2_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
 				-I$(srcdir)/dat/include/ -I$(srcdir)/dat/udat/ \
 				-I$(srcdir)/dat/udat/linux -I$(srcdir)/dat/common/ 
-
+if DEFINE_CMA
 dapl_udapl_libdaplofa_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
 				-DOPENIB -DCQ_WAIT_OBJECT \
 				-I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
@@ -54,7 +80,8 @@ dapl_udapl_libdaplofa_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS
 				-I$(srcdir)/dapl/openib_common \
 				-I$(srcdir)/dapl/openib_cma \
 				-I$(srcdir)/dapl/openib_cma/linux
-		
+endif
+if DEFINE_SCM
 dapl_udapl_libdaploscm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
                                 -DOPENIB -DCQ_WAIT_OBJECT \
                                 -I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
@@ -62,7 +89,8 @@ dapl_udapl_libdaploscm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAG
 				-I$(srcdir)/dapl/openib_common \
                                 -I$(srcdir)/dapl/openib_scm \
 				-I$(srcdir)/dapl/openib_scm/linux
-
+endif
+if DEFINE_UCM
 dapl_udapl_libdaploucm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAGS) \
                                 -DOPENIB -DCQ_WAIT_OBJECT \
                                 -I$(srcdir)/dat/include/ -I$(srcdir)/dapl/include/ \
@@ -70,17 +98,29 @@ dapl_udapl_libdaploucm_la_CFLAGS = $(AM_CFLAGS) -D_GNU_SOURCE $(OSFLAGS) $(XFLAG
 				-I$(srcdir)/dapl/openib_common \
                                 -I$(srcdir)/dapl/openib_ucm \
 				-I$(srcdir)/dapl/openib_ucm/linux				
-
+endif
 if HAVE_LD_VERSION_SCRIPT
     dat_version_script = -Wl,--version-script=$(srcdir)/dat/udat/libdat2.map
+if DEFINE_CMA
     daplofa_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaplofa.map
+endif
+if DEFINE_SCM
     daploscm_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaploscm.map
+endif
+if DEFINE_UCM
     daploucm_version_script = -Wl,--version-script=$(srcdir)/dapl/udapl/libdaploucm.map
+endif
 else
     dat_version_script = 
+if DEFINE_CMA
     daplofa_version_script = 
+endif
+if DEFINE_SCM
     daploscm_version_script =
+endif
+if DEFINE_UCM
     daploucm_version_script =
+endif
 endif
 
 #
@@ -98,6 +138,7 @@ dat_udat_libdat2_la_SOURCES = dat/udat/udat.c \
 			dat/common/dat_sr.c
 dat_udat_libdat2_la_LDFLAGS = -version-info 2:0:0 $(dat_version_script) -ldl 
 
+if DEFINE_CMA
 #
 # uDAPL OpenFabrics rdma_cm version: libdaplofa.so
 #
@@ -210,8 +251,9 @@ dapl_udapl_libdaplofa_la_SOURCES = dapl/udapl/dapl_init.c \
 
 dapl_udapl_libdaplofa_la_LDFLAGS = -version-info 2:0:0 $(daplofa_version_script) \
 				   -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-				   -lpthread -libverbs -lrdmacm 
-				
+				   -lpthread -libverbs -lrdmacm $(XLIBS)
+endif
+if DEFINE_SCM				
 #
 # uDAPL OpenFabrics Socket CM version for IB: libdaplscm.so
 #
@@ -324,8 +366,9 @@ dapl_udapl_libdaploscm_la_SOURCES = dapl/udapl/dapl_init.c \
 
 dapl_udapl_libdaploscm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
                                    -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-                                   -lpthread -libverbs -lrdmacm
-                                   
+                                   -lpthread -libverbs $(XLIBS)
+endif
+if DEFINE_UCM                      
 #
 # uDAPL OpenFabrics UD CM version for IB: libdaplucm.so
 #
@@ -438,7 +481,8 @@ dapl_udapl_libdaploucm_la_SOURCES = dapl/udapl/dapl_init.c \
 
 dapl_udapl_libdaploucm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
                                    -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-                                   -lpthread -libverbs -lrdmacm
+                                   -lpthread -libverbs $(XLIBS)
+endif
 
 libdatincludedir = $(includedir)/dat2
 
@@ -540,7 +584,7 @@ EXTRA_DIST = dat/common/dat_dictionary.h \
 	     test/dapltest/include/dapl_transaction_stats.h \
 	     test/dapltest/include/dapl_transaction_test.h \
 	     test/dapltest/include/dapl_version.h \
-	     test/dapltest/mdep/linux/dapl_mdep_user.h
+	     test/dapltest/mdep/linux/dapl_mdep_user.h $(XHEADERS)
 	 
 dist-hook: dapl.spec 
 	cp dapl.spec $(distdir)

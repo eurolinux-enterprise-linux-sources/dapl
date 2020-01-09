@@ -87,6 +87,7 @@ dapl_rmr_query(IN DAT_RMR_HANDLE rmr_handle,
 	}
 
 	dapl_os_memcpy(rmr_param, &rmr->param, sizeof(DAT_RMR_PARAM));
+	dats_get_ia_handle(rmr->param.ia_handle, &rmr_param->ia_handle);
 
       bail:
 	return dat_status;

@@ -107,6 +107,7 @@ dapl_ep_query(IN DAT_EP_HANDLE ep_handle,
 			    (DAT_IA_ADDRESS_PTR) & ep_ptr->remote_ia_address;
 		}
 		*ep_param = ep_ptr->param;
+		dats_get_ia_handle(ep_ptr->param.ia_handle, &ep_param->ia_handle);
 	}
 
       bail:

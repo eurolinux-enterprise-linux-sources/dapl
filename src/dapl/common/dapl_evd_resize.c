@@ -108,11 +108,14 @@ DAT_RETURN DAT_API dapl_evd_resize(IN DAT_EVD_HANDLE evd_handle,
 		goto bail;
 	}
 
-	dat_status = dapls_ib_cq_resize(evd_ptr->header.owner_ia,
-					evd_ptr, &evd_qlen);
-	if (dat_status != DAT_SUCCESS) {
-		dapl_os_unlock(&evd_ptr->header.lock);
-		goto bail;
+	if (evd_ptr->ib_cq_handle) {
+
+		dat_status = dapls_ib_cq_resize(evd_ptr->header.owner_ia,
+						evd_ptr, &evd_qlen);
+		if (dat_status != DAT_SUCCESS) {
+			dapl_os_unlock(&evd_ptr->header.lock);
+			goto bail;
+		}
 	}
 
 	dat_status = dapls_evd_event_realloc(evd_ptr, evd_qlen);

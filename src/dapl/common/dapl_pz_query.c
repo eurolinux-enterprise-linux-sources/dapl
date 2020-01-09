@@ -79,7 +79,7 @@ dapl_pz_query(IN DAT_PZ_HANDLE pz_handle,
 
 	/* Since the DAT_PZ_ARGS values are easily accessible, */
 	/* don't bother checking the DAT_PZ_ARGS_MASK value    */
-	pz_param->ia_handle = (DAT_IA_HANDLE) pz->header.owner_ia;
+	dats_get_ia_handle(pz->header.owner_ia, &pz_param->ia_handle);
 
       bail:
 	return dat_status;
