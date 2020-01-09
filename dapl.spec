@@ -1,6 +1,6 @@
 Name: dapl
 Version: 2.0.39
-Release: 2%{?dist}
+Release: 5%{?dist}
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
 License: GPLv2 or BSD or CPL
@@ -12,9 +12,9 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 Obsoletes: udapl < 1.3
-BuildRequires: libibverbs-devel > 1.1.4, librdmacm-devel > 1.0.14
+BuildRequires: libibverbs-devel > 1.1.7, librdmacm-devel > 1.0.18
 BuildRequires: autoconf, libtool
-ExclusiveArch: %{ix86} x86_64 ia64 ppc ppc64
+ExcludeArch: s390 s390x
 %description
 libdat and libdapl provide a userspace implementation of the DAT 2.0
 API and is built to natively support InfiniBand/iWARP network technology.
@@ -88,6 +88,19 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
+* Tue Oct 28 2014 Doug Ledford <dledford@redhat.com> - 2.0.39-5
+- Bump and rebuild after retagging the latest libibverbs and librdmacm
+  into the build root
+- Related: bz1123996
+
+* Tue Oct 28 2014 Doug Ledford <dledford@redhat.com> - 2.0.39-4
+- Switch from ExclusiveArch to ExcludeArch
+- Related: bz1123996
+
+* Tue Sep 09 2014 Dan Horák <dhorak@redhat.com> - 2.0.39-3
+- enable on ppc64le
+- Resolves: #1123996
+
 * Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 2.0.39-2
 - Mass rebuild 2013-12-27
 
