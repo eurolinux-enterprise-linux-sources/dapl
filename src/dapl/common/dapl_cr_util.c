@@ -81,7 +81,7 @@ DAPL_CR *dapls_cr_alloc(DAPL_IA * ia_ptr)
 /*
  * dapls_cr_free
  *
- * Free the passed in EP structure.
+ * Free the passed in CR structure.
  *
  * Input:
  * 	entry point pointer

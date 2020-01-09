@@ -96,6 +96,10 @@ char *dapl_event_str(IN DAT_EVENT_NUMBER event_num)
 		 DAT_IB_EXTENSION_RANGE_BASE + 1},
 		{"DAT_IB_UD_CONNECTION_EVENT_ESTABLISHED",
 		 DAT_IB_EXTENSION_RANGE_BASE + 2},
+		{"DAT_IB_UD_CONNECTION_REJECT_EVENT",
+		 DAT_IB_EXTENSION_RANGE_BASE + 3},
+		{"DAT_IB_UD_CONNECTION_ERROR_EVENT",
+		 DAT_IB_EXTENSION_RANGE_BASE + 4},
 		{"DAT_IW_EXTENSION_RANGE_BASE", DAT_IW_EXTENSION_RANGE_BASE},
 #endif				/* DAT_EXTENSIONS */
 		{NULL, 0},
@@ -155,15 +159,6 @@ dapls_evd_internal_create(DAPL_IA * ia_ptr,
 		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 		goto bail;
 	}
-
-	/*
-	 * If we are dealing with event streams besides a CQ event stream,
-	 * be conservative and set producer side locking.  Otherwise, no.
-	 * Note: CNO is not considered CQ event stream.
-	 */
-	evd_ptr->evd_producer_locking_needed =
-	    (!(evd_flags & (DAT_EVD_DTO_FLAG | DAT_EVD_RMR_BIND_FLAG)) ||
-	     evd_ptr->cno_ptr);
 
 	/* Before we setup any callbacks, transition state to OPEN.  */
 	evd_ptr->evd_state = DAPL_EVD_STATE_OPEN;
@@ -295,7 +290,6 @@ DAPL_EVD *dapls_evd_alloc(IN DAPL_IA * ia_ptr,
 	evd_ptr->evd_flags = evd_flags;
 	evd_ptr->evd_enabled = DAT_TRUE;
 	evd_ptr->evd_waitable = DAT_TRUE;
-	evd_ptr->evd_producer_locking_needed = 1;	/* Conservative value.  */
 	evd_ptr->ib_cq_handle = IB_INVALID_HANDLE;
 	dapl_os_atomic_set(&evd_ptr->evd_ref_count, 0);
 	evd_ptr->catastrophic_overflow = DAT_FALSE;
@@ -579,59 +573,11 @@ void dapli_evd_eh_print_cqe(IN ib_work_completion_t * cqe_ptr)
  * Event posting code follows.
  */
 
-/*
- * These next two functions (dapli_evd_get_event and dapli_evd_post_event)
- * are a pair.  They are always called together, from one of the functions
- * at the end of this file (dapl_evd_post_*_event).
- *
- * Note that if producer side locking is enabled, the first one takes the
- * EVD lock and the second releases it.
- */
-
-/* dapli_evd_get_event
- *
- * Get an event struct from the evd.  The caller should fill in the event
- * and call dapl_evd_post_event.
- *
- * If there are no events available, an overflow event is generated to the
- * async EVD handler.
- *
- * If this EVD required producer locking, a successful return implies
- * that the lock is held.
- *
- * Input:
- * 	evd_ptr
- *
- * Output:
- *	event
- *
- */
-
-static DAT_EVENT *dapli_evd_get_event(DAPL_EVD * evd_ptr)
-{
-	DAT_EVENT *event;
-
-	if (evd_ptr->evd_producer_locking_needed) {
-		dapl_os_lock(&evd_ptr->header.lock);
-	}
-
-	event = (DAT_EVENT *) dapls_rbuf_remove(&evd_ptr->free_event_queue);
-
-	/* Release the lock if it was taken and the call failed.  */
-	if (!event && evd_ptr->evd_producer_locking_needed) {
-		dapl_os_unlock(&evd_ptr->header.lock);
-	}
-
-	return event;
-}
 
 /* dapli_evd_post_event
  *
  * Post the <event> to the evd.  If possible, invoke the evd's CNO.
  * Otherwise post the event on the pending queue.
- *
- * If producer side locking is required, the EVD lock must be held upon
- * entry to this function.
  *
  * Input:
  * 	evd_ptr
@@ -646,7 +592,6 @@ static void
 dapli_evd_post_event(IN DAPL_EVD * evd_ptr, IN const DAT_EVENT * event_ptr)
 {
 	DAT_RETURN dat_status;
-	DAPL_CNO *cno_to_trigger = NULL;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_EVD, "%s: %s evd %p state %d\n",
 		     __FUNCTION__, dapl_event_str(event_ptr->event_number), 
@@ -661,110 +606,37 @@ dapli_evd_post_event(IN DAPL_EVD * evd_ptr, IN const DAT_EVENT * event_ptr)
 
 	if (evd_ptr->evd_state == DAPL_EVD_STATE_OPEN) {
 		/* No waiter.  Arrange to trigger a CNO if it exists.  */
-
-		if (evd_ptr->evd_enabled) {
-			cno_to_trigger = evd_ptr->cno_ptr;
-		}
-		if (evd_ptr->evd_producer_locking_needed) {
-			dapl_os_unlock(&evd_ptr->header.lock);
-		}
+		if (evd_ptr->evd_enabled && evd_ptr->cno_ptr)
+			dapl_internal_cno_trigger(evd_ptr->cno_ptr, evd_ptr);
 	} else {
-		/*
-		 * We're in DAPL_EVD_STATE_WAITED.  Take the lock if
-		 * we don't have it, recheck, and signal.
-		 */
-		if (!evd_ptr->evd_producer_locking_needed) {
-			dapl_os_lock(&evd_ptr->header.lock);
-		}
-
 		if (evd_ptr->evd_state == DAPL_EVD_STATE_WAITED
 		    && (dapls_rbuf_count(&evd_ptr->pending_event_queue)
 			>= evd_ptr->threshold)) {
-			dapl_os_unlock(&evd_ptr->header.lock);
 
 			if (evd_ptr->evd_flags & (DAT_EVD_DTO_FLAG | DAT_EVD_RMR_BIND_FLAG)) {
 				dapls_evd_dto_wakeup(evd_ptr);
 			} else {
 				dapl_os_wait_object_wakeup(&evd_ptr->wait_object);
 			}
-
-		} else {
-			dapl_os_unlock(&evd_ptr->header.lock);
 		}
 	}
-
-	if (cno_to_trigger != NULL) {
-		dapl_internal_cno_trigger(cno_to_trigger, evd_ptr);
-	}
 }
 
-/* dapli_evd_post_event_nosignal
- *
- * Post the <event> to the evd.  Do not do any wakeup processing.
- * This function should only be called if it is known that there are
- * no waiters that it is appropriate to wakeup on this EVD.  An example
- * of such a situation is during internal dat_evd_wait() processing.
- *
- * If producer side locking is required, the EVD lock must be held upon
- * entry to this function.
- *
- * Input:
- * 	evd_ptr
- * 	event
- *
- * Output:
- *	none
- *
- */
-
-static void
-dapli_evd_post_event_nosignal(IN DAPL_EVD * evd_ptr,
-			      IN const DAT_EVENT * event_ptr)
+static DAT_EVENT *dapli_evd_get_and_init_event(IN DAPL_EVD * evd_ptr,
+					       IN DAT_EVENT_NUMBER event_number)
 {
-	DAT_RETURN dat_status;
+	DAT_EVENT *event_ptr;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_EVD, "%s: Called with event %s\n",
-		     __FUNCTION__, dapl_event_str(event_ptr->event_number));
-
-	dat_status = dapls_rbuf_add(&evd_ptr->pending_event_queue,
-				    (void *)event_ptr);
-	dapl_os_assert(dat_status == DAT_SUCCESS);
-
-	dapl_os_assert(evd_ptr->evd_state == DAPL_EVD_STATE_WAITED
-		       || evd_ptr->evd_state == DAPL_EVD_STATE_OPEN);
-
-	if (evd_ptr->evd_producer_locking_needed) {
-		dapl_os_unlock(&evd_ptr->header.lock);
+	event_ptr = (DAT_EVENT *) dapls_rbuf_remove(&evd_ptr->free_event_queue);
+	if (event_ptr) {
+		event_ptr->evd_handle = (DAT_EVD_HANDLE) evd_ptr;
+		event_ptr->event_number = event_number;
 	}
+
+	return event_ptr;
 }
 
-/* dapli_evd_format_overflow_event
- *
- * format an overflow event for posting
- *
- * Input:
- * 	evd_ptr
- * 	event_ptr
- *
- * Output:
- *	none
- *
- */
-static void
-dapli_evd_format_overflow_event(IN DAPL_EVD * evd_ptr,
-				OUT DAT_EVENT * event_ptr)
-{
-	DAPL_IA *ia_ptr;
-
-	ia_ptr = evd_ptr->header.owner_ia;
-
-	event_ptr->evd_handle = (DAT_EVD_HANDLE) evd_ptr;
-	event_ptr->event_number = DAT_ASYNC_ERROR_EVD_OVERFLOW;
-	event_ptr->event_data.asynch_error_event_data.dat_handle =
-	    (DAT_HANDLE) ia_ptr;
-}
-
-/* dapli_evd_post_overflow_event
+/* dapls_evd_post_overflow_event
  *
  * post an overflow event
  *
@@ -776,52 +648,38 @@ dapli_evd_format_overflow_event(IN DAPL_EVD * evd_ptr,
  *	none
  *
  */
-static void
-dapli_evd_post_overflow_event(IN DAPL_EVD * async_evd_ptr,
-			      IN DAPL_EVD * overflow_evd_ptr)
+void
+dapls_evd_post_overflow_event(IN DAPL_EVD * evd_ptr)
 {
-	DAT_EVENT *overflow_event;
-
-	/* The overflow_evd_ptr mght be the same as evd.
-	 * In that case we've got a catastrophic overflow.
-	 */
-	dapl_log(DAPL_DBG_TYPE_WARN,
-		 " WARNING: overflow event on EVD %p/n", overflow_evd_ptr);
-
-	if (async_evd_ptr == overflow_evd_ptr) {
-		async_evd_ptr->catastrophic_overflow = DAT_TRUE;
-		async_evd_ptr->evd_state = DAPL_EVD_STATE_DEAD;
-		return;
-	}
-
-	overflow_event = dapli_evd_get_event(overflow_evd_ptr);
-	if (!overflow_event) {
-		/* this is not good */
-		overflow_evd_ptr->catastrophic_overflow = DAT_TRUE;
-		overflow_evd_ptr->evd_state = DAPL_EVD_STATE_DEAD;
-		return;
-	}
-	dapli_evd_format_overflow_event(overflow_evd_ptr, overflow_event);
-	dapli_evd_post_event(overflow_evd_ptr, overflow_event);
-
-	return;
-}
-
-static DAT_EVENT *dapli_evd_get_and_init_event(IN DAPL_EVD * evd_ptr,
-					       IN DAT_EVENT_NUMBER event_number)
-{
+	DAPL_EVD *async_evd_ptr = evd_ptr->header.owner_ia->async_error_evd;
 	DAT_EVENT *event_ptr;
 
-	event_ptr = dapli_evd_get_event(evd_ptr);
-	if (NULL == event_ptr) {
-		dapli_evd_post_overflow_event(evd_ptr->header.owner_ia->
-					      async_error_evd, evd_ptr);
-	} else {
-		event_ptr->evd_handle = (DAT_EVD_HANDLE) evd_ptr;
-		event_ptr->event_number = event_number;
-	}
+	dapl_log(DAPL_DBG_TYPE_WARN, " WARNING: overflow event on EVD %p/n", evd_ptr);
 
-	return event_ptr;
+	dapl_os_lock(&async_evd_ptr->header.lock);
+
+	/* The overflow evd_ptr mght be the same as the async evd.
+	 * In that case we've got a catastrophic overflow.
+	 */
+	if (async_evd_ptr == evd_ptr)
+		goto err;
+
+	event_ptr = dapli_evd_get_and_init_event(async_evd_ptr,
+						 DAT_ASYNC_ERROR_EVD_OVERFLOW);
+	if (!event_ptr)
+		goto err;
+	
+	event_ptr->event_data.asynch_error_event_data.dat_handle =
+	    (DAT_HANDLE) evd_ptr->header.owner_ia;
+
+	dapli_evd_post_event(async_evd_ptr, event_ptr);
+	dapl_os_unlock(&async_evd_ptr->header.lock);
+	return;
+
+err:
+	async_evd_ptr->catastrophic_overflow = DAT_TRUE;
+	async_evd_ptr->evd_state = DAPL_EVD_STATE_DEAD;
+	dapl_os_unlock(&async_evd_ptr->header.lock);
 }
 
 DAT_RETURN
@@ -833,17 +691,11 @@ dapls_evd_post_cr_arrival_event(IN DAPL_EVD * evd_ptr,
 				DAT_CR_HANDLE cr_handle)
 {
 	DAT_EVENT *event_ptr;
-	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
 
-	if (event_ptr == NULL) {
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
-	}
+	dapl_os_lock(&evd_ptr->header.lock);
+	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
+	if (event_ptr == NULL)
+		goto err;
 
 	event_ptr->event_data.cr_arrival_event_data.sp_handle = sp_handle;
 	event_ptr->event_data.cr_arrival_event_data.local_ia_address_ptr
@@ -852,8 +704,13 @@ dapls_evd_post_cr_arrival_event(IN DAPL_EVD * evd_ptr,
 	event_ptr->event_data.cr_arrival_event_data.cr_handle = cr_handle;
 
 	dapli_evd_post_event(evd_ptr, event_ptr);
-
+	dapl_os_unlock(&evd_ptr->header.lock);
 	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 }
 
 DAT_RETURN
@@ -864,17 +721,11 @@ dapls_evd_post_connection_event(IN DAPL_EVD * evd_ptr,
 				IN DAT_PVOID private_data)
 {
 	DAT_EVENT *event_ptr;
-	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
 
-	if (event_ptr == NULL) {
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
-	}
+	dapl_os_lock(&evd_ptr->header.lock);
+	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
+	if (event_ptr == NULL)
+		goto err;
 
 	event_ptr->event_data.connect_event_data.ep_handle = ep_handle;
 	event_ptr->event_data.connect_event_data.private_data_size
@@ -882,8 +733,13 @@ dapls_evd_post_connection_event(IN DAPL_EVD * evd_ptr,
 	event_ptr->event_data.connect_event_data.private_data = private_data;
 
 	dapli_evd_post_event(evd_ptr, event_ptr);
-
+	dapl_os_unlock(&evd_ptr->header.lock);
 	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 }
 
 DAT_RETURN
@@ -892,27 +748,27 @@ dapls_evd_post_async_error_event(IN DAPL_EVD * evd_ptr,
 				 IN DAT_IA_HANDLE ia_handle)
 {
 	DAT_EVENT *event_ptr;
-	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
+
 	dapl_log(DAPL_DBG_TYPE_WARN,
 		 " WARNING: async event - %s evd=%p/n",
 		 dapl_event_str(event_number), evd_ptr);
 
-	if (event_ptr == NULL) {
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
-	}
+	dapl_os_lock(&evd_ptr->header.lock);
+	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
+	if (event_ptr == NULL)
+		goto err;
 
 	event_ptr->event_data.asynch_error_event_data.dat_handle =
 	    (DAT_HANDLE) ia_handle;
 
 	dapli_evd_post_event(evd_ptr, event_ptr);
-
+	dapl_os_unlock(&evd_ptr->header.lock);
 	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 }
 
 DAT_RETURN
@@ -921,23 +777,22 @@ dapls_evd_post_software_event(IN DAPL_EVD * evd_ptr,
 			      IN DAT_PVOID pointer)
 {
 	DAT_EVENT *event_ptr;
-	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
 
-	if (event_ptr == NULL) {
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
-	}
+	dapl_os_lock(&evd_ptr->header.lock);
+	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
+	if (event_ptr == NULL)
+		goto err;
 
 	event_ptr->event_data.software_event_data.pointer = pointer;
 
 	dapli_evd_post_event(evd_ptr, event_ptr);
-
+	dapl_os_unlock(&evd_ptr->header.lock);
 	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 }
 
 /*
@@ -964,26 +819,57 @@ dapls_evd_post_generic_event(IN DAPL_EVD * evd_ptr,
 {
 	DAT_EVENT *event_ptr;
 
+	dapl_os_lock(&evd_ptr->header.lock);
 	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
-
-	if (event_ptr == NULL) {
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
-	}
+	if (event_ptr == NULL)
+		goto err;
 
 	event_ptr->event_data = *data;
 
 	dapli_evd_post_event(evd_ptr, event_ptr);
-
+	dapl_os_unlock(&evd_ptr->header.lock);
 	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 }
 
 #ifdef DAT_EXTENSIONS
+DAT_RETURN
+dapls_evd_do_post_cr_event_ext(IN DAPL_EVD * evd_ptr,
+				IN DAT_EVENT_NUMBER event_number,
+				IN DAPL_SP *sp_ptr,
+				IN DAPL_CR *cr_ptr,
+				IN DAT_PVOID ext_data)
+{
+	DAT_EVENT *event_ptr;
+
+	dapl_os_lock(&evd_ptr->header.lock);
+	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
+	if (event_ptr == NULL)
+		goto err;
+
+	event_ptr->event_data.cr_arrival_event_data.sp_handle.psp_handle =
+	    (DAT_PSP_HANDLE) sp_ptr;
+	event_ptr->event_data.cr_arrival_event_data.local_ia_address_ptr =
+	    (DAT_IA_ADDRESS_PTR) &sp_ptr->header.owner_ia->hca_ptr->hca_address;
+	event_ptr->event_data.cr_arrival_event_data.conn_qual = sp_ptr->conn_qual;
+	event_ptr->event_data.cr_arrival_event_data.cr_handle = (DAT_CR_HANDLE) cr_ptr;
+
+	dapl_os_memcpy(&event_ptr->event_extension_data[0], ext_data, 64);
+
+	dapli_evd_post_event(sp_ptr->evd_handle, event_ptr);
+	dapl_os_unlock(&evd_ptr->header.lock);
+	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+}
+
 DAT_RETURN
 dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 			    IN DAT_EVENT_NUMBER event_number,
@@ -993,8 +879,6 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 {
 	DAPL_CR *cr_ptr;
 	DAPL_EP *ep_ptr;
-	DAT_EVENT *event_ptr;
-	DAT_SP_HANDLE sp_handle;
 
 	dapl_os_lock(&sp_ptr->header.lock);
 	if (sp_ptr->listening == DAT_FALSE) {
@@ -1077,42 +961,14 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 			ep_ptr->param.ep_state =
 			    DAT_EP_STATE_PASSIVE_CONNECTION_PENDING;
 		}
-		ep_ptr->cm_handle = ib_cm_handle;
+		dapl_ep_link_cm(ep_ptr, ib_cm_handle);
 	}
 
 	/* link the CR onto the SP so we can pick it up later */
 	dapl_sp_link_cr(sp_ptr, cr_ptr);
 
-	/* assign sp_ptr to union to avoid typecast errors from some compilers */
-	sp_handle.psp_handle = (DAT_PSP_HANDLE) sp_ptr;
-
-	/* Post the event.  */
-
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
-	event_ptr = dapli_evd_get_and_init_event(sp_ptr->evd_handle,
-						 event_number);
-	if (event_ptr == NULL)
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
-
-	event_ptr->event_data.cr_arrival_event_data.sp_handle = sp_handle;
-	event_ptr->event_data.cr_arrival_event_data.local_ia_address_ptr =
-	    (DAT_IA_ADDRESS_PTR) & sp_ptr->header.owner_ia->hca_ptr->
-	    hca_address;
-	event_ptr->event_data.cr_arrival_event_data.conn_qual =
-	    sp_ptr->conn_qual;
-	event_ptr->event_data.cr_arrival_event_data.cr_handle =
-	    (DAT_HANDLE) cr_ptr;
-
-	dapl_os_memcpy(&event_ptr->event_extension_data[0], ext_data, 64);
-
-	dapli_evd_post_event(sp_ptr->evd_handle, event_ptr);
-
-	return DAT_SUCCESS;
+	return dapls_evd_do_post_cr_event_ext(sp_ptr->evd_handle, event_number,
+					      sp_ptr, cr_ptr, ext_data);
 }
 
 DAT_RETURN
@@ -1124,15 +980,11 @@ dapls_evd_post_connection_event_ext(IN DAPL_EVD * evd_ptr,
 				    IN DAT_PVOID ext_data)
 {
 	DAT_EVENT *event_ptr;
+
+	dapl_os_lock(&evd_ptr->header.lock);
 	event_ptr = dapli_evd_get_and_init_event(evd_ptr, event_number);
-	/*
-	 * Note event lock may be held on successful return
-	 * to be released by dapli_evd_post_event(), if provider side locking
-	 * is needed.
-	 */
 	if (event_ptr == NULL)
-		return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
-				 DAT_RESOURCE_MEMORY);
+		goto err;
 
 	event_ptr->event_data.connect_event_data.ep_handle = ep_handle;
 	event_ptr->event_data.connect_event_data.private_data_size
@@ -1142,8 +994,13 @@ dapls_evd_post_connection_event_ext(IN DAPL_EVD * evd_ptr,
 	dapl_os_memcpy(&event_ptr->event_extension_data[0], ext_data, 64);
 
 	dapli_evd_post_event(evd_ptr, event_ptr);
-
+	dapl_os_unlock(&evd_ptr->header.lock);
 	return DAT_SUCCESS;
+
+err:
+	dapl_os_unlock(&evd_ptr->header.lock);
+	dapls_evd_post_overflow_event(evd_ptr);
+	return DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 }
 #endif
 
@@ -1183,10 +1040,6 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 
 	ep_ptr = cookie->ep;
 	dapl_os_assert((NULL != ep_ptr));
-	if (ep_ptr->header.magic != DAPL_MAGIC_EP) {
-		/* ep may have been freed, just return */
-		return;
-	}
 
 	dapls_io_trc_update_completion(ep_ptr, cookie, dto_status);
 
@@ -1312,6 +1165,7 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
 
 			/* ... and clean up the local side */
 			evd_ptr = (DAPL_EVD *) ep_ptr->param.connect_evd_handle;
+			dapl_sp_remove_ep (ep_ptr);
 			if (evd_ptr != NULL) {
 				dapls_evd_post_connection_event(evd_ptr,
 								DAT_CONNECTION_EVENT_BROKEN,
@@ -1338,18 +1192,8 @@ dapli_evd_cqe_to_event(IN DAPL_EVD * evd_ptr,
  * Copy all entries on a CQ associated with the EVD onto that EVD
  * Up to caller to handle races, if any.  Note that no EVD waiters will
  * be awoken by this copy.
- *
- * Input:
- *	evd_ptr
- *
- * Output:
- * 	None
- *
- * Returns:
- * 	none
- *
  */
-void dapls_evd_copy_cq(DAPL_EVD * evd_ptr)
+DAT_RETURN dapls_evd_copy_cq(DAPL_EVD * evd_ptr)
 {
 	ib_work_completion_t cur_cqe;
 	DAT_RETURN dat_status;
@@ -1357,7 +1201,7 @@ void dapls_evd_copy_cq(DAPL_EVD * evd_ptr)
 
 	if (evd_ptr->ib_cq_handle == IB_INVALID_HANDLE) {
 		/* Nothing to do if no CQ.  */
-		return;
+		return DAT_SUCCESS;
 	}
 
 	while (1) {
@@ -1376,18 +1220,13 @@ void dapls_evd_copy_cq(DAPL_EVD * evd_ptr)
 		 * Can use DAT_DTO_COMPLETION_EVENT because dapli_evd_cqe_to_event
 		 * will overwrite.
 		 */
-
-		event =
-		    dapli_evd_get_and_init_event(evd_ptr,
-						 DAT_DTO_COMPLETION_EVENT);
-		if (event == NULL) {
-			/* We've already attempted the overflow post; return.  */
-			return;
-		}
+		event = dapli_evd_get_and_init_event(evd_ptr, DAT_DTO_COMPLETION_EVENT);
+		if (event == NULL)
+			return DAT_QUEUE_FULL;
 
 		dapli_evd_cqe_to_event(evd_ptr, &cur_cqe, event);
 
-		dapli_evd_post_event_nosignal(evd_ptr, event);
+		dapli_evd_post_event(evd_ptr, event);
 	}
 
 	if (DAT_GET_TYPE(dat_status) != DAT_QUEUE_EMPTY) {
@@ -1395,7 +1234,9 @@ void dapls_evd_copy_cq(DAPL_EVD * evd_ptr)
 			     "dapls_evd_copy_cq: dapls_ib_completion_poll returned 0x%x\n",
 			     dat_status);
 		dapl_os_assert(!"Bad return from dapls_ib_completion_poll");
+		return dat_status;
 	}
+	return DAT_SUCCESS;
 }
 
 /*

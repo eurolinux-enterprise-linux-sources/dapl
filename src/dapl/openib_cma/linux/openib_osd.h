@@ -1,6 +1,7 @@
 #ifndef OPENIB_OSD_H
 #define OPENIB_OSD_H
 
+#include <rdma/rdma_cma.h>
 #include <byteswap.h>
 #include <sys/poll.h>
 

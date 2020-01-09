@@ -165,6 +165,7 @@ dapl_ep_disconnect(IN DAT_EP_HANDLE ep_handle,
 	}
 	dapl_os_unlock(&ep_ptr->header.lock);
 	dat_status = dapls_ib_disconnect(ep_ptr, disconnect_flags);
+	dapls_ep_flush_cqs(ep_ptr);
 
       bail:
 	dapl_dbg_log(DAPL_DBG_TYPE_RTN | DAPL_DBG_TYPE_CM,

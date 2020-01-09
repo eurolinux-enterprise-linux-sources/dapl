@@ -1,24 +1,19 @@
 Name: dapl
-Version: 2.0.25
-Release: 5%{?dist}.2
+Version: 2.0.32
+Release: 1%{?dist}
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
 License: GPLv2 or BSD or CPL
 Url: http://openfabrics.org/
 Source0: http://www.openfabrics.org/downloads/dapl/dapl-%{version}.tar.gz
-Patch0: dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
-Patch1: dapl-2.0.25-verbs-cq-completion-channels-leak.patch
-
-Patch3: dapl-2.0.25-dat_ia_open_hang.patch                 
-Patch4: dapl-2.0.25-new-providers.patch   
-Patch5: dapl-2.0.25-signal-handler.patch
+Patch3: dapl-2.0.25-dat_ia_open_hang.patch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 Obsoletes: udapl < 1.3
-BuildRequires: libibverbs-devel >= 1.1.3, librdmacm-devel >= 1.0.10
+BuildRequires: libibverbs-devel > 1.1.4, librdmacm-devel > 1.0.14
 BuildRequires: autoconf, libtool
-ExclusiveArch: i386 x86_64 ia64 ppc ppc64
+ExclusiveArch: %{ix86} x86_64 ia64 ppc ppc64
 %description
 libdat and libdapl provide a userspace implementation of the DAT 2.0
 API and is built to natively support InfiniBand/iWARP network technology.
@@ -48,13 +43,7 @@ Useful test suites to validate the dapl library API's and operation.
 
 %prep
 %setup -q
-%patch0 -p1 -b.bz673989
-%patch1 -p1 -b.bz673993
-
-%patch3 -p1 -b.bz675205
-%patch4 -p1 -b.bz675202
-%patch5 -p1 -b.bz675198
-
+%patch3 -p1 -b .bz649360
 aclocal -I config && libtoolize --force --copy && autoheader && \
     automake --foreign --add-missing --copy && autoconf
 
@@ -97,19 +86,28 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
-* Tue Feb 8 2011 Jay Fenlason <fenlason@redhat.com> - 2.0.25-5.el6_0.2
-- Backport dapl-2.0.25-dat_ia_open_hang.patch
-  Resolves: bz675205
-- Backport dapl-2.0.25-new-providers.patch
-  Resolves: bz675202
-- Backport dapl-2.0.25-signal-handler.patch
-  Resolves: bz675198
+* Fri Jul 22 2011 Doug Ledford <dledford@redhat.com> - 2.0.32-1
+- Update to latest upstream version (2.0.25 -> 2.0.32)
+- Remove 4 patches folded into upstream release
+- Rebuild against new libibverbs and librdmacm
+- Update exclusive arch to accommodate i686 arch
+- Related: bz724896, bz725016
 
-* Mon Jan 31 2011 Jay Fenlason <fenlason@redhat.com> - 2.0.25-5.el6.0.1
-- Backport the dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
-  Resolves: bz673989
-- Backport the dapl-2.0.25-verbs-cq-completion-channels-leak.patch
-  Resolves: bz673993
+* Fri Jan 28 2011 Jay Fenlason <fenlason@redhat.com> 2.0.25-5.2.el6
+- Actually install the signal-handler patch
+  Resolves: bz667742	Error mapping bug in dapls_wait_comp_channel
+
+* Thu Jan 27 2011 Jay Fenlason <fenlason@redhat.com> 2.0.25-5.1.el6
+- dapl-2.0.25-signal-handler.patch
+  Resolves: bz667742	Error mapping bug in dapls_wait_comp_channel
+- dapl-2.0.25-new-providers.patch
+  Resolves: bz636596
+- dapl-2.0.25-dat_ia_open_hang.patch
+  Resolves: bz649360
+- dapl-2.0.25-cleanup-cr-linkings-after-dto-error-on-ep.patch
+  Resolves: bz626541
+- dapl-2.0.25-verbs-cq-completion-channels-leak.patch
+  Resolves: bz637980
 
 * Sun Mar 07 2010 Doug Ledford <dledford@redhat.com> - 2.0.25-5.el6
 - I missed that the license was in an invalid form, correct that

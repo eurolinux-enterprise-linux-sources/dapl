@@ -168,14 +168,12 @@ DAT_RETURN DAT_API dapl_evd_wait(IN DAT_EVD_HANDLE evd_handle,
 		 * return right away if the ib_cq_handle associate with these evd
 		 * equal to IB_INVALID_HANDLE
 		 */
-		dapl_os_unlock(&evd_ptr->header.lock);
-		dapls_evd_copy_cq(evd_ptr);
-		dapl_os_lock(&evd_ptr->header.lock);
+		dat_status = dapls_evd_copy_cq(evd_ptr);
+		if (dat_status == DAT_QUEUE_FULL)
+			goto bail;
 
-		if (dapls_rbuf_count(&evd_ptr->pending_event_queue) >=
-		    threshold) {
+		if (dapls_rbuf_count(&evd_ptr->pending_event_queue) >= threshold)
 			break;
-		}
 
 		/*
 		 * Do not enable the completion notification if this evd is not 
@@ -266,6 +264,8 @@ DAT_RETURN DAT_API dapl_evd_wait(IN DAT_EVD_HANDLE evd_handle,
 	if (dat_status) {
 		dapl_dbg_log(DAPL_DBG_TYPE_RTN,
 			     "dapl_evd_wait () returns 0x%x\n", dat_status);
+		if (dat_status == DAT_QUEUE_FULL)
+			dapls_evd_post_overflow_event(evd_ptr);
 	}
 	return dat_status;
 }

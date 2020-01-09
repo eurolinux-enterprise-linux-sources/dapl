@@ -23,6 +23,10 @@ XFLAGS =
 XPROGRAMS =
 endif
 
+if DEFINE_ATTR_LINK_LAYER
+XFLAGS += -DDEFINE_ATTR_LINK_LAYER
+endif
+
 if DEBUG
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DDAPL_DBG -DDAT_CONF="\"$(sysconfdir)/dat.conf\""
 else
@@ -320,7 +324,7 @@ dapl_udapl_libdaploscm_la_SOURCES = dapl/udapl/dapl_init.c \
 
 dapl_udapl_libdaploscm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
                                    -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-                                   -lpthread -libverbs
+                                   -lpthread -libverbs -lrdmacm
                                    
 #
 # uDAPL OpenFabrics UD CM version for IB: libdaplucm.so
@@ -434,7 +438,7 @@ dapl_udapl_libdaploucm_la_SOURCES = dapl/udapl/dapl_init.c \
 
 dapl_udapl_libdaploucm_la_LDFLAGS = -version-info 2:0:0 $(daploscm_version_script) \
                                    -Wl,-init,dapl_init -Wl,-fini,dapl_fini \
-                                   -lpthread -libverbs
+                                   -lpthread -libverbs -lrdmacm
 
 libdatincludedir = $(includedir)/dat2
 
@@ -505,6 +509,9 @@ EXTRA_DIST = dat/common/dat_dictionary.h \
 	     dapl/udapl/libdaplofa.map \
 	     dapl/udapl/libdaploscm.map \
 	     dapl/udapl/libdaploucm.map \
+	     LICENSE.txt \
+	     LICENSE2.txt \
+	     LICENSE3.txt \
 	     dapl.spec.in \
 	     $(man_MANS) \
 	     test/dapltest/include/dapl_bpool.h \
@@ -559,7 +566,11 @@ install-exec-hook:
 	echo ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
 	echo ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
 	echo ofa-v2-mthca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf;
+	echo ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+	echo ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+	echo ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth3 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+	echo ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
+	echo ofa-v2-scm-roe-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; 
 
 uninstall-hook:
 	if test -e $(DESTDIR)$(sysconfdir)/dat.conf; then \

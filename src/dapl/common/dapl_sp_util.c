@@ -264,6 +264,8 @@ void dapl_sp_remove_ep(IN DAPL_EP * ep_ptr)
 
 		dapl_os_unlock(&sp_ptr->header.lock);
 
+		ep_ptr->cr_ptr = NULL;
+
 		/* free memory outside of the lock */
 		dapls_cr_free(cr_ptr);
 

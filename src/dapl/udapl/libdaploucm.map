@@ -1,4 +1,4 @@
-DAPL_UCM_2.0 {
+DAPL_OCM_2.0 {
         global:
 		dat_provider_fini;
 		dat_provider_init;

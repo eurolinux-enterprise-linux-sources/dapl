@@ -492,6 +492,12 @@ DAT_RETURN dat_sr_parse_entry(DAT_OS_FILE * file)
 					    1));
 	}
 
+	if (NULL != entry.platform_params) {
+		dat_os_free(entry.platform_params,
+			    sizeof(char) *
+			    (dat_os_strlen(entry.platform_params) +  1));
+	}
+
 	return status;
 }
 

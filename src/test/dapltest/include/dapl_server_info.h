@@ -37,7 +37,7 @@
 
 struct started_server
 {
-    char            devicename[80];
+    char            devicename[256];
     struct started_server *next;
 };
 

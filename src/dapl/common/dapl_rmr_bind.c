@@ -48,7 +48,8 @@
 
 STATIC _INLINE_ DAT_RETURN
 dapli_rmr_bind_fuse(IN DAPL_RMR * rmr,
-		    IN const DAT_LMR_TRIPLET * lmr_triplet,
+		    IN DAT_LMR_HANDLE lmr_handle,
+	            IN const DAT_LMR_TRIPLET * lmr_triplet,
 		    IN DAT_MEM_PRIV_FLAGS mem_priv,
 		    IN DAPL_EP * ep_ptr,
 		    IN DAT_RMR_COOKIE user_cookie,
@@ -69,6 +70,7 @@ dapli_rmr_bind_unfuse(IN DAPL_RMR * rmr,
 
 DAT_RETURN
 dapli_rmr_bind_fuse(IN DAPL_RMR * rmr,
+		    IN DAT_LMR_HANDLE lmr_handle,
 		    IN const DAT_LMR_TRIPLET * lmr_triplet,
 		    IN DAT_MEM_PRIV_FLAGS mem_priv,
 		    IN DAPL_EP * ep_ptr,
@@ -80,16 +82,8 @@ dapli_rmr_bind_fuse(IN DAPL_RMR * rmr,
 	DAPL_COOKIE *cookie;
 	DAT_RETURN dat_status;
 	DAT_BOOLEAN is_signaled;
-	DAPL_HASH_DATA hash_lmr;
 
-	dat_status =
-	    dapls_hash_search(rmr->header.owner_ia->hca_ptr->lmr_hash_table,
-			      lmr_triplet->lmr_context, &hash_lmr);
-	if (DAT_SUCCESS != dat_status) {
-		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG2);
-		goto bail;
-	}
-	lmr = (DAPL_LMR *) hash_lmr;
+	lmr = (DAPL_LMR *) lmr_handle;
 
 	/* if the ep in unconnected return an error. IB requires that the */
 	/* QP be connected to change a memory window binding since:       */
@@ -305,6 +299,7 @@ dapl_rmr_bind(IN DAT_RMR_HANDLE rmr_handle,
 	/* if the rmr should be bound */
 	if (0 != lmr_triplet->segment_length) {
 		return dapli_rmr_bind_fuse(rmr,
+					   lmr_handle,
 					   lmr_triplet,
 					   mem_priv,
 					   ep_ptr,

@@ -349,9 +349,6 @@ struct dapl_evd
     DAT_BOOLEAN		evd_enabled; /* For attached CNO.  */
     DAT_BOOLEAN		evd_waitable; /* EVD state.  */
 
-    /* Derived from evd_flags; see dapls_evd_internal_create.  */
-    DAT_BOOLEAN		evd_producer_locking_needed;
-
     /* Every EVD has a CQ unless it is a SOFTWARE_EVENT only EVD */
     ib_cq_handle_t	ib_cq_handle;
 
@@ -438,7 +435,10 @@ struct dapl_ep
     ib_qp_state_t		qp_state;
 
     /* communications manager handle (IBM OS API) */
-    dp_ib_cm_handle_t		cm_handle;
+   // dp_ib_cm_handle_t		cm_handle;
+
+    /* Add support for multiple CM object ownership */
+    DAPL_LLIST_HEAD		cm_list_head;	
 
     /* store the remote IA address here, reference from the param
      * struct which only has a pointer, no storage
@@ -466,11 +466,6 @@ struct dapl_ep
     struct io_buf_track *ibt_base;
     DAPL_RING_BUFFER	ibt_queue;
 #endif /* DAPL_DBG_IO_TRC */
-#if defined(_WIN32) || defined(_WIN64)
-    DAT_BOOLEAN         recv_discreq;
-    DAT_BOOLEAN         sent_discreq;
-    dp_ib_cm_handle_t   ibal_cm_handle;
-#endif
 #ifdef DAPL_COUNTERS
     void		*cntrs;
 #endif

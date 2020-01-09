@@ -239,10 +239,8 @@ DAT_RETURN dapls_ib_cm_remote_addr (
 	IN  DAT_HANDLE			dat_handle,
 	OUT DAT_SOCK_ADDR6		*remote_ia_address);
 
-int dapls_ib_private_data_size (
-	IN  DAPL_PRIVATE		*prd_ptr,
-	IN  DAPL_PDATA_OP		conn_op,
-	IN  DAPL_HCA			*hca_ptr);
+int dapls_ib_private_data_size(
+	IN DAPL_HCA			*hca_ptr);
 
 void 
 dapls_query_provider_specific_attr(

@@ -83,5 +83,25 @@ dapl_ep_legacy_post_disconnect(
     DAT_CLOSE_FLAGS	disconnect_flags);
 
 extern char *dapl_get_ep_state_str(DAT_EP_STATE state);
- 
+
+extern void dapl_ep_link_cm(IN DAPL_EP *ep_ptr, 
+			    IN dp_ib_cm_handle_t cm_ptr);
+
+extern void dapl_ep_unlink_cm(IN DAPL_EP *ep_ptr, 
+			      IN dp_ib_cm_handle_t cm_ptr);
+
+STATIC _INLINE_ dp_ib_cm_handle_t dapl_get_cm_from_ep(IN DAPL_EP *ep_ptr)
+{
+	dp_ib_cm_handle_t cm_ptr;
+
+	dapl_os_lock(&ep_ptr->header.lock);
+	cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
+		  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
+	dapl_os_unlock(&ep_ptr->header.lock);
+
+	return cm_ptr;
+}
+
+extern void dapls_ep_flush_cqs(DAPL_EP * ep_ptr);
+
 #endif /*  _DAPL_EP_UTIL_H_ */

@@ -1,6 +1,7 @@
---- dapl-2.0.25/dapl/openib_cma/device.c.orig	2010-10-20 15:51:43.000000000 -0400
-+++ dapl-2.0.25/dapl/openib_cma/device.c	2010-10-20 15:52:36.000000000 -0400
-@@ -358,7 +358,6 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_N
+diff -up dapl-2.0.32/dapl/openib_cma/device.c.open dapl-2.0.32/dapl/openib_cma/device.c
+--- dapl-2.0.32/dapl/openib_cma/device.c.open	2011-02-14 00:07:30.000000000 -0500
++++ dapl-2.0.32/dapl/openib_cma/device.c	2011-07-22 14:20:30.045473449 -0400
+@@ -285,7 +285,6 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_N
  	}
  	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&hca_ptr->hca_address);
  	if ((ret) || (cm_id->verbs == NULL)) {

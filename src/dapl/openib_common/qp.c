@@ -22,8 +22,15 @@
  * notice, one of the license notices in the documentation
  * and/or other materials provided with the distribution.
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "dapl.h"
 #include "dapl_adapter_util.h"
+#include "dapl_ep_util.h"
+#include <infiniband/sa.h>
+#include <rdma/rdma_cma.h>
 
 /*
  * dapl_ib_qp_alloc
@@ -115,12 +122,14 @@ dapls_ib_qp_alloc(IN DAPL_IA * ia_ptr,
 #ifdef _OPENIB_CMA_
 	/* Allocate CM and initialize lock */
 	if ((conn = dapls_ib_cm_create(ep_ptr)) == NULL)
-		return (dapl_convert_errno(ENOMEM, "create_cq"));
+		return (dapl_convert_errno(ENOMEM, "cm_create"));
 
 	/* open identifies the local device; per DAT specification */
 	if (rdma_bind_addr(conn->cm_id,
-			   (struct sockaddr *)&ia_ptr->hca_ptr->hca_address))
-		return (dapl_convert_errno(EAFNOSUPPORT, "create_cq"));
+		(struct sockaddr *)&ia_ptr->hca_ptr->hca_address)) {
+		dapls_cm_free(conn);
+		return (dapl_convert_errno(EAFNOSUPPORT, "rdma_bind_addr"));
+	}
 #endif
 	/* Setup attributes and create qp */
 	dapl_os_memzero((void *)&qp_create, sizeof(qp_create));
@@ -158,16 +167,12 @@ dapls_ib_qp_alloc(IN DAPL_IA * ia_ptr,
 
 #ifdef _OPENIB_CMA_
 	if (rdma_create_qp(conn->cm_id, ib_pd_handle, &qp_create)) {
-		dapls_ib_cm_free(conn, ep_ptr);
-		return (dapl_convert_errno(errno, "create_qp"));
+		dapls_cm_free(conn);
+		return (dapl_convert_errno(errno, "rdma_create_qp"));
 	}
 	ep_ptr->qp_handle = conn->cm_id->qp;
-	ep_ptr->cm_handle = conn;
 	ep_ptr->qp_state = IBV_QPS_INIT;
-		
-	/* setup up ep->param to reference the bound local address and port */
-	ep_ptr->param.local_ia_address_ptr = 
-		&conn->cm_id->route.addr.src_addr;
+
 	ep_ptr->param.local_port_qual = rdma_get_src_port(conn->cm_id);
 #else
 	ep_ptr->qp_handle = ibv_create_qp(ib_pd_handle, &qp_create);
@@ -183,8 +188,8 @@ dapls_ib_qp_alloc(IN DAPL_IA * ia_ptr,
 	}
 #endif
 	dapl_dbg_log(DAPL_DBG_TYPE_EP,
-		     " qp_alloc: qpn %p sq %d,%d rq %d,%d\n",
-		     ep_ptr->qp_handle->qp_num,
+		     " qp_alloc: qpn %p type %d sq %d,%d rq %d,%d\n",
+		     ep_ptr->qp_handle->qp_num, ep_ptr->qp_handle->qp_type,
 		     qp_create.cap.max_send_wr, qp_create.cap.max_send_sge,
 		     qp_create.cap.max_recv_wr, qp_create.cap.max_recv_sge);
 
@@ -210,33 +215,38 @@ dapls_ib_qp_alloc(IN DAPL_IA * ia_ptr,
  */
 DAT_RETURN dapls_ib_qp_free(IN DAPL_IA * ia_ptr, IN DAPL_EP * ep_ptr)
 {
-	dapl_dbg_log(DAPL_DBG_TYPE_EP, " qp_free:  ep_ptr %p qp %p\n",
-		     ep_ptr, ep_ptr->qp_handle);
+	struct ibv_qp *qp;
+	struct ibv_qp_attr qp_attr;
 
-	if (ep_ptr->cm_handle != NULL) {
-		dapls_ib_cm_free(ep_ptr->cm_handle, ep_ptr);
-	}
-	
-	if (ep_ptr->qp_handle != NULL) {
-		/* force error state to flush queue, then destroy */
-		dapls_modify_qp_state(ep_ptr->qp_handle, IBV_QPS_ERR, 0,0,0);
-
-		if (ibv_destroy_qp(ep_ptr->qp_handle))
-			return (dapl_convert_errno(errno, "destroy_qp"));
-
-		ep_ptr->qp_handle = NULL;
-	}
-
-#ifdef DAT_EXTENSIONS
-	/* UD endpoints can have many CR associations and will not
-	 * set ep->cm_handle. Call provider with cm_ptr null to incidate
-	 * UD type multi CR's for this EP. It will parse internal list
-	 * and cleanup all associations.
-	 */
-	if (ep_ptr->param.ep_attr.service_type == DAT_IB_SERVICE_TYPE_UD) 
-		dapls_ib_cm_free(NULL, ep_ptr);
+#ifdef _OPENIB_CMA_
+	dp_ib_cm_handle_t cm_ptr = dapl_get_cm_from_ep(ep_ptr);
+	if (!cm_ptr)
+		return DAT_SUCCESS;
 #endif
 
+	dapl_os_lock(&ep_ptr->header.lock);
+	if (ep_ptr->qp_handle != NULL) {
+		qp = ep_ptr->qp_handle;
+		dapl_os_unlock(&ep_ptr->header.lock);
+
+		qp_attr.qp_state = IBV_QPS_ERR;
+		ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE);
+		dapls_ep_flush_cqs(ep_ptr);
+
+		ep_ptr->qp_handle = NULL;
+#ifdef _OPENIB_CMA_
+		rdma_destroy_qp(cm_ptr->cm_id);
+		cm_ptr->cm_id->qp = NULL;
+#else
+		if (ibv_destroy_qp(qp)) {
+			dapl_log(DAPL_DBG_TYPE_ERR, 
+				 " qp_free: ibv_destroy_qp error - %s\n",
+				 strerror(errno));
+		}
+#endif
+	} else {
+		dapl_os_unlock(&ep_ptr->header.lock);
+	}
 	return DAT_SUCCESS;
 }
 
@@ -332,10 +342,22 @@ dapls_ib_qp_modify(IN DAPL_IA * ia_ptr,
 #if defined(_WIN32) || defined(_WIN64) || defined(_OPENIB_CMA_)
 void dapls_ib_reinit_ep(IN DAPL_EP * ep_ptr)
 {
+	dp_ib_cm_handle_t cm_ptr, next_cm_ptr;
+
 	/* work around bug in low level driver - 3/24/09 */
 	/* RTS -> RESET -> INIT -> ERROR QP transition crashes system */
 	if (ep_ptr->qp_handle != IB_INVALID_HANDLE) {
 		dapls_ib_qp_free(ep_ptr->header.owner_ia, ep_ptr);
+		
+		/* free any CM object's created */
+		cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
+			  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
+		while (cm_ptr != NULL) {
+             		next_cm_ptr = dapl_llist_next_entry(&ep_ptr->cm_list_head,
+							    &cm_ptr->list_entry);
+			dapls_cm_free(cm_ptr); 
+			cm_ptr = next_cm_ptr;
+		}
 		dapls_ib_qp_alloc(ep_ptr->header.owner_ia, ep_ptr, ep_ptr);
 	}
 }
@@ -350,6 +372,50 @@ void dapls_ib_reinit_ep(IN DAPL_EP * ep_ptr)
 	}
 }
 #endif				// _WIN32 || _WIN64
+
+#if DAPL_USE_IBACM
+#ifndef RAI_NOROUTE 
+#define RAI_NOROUTE 0
+#endif
+uint8_t dapls_get_sl(DAPL_HCA *hca_ptr, uint16_t dlid)
+{
+	struct rdma_addrinfo hint, *res;
+	struct ibv_path_record path;
+	uint8_t sl = hca_ptr->ib_trans.sl;
+	int ret;
+
+	memset(&path, 0, sizeof path);
+	path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE | 1;
+	path.slid = hca_ptr->ib_trans.lid;
+	path.dlid = dlid;
+
+	memset(&hint, 0, sizeof hint);
+	hint.ai_flags = RAI_NOROUTE;
+	hint.ai_route = &path;
+	hint.ai_route_len = sizeof(path);
+
+	ret = rdma_getaddrinfo(NULL, NULL, &hint, &res);
+	if (ret)
+		goto out;
+	
+	if (res->ai_route_len)
+		sl = ntohs(((struct ibv_path_record *) res->ai_route)->
+			   qosclass_sl) & 0xF;
+	else 
+		dapl_log(DAPL_DBG_TYPE_CM_WARNING,
+			" dapls_get_sl: Warning, route miss 0x%x -> 0x%x\n",
+			slid, dlid);
+
+	rdma_freeaddrinfo(res);
+out:	
+	return sl;
+}
+#else
+uint8_t dapls_get_sl(DAPL_HCA *hca_ptr, uint16_t dlid)
+{
+	return hca_ptr->ib_trans.sl;
+}
+#endif
 
 /* 
  * Generic QP modify for init, reset, error, RTS, RTR
@@ -375,12 +441,13 @@ dapls_modify_qp_state(IN ib_qp_handle_t		qp_handle,
 	switch (qp_state) {
 	case IBV_QPS_RTR:
 		dapl_dbg_log(DAPL_DBG_TYPE_EP,
-				" QPS_RTR: type %d qpn 0x%x lid 0x%x"
-				" port %d ep %p qp_state %d \n",
-				qp_handle->qp_type, 
-				ntohl(qpn), ntohs(lid), 
-				ia_ptr->hca_ptr->port_num,
-				ep_ptr, ep_ptr->qp_state);
+				" QPS_RTR: type %d qpn 0x%x gid %p (%d) lid 0x%x"
+				" port %d ep %p qp_state %d rd_atomic %d\n",
+				qp_handle->qp_type, ntohl(qpn), gid, 
+				ia_ptr->hca_ptr->ib_trans.global,
+				ntohs(lid), ia_ptr->hca_ptr->port_num,
+				ep_ptr, ep_ptr->qp_state,
+				ep_ptr->param.ep_attr.max_rdma_read_in);
 
 		mask |= IBV_QP_AV |
 			IBV_QP_PATH_MTU |
@@ -392,24 +459,29 @@ dapls_modify_qp_state(IN ib_qp_handle_t		qp_handle,
 		qp_attr.rq_psn = 1;
 		qp_attr.path_mtu = ia_ptr->hca_ptr->ib_trans.mtu;
 		qp_attr.max_dest_rd_atomic =
-			ep_ptr->param.ep_attr.max_rdma_read_out;
+			ep_ptr->param.ep_attr.max_rdma_read_in;
 		qp_attr.min_rnr_timer =
 			ia_ptr->hca_ptr->ib_trans.rnr_timer;
 
 		/* address handle. RC and UD */
 		qp_attr.ah_attr.dlid = ntohs(lid);
-		if (ia_ptr->hca_ptr->ib_trans.global) {
+		if (gid && ia_ptr->hca_ptr->ib_trans.global) {
+			dapl_dbg_log(DAPL_DBG_TYPE_EP, 
+				     " QPS_RTR: GID Subnet 0x" F64x " ID 0x" F64x "\n", 
+				     (unsigned long long)htonll(gid->global.subnet_prefix),
+				     (unsigned long long)htonll(gid->global.interface_id));
+
 			qp_attr.ah_attr.is_global = 1;
 			qp_attr.ah_attr.grh.dgid.global.subnet_prefix = 
-				ntohll(gid->global.subnet_prefix);
+				gid->global.subnet_prefix;
 			qp_attr.ah_attr.grh.dgid.global.interface_id = 
-				ntohll(gid->global.interface_id);
+				gid->global.interface_id;
 			qp_attr.ah_attr.grh.hop_limit =
 				ia_ptr->hca_ptr->ib_trans.hop_limit;
 			qp_attr.ah_attr.grh.traffic_class =
 				ia_ptr->hca_ptr->ib_trans.tclass;
 		}
-		qp_attr.ah_attr.sl = 0;
+		qp_attr.ah_attr.sl = dapls_get_sl(ia_ptr->hca_ptr, lid);
 		qp_attr.ah_attr.src_path_bits = 0;
 		qp_attr.ah_attr.port_num = ia_ptr->hca_ptr->port_num;
 
@@ -476,7 +548,7 @@ dapls_modify_qp_state(IN ib_qp_handle_t		qp_handle,
 			qp_attr.qkey = DAT_UD_QKEY;
 		}
 
-		qp_attr.pkey_index = 0;
+		qp_attr.pkey_index = ia_ptr->hca_ptr->ib_trans.pkey_idx;
 		qp_attr.port_num = ia_ptr->hca_ptr->port_num;
 
 		dapl_dbg_log(DAPL_DBG_TYPE_EP,
@@ -493,6 +565,16 @@ dapls_modify_qp_state(IN ib_qp_handle_t		qp_handle,
 		ep_ptr->qp_state = qp_state;
 		return DAT_SUCCESS;
 	} else {
+		dapl_log(DAPL_DBG_TYPE_ERR,
+			" RTR ERR: type %d qpn 0x%x gid %p (%d) lid 0x%x"
+			" port %d state %d mtu %d rd %d rnr %d sl %d\n",
+			qp_handle->qp_type, ntohl(qpn), gid,
+			ia_ptr->hca_ptr->ib_trans.global,
+			ntohs(lid), ia_ptr->hca_ptr->port_num,
+			ep_ptr->qp_state,
+			qp_attr.path_mtu, qp_attr.max_dest_rd_atomic,
+			qp_attr.min_rnr_timer, qp_attr.ah_attr.sl);
+
 		return (dapl_convert_errno(errno, "modify_qp_state"));
 	}
 }
@@ -506,7 +588,7 @@ dapls_modify_qp_ud(IN DAPL_HCA *hca, IN ib_qp_handle_t qp)
 	/* modify QP, setup and prepost buffers */
 	dapl_os_memzero((void *)&qp_attr, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_INIT;
-        qp_attr.pkey_index = 0;
+        qp_attr.pkey_index = hca->ib_trans.pkey_idx;
         qp_attr.port_num = hca->port_num;
         qp_attr.qkey = DAT_UD_QKEY;
 	if (ibv_modify_qp(qp, &qp_attr, 
@@ -548,8 +630,11 @@ dapls_create_ah(IN DAPL_HCA		*hca,
 	struct ibv_qp_attr qp_attr;
 	ib_ah_handle_t	ah;
 
-	if (qp->qp_type != IBV_QPT_UD)
+	if (qp->qp_type != IBV_QPT_UD) {
+		dapl_log(DAPL_DBG_TYPE_ERR, 
+			 " create_ah ERR: QP_type != UD\n");
 		return NULL;
+	}
 
 	dapl_os_memzero((void *)&qp_attr, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QP_STATE;
@@ -566,7 +651,7 @@ dapls_create_ah(IN DAPL_HCA		*hca,
 		qp_attr.ah_attr.grh.hop_limit =	hca->ib_trans.hop_limit;
 		qp_attr.ah_attr.grh.traffic_class = hca->ib_trans.tclass;
 	}
-	qp_attr.ah_attr.sl = 0;
+	qp_attr.ah_attr.sl = dapls_get_sl(hca, lid);
 	qp_attr.ah_attr.src_path_bits = 0;
 	qp_attr.ah_attr.port_num = hca->port_num;
 

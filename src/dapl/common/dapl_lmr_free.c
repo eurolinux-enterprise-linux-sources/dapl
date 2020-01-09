@@ -90,29 +90,12 @@ DAT_RETURN DAT_API dapl_lmr_free(IN DAT_LMR_HANDLE lmr_handle)
 				return DAT_INVALID_STATE;
 			}
 
-			dat_status =
-			    dapls_hash_remove(lmr->header.owner_ia->hca_ptr->
-					      lmr_hash_table,
-					      lmr->param.lmr_context, NULL);
-			if (dat_status != DAT_SUCCESS) {
-				goto bail;
-			}
-
 			dat_status = dapls_ib_mr_deregister(lmr);
 
 			if (dat_status == DAT_SUCCESS) {
 				dapl_os_atomic_dec(&pz->pz_ref_count);
 				dapl_lmr_dealloc(lmr);
-			} else {
-				/*
-				 * Deregister failed; put it back in the
-				 * hash table.
-				 */
-				dapls_hash_insert(lmr->header.owner_ia->
-						  hca_ptr->lmr_hash_table,
-						  lmr->param.lmr_context, lmr);
-			}
-
+			} 
 			break;
 		}
 #if defined(__KDAPL__)

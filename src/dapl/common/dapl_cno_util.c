@@ -148,9 +148,6 @@ void dapl_cno_dealloc(IN DAPL_CNO * cno_ptr)
 void dapl_internal_cno_trigger(IN DAPL_CNO * cno_ptr, IN DAPL_EVD * evd_ptr)
 {
 	DAT_RETURN dat_status;
-#if defined(__KDAPL__)
-	DAT_EVENT event;
-#endif				/* defined(__KDAPL__) */
 
 	dat_status = DAT_SUCCESS;
 
@@ -167,20 +164,14 @@ void dapl_internal_cno_trigger(IN DAPL_CNO * cno_ptr, IN DAPL_EVD * evd_ptr)
 	dapl_os_assert(cno_ptr->cno_state != DAPL_CNO_STATE_DEAD);
 
 	if (cno_ptr->cno_state == DAPL_CNO_STATE_UNTRIGGERED) {
-#if !defined(__KDAPL__)
 		DAT_OS_WAIT_PROXY_AGENT agent;
 
 		/* Squirrel away wait agent, and delete link.  */
 		agent = cno_ptr->cno_wait_agent;
-#endif				/* !defined(__KDAPL__) */
 
 		/* Separate assignments for windows compiler.  */
 #ifndef _WIN32
-#if defined(__KDAPL__)
-		cno_ptr->cno_upcall = DAT_UPCALL_NULL;
-#else
 		cno_ptr->cno_wait_agent = DAT_OS_WAIT_PROXY_AGENT_NULL;
-#endif				/* defined(__KDAPL__) */
 #else
 		cno_ptr->cno_wait_agent.instance_data = NULL;
 		cno_ptr->cno_wait_agent.proxy_agent_func = NULL;
@@ -200,43 +191,12 @@ void dapl_internal_cno_trigger(IN DAPL_CNO * cno_ptr, IN DAPL_EVD * evd_ptr)
 		dapl_os_unlock(&cno_ptr->header.lock);
 
 		/* Trigger the OS proxy wait agent, if one exists.  */
-#if defined(__KDAPL__)
-		dat_status = dapl_evd_dequeue((DAT_EVD_HANDLE) evd_ptr, &event);
-		while (dat_status == DAT_SUCCESS) {
-			if (cno_ptr->cno_upcall.upcall_func !=
-			    (DAT_UPCALL_FUNC) NULL) {
-				cno_ptr->cno_upcall.upcall_func(cno_ptr->
-								cno_upcall.
-								instance_data,
-								&event,
-								DAT_FALSE);
-			}
-			dat_status = dapl_evd_dequeue((DAT_EVD_HANDLE) evd_ptr,
-						      &event);
-		}
-#else
 		if (agent.proxy_agent_func != (DAT_AGENT_FUNC) NULL) {
 			agent.proxy_agent_func(agent.instance_data,
 					       (DAT_EVD_HANDLE) evd_ptr);
 		}
-#endif				/* defined(__KDAPL__) */
 	} else {
 		dapl_os_unlock(&cno_ptr->header.lock);
-#if defined(__KDAPL__)
-		dat_status = dapl_evd_dequeue((DAT_EVD_HANDLE) evd_ptr, &event);
-		while (dat_status == DAT_SUCCESS) {
-			if (cno_ptr->cno_upcall.upcall_func !=
-			    (DAT_UPCALL_FUNC) NULL) {
-				cno_ptr->cno_upcall.upcall_func(cno_ptr->
-								cno_upcall.
-								instance_data,
-								&event,
-								DAT_FALSE);
-			}
-			dat_status = dapl_evd_dequeue((DAT_EVD_HANDLE) evd_ptr,
-						      &event);
-		}
-#endif				/* defined(__KDAPL__) */
 	}
 
 	return;

@@ -45,18 +45,64 @@ entry is termed Static Registration.
         - ia params, IA specific parameters - device name and port
         - platform params, (not used) 
 .PP
-.SH Example netdev entries for OpenFabrics rdma_cm providers, both v1.2 and v2.0 
+.SH OpenFabrics RDMA providers: 
 \br 
+    Provider options for both 1.2 and 2.0, each using different CM services
+
+        1. cma - OpenFabrics rdma_cm    - uses rdma_cm services for connections
+                                        - requires IPoIB and SA/SM services for IB
+                                        - netdev used for device name, without port designation (ia_params) 
+                                        - Supports any transport rdma_cm supports including IB, iWARP, RoCEE
+                                        - libdaplcma.so (1.2), libdaplofa (2.0)
+
+        2. scm - uDAPL socket based CM  - exchanges CM information over sockets 
+                                        - eliminates the need for rdma_cm, IPoIB, and SA for IB
+                                        - verbs device used for device name with port designation (ia_param)
+                                        - Supports IB, RoCEE. Doesn't support iWARP
+                                        - libdaplscm.so (1.2), libdaploscm (2.0)
+
+        3. ucm - uDAPL unreliable IB CM - exchanges CM information via IB UD QP's
+                                        - eliminates the need for sockets or rdma_cm
+                                        - verbs device used for device name with port designation (ia_param)
+                                        - Supports IB only, no name service. 
+                                        - libdaplucm.so (1.2), libdaploucm (2.0)
+.PP
+.SH Example entries for each OpenFabrics provider 
+\br 
+
+        1. cma - OpenFarbrics rdma_cm (v1.2 and v2.0 examples)
+
         OpenIB-cma u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "ib0 0" ""
         ofa-v2-ib0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "ib0 0" ""
+        ofa-v2-iwarp u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "eth2 0" ""
+        ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "eth2 0" ""
+        ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "eth3 0" ""
 
-        NOTE: The OpenFabrics providers use <ia_params> to specify the device with one of the following:
+        NOTE: The OpenFabrics CMA providers use <ia_params> to specify the device with one of the following:
               network address, network hostname, or netdev name; along with port number.
 
-              The OpenIB- and ofa-v2- IA names are unique mappings. Reserved for OpenFabrics providers. 
+        2. scm - uDAPL socket based CM (v1.2 and v2.0 examples)
+
+        OpenIB-mlx4_0-1 u1.2 nonthreadsafe default libdaplscm.so.1 dapl.1.2 "mlx4_0 1" ""
+        OpenIB-ipath0-1 u1.2 nonthreadsafe default libdaplscm.so.1 dapl.1.2 "ipath0 1" ""
+        ofa-v2-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 1" ""
+        ofa-v2-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 2" ""
+        ofa-v2-mlx4_1-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_1 1" ""
+        ofa-v2-ehca0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "ehca0 1" ""
+        ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 "mlx4_0 1" ""
+
+        3. ucm - uDAPL unreliable IB CM  (not supported in 1.2, v2.0 examples)
+
+        ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx4_0 1" ""
+        ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "mlx4_0 2" ""
+        ofa-v2-ipath0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "ipath0 1" ""
+        ofa-v2-ehca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 "ehca0 1" ""
+
+        Note: OpenIB- and ofa-v2- IA names are unique mappings, reserved for OpenFabrics providers.
 .PP
-The default location for this configuration file is /etc/dat.conf. 
+The default location for this configuration file is /etc/dat.conf.
+.PP
 The file location may be overridden with the environment variable DAT_OVERRIDE=/your_own_directory/your_dat.conf. 
 .PP
-.SH "SEE ALSO"
+.SH "SEE ALSO" rdma_cm verbs socket
 .PP

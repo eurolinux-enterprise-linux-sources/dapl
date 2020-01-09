@@ -66,6 +66,7 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 	DAPL_EP *ep_ptr;
 	DAPL_IA *ia_ptr;
 	DAT_EP_PARAM *param;
+	dp_ib_cm_handle_t cm_ptr, next_cm_ptr;
 	ib_qp_state_t save_qp_state;
 	DAT_RETURN dat_status = DAT_SUCCESS;
 
@@ -109,6 +110,20 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 	 */
 	(void)dapl_ep_disconnect(ep_ptr, DAT_CLOSE_ABRUPT_FLAG);
 
+	/* Free all CM objects */
+	cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
+		  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
+	while (cm_ptr != NULL) {
+                dapl_log(DAPL_DBG_TYPE_EP,
+			 "dapl_ep_free: Free CM: EP=%p CM=%p\n",
+			 ep_ptr, cm_ptr);
+
+		next_cm_ptr = dapl_llist_next_entry(&ep_ptr->cm_list_head,
+						    &cm_ptr->list_entry);
+		dapls_cm_free(cm_ptr); /* blocking call */
+		cm_ptr = next_cm_ptr;
+	}
+
 	/*
 	 * Do verification of parameters and the state change atomically.
 	 */
@@ -141,16 +156,6 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 		dapl_os_atomic_dec(&((DAPL_PZ *) param->pz_handle)->
 				   pz_ref_count);
 		param->pz_handle = NULL;
-	}
-	if (param->recv_evd_handle != NULL) {
-		dapl_os_atomic_dec(&((DAPL_EVD *) param->recv_evd_handle)->
-				   evd_ref_count);
-		param->recv_evd_handle = NULL;
-	}
-	if (param->request_evd_handle != NULL) {
-		dapl_os_atomic_dec(&((DAPL_EVD *) param->request_evd_handle)->
-				   evd_ref_count);
-		param->request_evd_handle = NULL;
 	}
 	if (param->connect_evd_handle != NULL) {
 		dapl_os_atomic_dec(&((DAPL_EVD *) param->connect_evd_handle)->
@@ -185,6 +190,21 @@ DAT_RETURN DAT_API dapl_ep_free(IN DAT_EP_HANDLE ep_handle)
 			ep_ptr->qp_state = save_qp_state;
 			goto bail;
 		}
+	}
+
+	/*
+	 * Release the EVD handles after we destroy the QP, so we can flush all
+	 * QP entries.
+	 */
+	if (param->recv_evd_handle != NULL) {
+		dapl_os_atomic_dec(&((DAPL_EVD *) param->recv_evd_handle)->
+				   evd_ref_count);
+		param->recv_evd_handle = NULL;
+	}
+	if (param->request_evd_handle != NULL) {
+		dapl_os_atomic_dec(&((DAPL_EVD *) param->request_evd_handle)->
+				   evd_ref_count);
+		param->request_evd_handle = NULL;
 	}
 
 	/* Free the resource */

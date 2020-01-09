@@ -71,7 +71,6 @@ DAT_RETURN DAT_API dapl_evd_set_unwaitable(IN DAT_EVD_HANDLE evd_handle)
 	}
 	dapl_os_lock(&evd_ptr->header.lock);
 	evd_ptr->evd_waitable = DAT_FALSE;
-	dapl_os_unlock(&evd_ptr->header.lock);
 
 	/*
 	 * If this evd is waiting, wake it up. There is an obvious race
@@ -85,6 +84,7 @@ DAT_RETURN DAT_API dapl_evd_set_unwaitable(IN DAT_EVD_HANDLE evd_handle)
 		else
 			dapl_os_wait_object_wakeup(&evd_ptr->wait_object);
 	}
+	dapl_os_unlock(&evd_ptr->header.lock);
       bail:
 	return dat_status;
 }

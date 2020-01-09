@@ -52,7 +52,8 @@ void
 dapls_cr_callback (
     IN    dp_ib_cm_handle_t     ib_cm_handle,
     IN    const ib_cm_events_t  ib_cm_event,
-    IN	  const void 		*instant_data_p,
+    IN	  const void 		*private_data_ptr,
+    IN    const int		private_data_size,
     IN    const void         	*context);
 
 #endif /* _DAPL_CR_UTIL_H_ */

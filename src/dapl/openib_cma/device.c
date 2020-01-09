@@ -54,50 +54,9 @@ DAPL_OS_LOCK g_hca_lock;
 struct dapl_llist_entry *g_hca_list;
 
 #if defined(_WIN64) || defined(_WIN32)
-#include "..\..\..\..\..\etc\user\comp_channel.cpp"
 #include <rdma\winverbs.h>
 
 static COMP_SET ufds;
-
-static int getipaddr_netdev(char *name, char *addr, int addr_len)
-{
-	IWVProvider *prov;
-	WV_DEVICE_ADDRESS devaddr;
-	struct addrinfo *res, *ai;
-	HRESULT hr;
-	int index;
-
-	if (strncmp(name, "rdma_dev", 8)) {
-		return EINVAL;
-	}
-
-	index = atoi(name + 8);
-
-	hr = WvGetObject(&IID_IWVProvider, (LPVOID *) &prov);
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	hr = getaddrinfo("..localmachine", NULL, NULL, &res);
-	if (hr) {
-		goto release;
-	}
-
-	for (ai = res; ai; ai = ai->ai_next) {
-		hr = prov->lpVtbl->TranslateAddress(prov, ai->ai_addr, &devaddr);
-		if (SUCCEEDED(hr) && (ai->ai_addrlen <= addr_len) && (index-- == 0)) {
-			memcpy(addr, ai->ai_addr, ai->ai_addrlen);
-			goto free;
-		}
-	}
-	hr = ENODEV;
-
-free:
-	freeaddrinfo(res);
-release:
-	prov->lpVtbl->Release(prov);
-	return hr;
-}
 
 static int dapls_os_init(void)
 {
@@ -133,6 +92,7 @@ static int dapls_thread_signal(void)
 	return 0;
 }
 #else				// _WIN64 || WIN32
+
 int g_ib_pipe[2];
 
 static int dapls_os_init(void)
@@ -146,43 +106,6 @@ static void dapls_os_release(void)
 	/* close pipe? */
 }
 
-/* Get IP address using network device name */
-static int getipaddr_netdev(char *name, char *addr, int addr_len)
-{
-	struct ifreq ifr;
-	int skfd, ret, len;
-
-	/* Fill in the structure */
-	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", name);
-	ifr.ifr_hwaddr.sa_family = ARPHRD_INFINIBAND;
-
-	/* Create a socket fd */
-	skfd = socket(PF_INET, SOCK_STREAM, 0);
-	ret = ioctl(skfd, SIOCGIFADDR, &ifr);
-	if (ret)
-		goto bail;
-
-	switch (ifr.ifr_addr.sa_family) {
-#ifdef	AF_INET6
-	case AF_INET6:
-		len = sizeof(struct sockaddr_in6);
-		break;
-#endif
-	case AF_INET:
-	default:
-		len = sizeof(struct sockaddr);
-		break;
-	}
-
-	if (len <= addr_len)
-		memcpy(addr, &ifr.ifr_addr, len);
-	else
-		ret = EINVAL;
-
-      bail:
-	close(skfd);
-	return ret;
-}
 
 static int dapls_config_fd(int fd)
 {
@@ -223,39 +146,39 @@ static int dapls_thread_signal(void)
 /* Get IP address using network name, address, or device name */
 static int getipaddr(char *name, char *addr, int len)
 {
-	struct addrinfo *res;
+        struct addrinfo *res;
 
-	/* assume netdev for first attempt, then network and address type */
-	if (getipaddr_netdev(name, addr, len)) {
-		if (getaddrinfo(name, NULL, NULL, &res)) {
-			dapl_log(DAPL_DBG_TYPE_ERR,
-				 " open_hca: getaddr_netdev ERROR:"
-				 " %s. Is %s configured?\n",
-				 strerror(errno), name);
-			return 1;
-		} else {
-			if (len >= res->ai_addrlen)
-				memcpy(addr, res->ai_addr, res->ai_addrlen);
-			else {
-				freeaddrinfo(res);
-				return 1;
-			}
-			freeaddrinfo(res);
-		}
-	}
+        /* assume netdev for first attempt, then network and address type */
+        if (getipaddr_netdev(name, addr, len)) {
+                if (getaddrinfo(name, NULL, NULL, &res)) {
+                        dapl_log(DAPL_DBG_TYPE_ERR,
+                                 " open_hca: getaddr_netdev ERROR:"
+                                 " %s. Is %s configured?\n",
+                                 strerror(errno), name);
+                        return 1;
+                } else {
+                        if (len >= res->ai_addrlen)
+                                memcpy(addr, res->ai_addr, res->ai_addrlen);
+                        else {
+                                freeaddrinfo(res);
+                                return 1;
+                        }
+                        freeaddrinfo(res);
+                }
+        }
 
-	dapl_dbg_log(
-		DAPL_DBG_TYPE_UTIL,
-		" getipaddr: family %d port %d addr %d.%d.%d.%d\n",
-		((struct sockaddr_in *)addr)->sin_family,
-		((struct sockaddr_in *)addr)->sin_port,
-		((struct sockaddr_in *)addr)->sin_addr.s_addr >> 0 & 0xff,
-		((struct sockaddr_in *)addr)->sin_addr.s_addr >> 8 & 0xff,
-		((struct sockaddr_in *)addr)->sin_addr.s_addr >> 16 & 0xff,
-		((struct sockaddr_in *)addr)->sin_addr.
-		 s_addr >> 24 & 0xff);
+        dapl_dbg_log(
+                DAPL_DBG_TYPE_UTIL,
+                " getipaddr: family %d port %d addr %d.%d.%d.%d\n",
+                ((struct sockaddr_in *)addr)->sin_family,
+                ((struct sockaddr_in *)addr)->sin_port,
+                ((struct sockaddr_in *)addr)->sin_addr.s_addr >> 0 & 0xff,
+                ((struct sockaddr_in *)addr)->sin_addr.s_addr >> 8 & 0xff,
+                ((struct sockaddr_in *)addr)->sin_addr.s_addr >> 16 & 0xff,
+                ((struct sockaddr_in *)addr)->sin_addr.
+                 s_addr >> 24 & 0xff);
 
-	return 0;
+        return 0;
 }
 
 /*
@@ -273,9 +196,10 @@ static int getipaddr(char *name, char *addr, int len)
  * 	0 success, -1 error
  *
  */
+DAT_UINT32 g_parent = 0;
 int32_t dapls_ib_init(void)
 {
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " dapl_ib_init: \n");
+	g_parent = dapl_os_getpid();
 
 	/* initialize hca_list lock */
 	dapl_os_lock_init(&g_hca_lock);
@@ -291,7 +215,10 @@ int32_t dapls_ib_init(void)
 
 int32_t dapls_ib_release(void)
 {
-	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " dapl_ib_release: \n");
+	/* only parent will cleanup */
+	if (dapl_os_getpid() != g_parent)
+		return 0;
+
 	dapli_ib_thread_destroy();
 	if (g_cm_events != NULL)
 		rdma_destroy_event_channel(g_cm_events);
@@ -362,7 +289,6 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " open_hca: rdma_bind ERR %s."
 			 " Is %s configured?\n", strerror(errno), hca_name);
-		rdma_destroy_id(cm_id);
 		return DAT_INVALID_ADDRESS;
 	}
 
@@ -474,12 +400,6 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p->%p\n",
 		     hca_ptr, hca_ptr->ib_hca_handle);
 
-	if (hca_ptr->ib_hca_handle != IB_INVALID_HANDLE) {
-		if (rdma_destroy_id(hca_ptr->ib_trans.cm_id))
-			return (dapl_convert_errno(errno, "ib_close_device"));
-		hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
-	}
-
 	dapl_os_lock(&g_hca_lock);
 	if (g_ib_thread_state != IB_THREAD_RUN) {
 		dapl_os_unlock(&g_hca_lock);
@@ -508,6 +428,23 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 		dapl_os_sleep_usec(1000);
 	}
 bail:
+
+	if (hca_ptr->ib_trans.ib_cq)
+		ibv_destroy_comp_channel(hca_ptr->ib_trans.ib_cq);
+
+	if (hca_ptr->ib_trans.ib_cq_empty) {
+		struct ibv_comp_channel *channel;
+		channel = hca_ptr->ib_trans.ib_cq_empty->channel;
+		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty);
+		ibv_destroy_comp_channel(channel);
+	}
+
+	if (hca_ptr->ib_hca_handle != IB_INVALID_HANDLE) {
+		if (rdma_destroy_id(hca_ptr->ib_trans.cm_id))
+			return (dapl_convert_errno(errno, "ib_close_device"));
+		hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
+	}
+
 	return (DAT_SUCCESS);
 }
 

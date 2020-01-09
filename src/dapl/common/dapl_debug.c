@@ -36,6 +36,8 @@ DAPL_DBG_DEST g_dapl_dbg_dest;	/* initialized in dapl_init.c */
 
 static char *_ptr_host_ = NULL;
 static char _hostname_[128];
+static DAPL_OS_TIMEVAL start_t, current_t, last_t; /* microsecond timeStamp STDOUT */
+static int delta_t, total_t;
 
 void dapl_internal_dbg_log(DAPL_DBG_TYPE type, const char *fmt, ...)
 {
@@ -44,13 +46,20 @@ void dapl_internal_dbg_log(DAPL_DBG_TYPE type, const char *fmt, ...)
 	if (_ptr_host_ == NULL) {
 		gethostname(_hostname_, sizeof(_hostname_));
 		_ptr_host_ = _hostname_;
+		dapl_os_get_time(&start_t);
+		last_t = start_t;
 	}
 
 	if (type & g_dapl_dbg_type) {
 		if (DAPL_DBG_DEST_STDOUT & g_dapl_dbg_dest) {
+			dapl_os_get_time(&current_t);
+			delta_t = current_t - last_t;
+			total_t = current_t - start_t;
+			last_t  = current_t;
 			va_start(args, fmt);
-			fprintf(stdout, "%s:%x: ", _ptr_host_,
-				dapl_os_getpid());
+			fprintf(stdout, "%s:%x:%x: %d us(%d us%s): ",
+				_ptr_host_, dapl_os_getpid(), dapl_os_gettid(),
+				total_t, delta_t, delta_t > 500000 ? "!!!":"");
 			dapl_os_vprintf(fmt, args);
 			va_end(args);
 		}

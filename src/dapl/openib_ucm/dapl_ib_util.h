@@ -33,11 +33,16 @@
 #include "openib_osd.h"
 #include "dapl_ib_common.h"
 
+/* DAPL CM objects MUST include list_entry, ref_count, event for EP linking */
 struct ib_cm_handle
 { 
-	struct dapl_llist_entry	entry;
+	struct dapl_llist_entry	list_entry;
+	struct dapl_llist_entry	local_entry;
+	DAPL_OS_WAIT_OBJECT	d_event;
+	DAPL_OS_WAIT_OBJECT	f_event;
 	DAPL_OS_LOCK		lock;
 	DAPL_OS_TIMEVAL		timer;
+        int			ref_count;
 	int			state;
 	int			retries;
 	struct dapl_hca		*hca;
@@ -91,6 +96,7 @@ typedef struct _ib_hca_transport
 	struct dapl_thread_signal signal;
 	int			cqe;
 	int			qpe;
+	int			burst;
 	int			retries;
 	int			cm_timer;
 	int			rep_time;
@@ -109,7 +115,11 @@ typedef struct _ib_hca_transport
 	struct ibv_comp_channel *rch;
 	struct ibv_ah		**ah;  
 	DAPL_OS_LOCK		plock;
+	uint16_t		lid;
 	uint8_t			*sid;  /* Sevice IDs, port space, bitarray? */
+	uint8_t			sl;
+	uint16_t		pkey;
+	int			pkey_idx;
 
 } ib_hca_transport_t;
 
@@ -117,9 +127,13 @@ typedef struct _ib_hca_transport
 void cm_thread(void *arg);
 void ucm_async_event(struct dapl_hca *hca);
 void dapli_cq_event_cb(struct _ib_hca_transport *tp);
-dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep);
-void dapls_ib_cm_free(dp_ib_cm_handle_t cm, DAPL_EP *ep);
+void dapls_cm_acquire(dp_ib_cm_handle_t cm_ptr);
+void dapls_cm_release(dp_ib_cm_handle_t cm_ptr);
+void dapls_cm_free(dp_ib_cm_handle_t cm_ptr);
+
+#ifdef DAPL_COUNTERS
 void dapls_print_cm_list(IN DAPL_IA *ia_ptr);
+#endif
 
 #endif /*  _DAPL_IB_UTIL_H_ */
 

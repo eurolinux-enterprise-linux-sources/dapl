@@ -42,9 +42,11 @@
 #include "dapl.h"
 #include "dapl_adapter_util.h"
 #include "dapl_evd_util.h"
+#include "dapl_sp_util.h"
 #include "dapl_cr_util.h"
 #include "dapl_name_service.h"
 #include "dapl_ib_util.h"
+#include "dapl_ep_util.h"
 #include "dapl_vendor.h"
 #include "dapl_osd.h"
 
@@ -95,7 +97,7 @@ static void dapli_addr_resolve(struct dapl_cm_id *conn)
 			 ret, strerror(errno));
 		dapl_evd_connection_callback(conn,
 					     IB_CME_LOCAL_FAILURE,
-					     NULL, conn->ep);
+					     NULL, 0, conn->ep);
 	}
 }
 
@@ -104,7 +106,6 @@ static void dapli_route_resolve(struct dapl_cm_id *conn)
 	int ret;
 #ifdef DAPL_DBG
 	struct rdma_addr *ipaddr = &conn->cm_id->route.addr;
-	struct ib_addr *ibaddr = &conn->cm_id->route.addr.addr.ibaddr;
 #endif
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
@@ -119,16 +120,16 @@ static void dapli_route_resolve(struct dapl_cm_id *conn)
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " route_resolve: SRC GID subnet %016llx id %016llx\n",
 		     (unsigned long long)
-		     ntohll(ibaddr->sgid.global.subnet_prefix),
+		     ntohll(ipaddr->addr.ibaddr.sgid.global.subnet_prefix),
 		     (unsigned long long)
-		     ntohll(ibaddr->sgid.global.interface_id));
+		     ntohll(ipaddr->addr.ibaddr.sgid.global.interface_id));
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " route_resolve: DST GID subnet %016llx id %016llx\n",
 		     (unsigned long long)
-		     ntohll(ibaddr->dgid.global.subnet_prefix),
+		     ntohll(ipaddr->addr.ibaddr.dgid.global.subnet_prefix),
 		     (unsigned long long)
-		     ntohll(ibaddr->dgid.global.interface_id));
+		     ntohll(ipaddr->addr.ibaddr.dgid.global.interface_id));
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " route_resolve: cm_id %p pdata %p plen %d rr %d ind %d\n",
@@ -149,7 +150,7 @@ static void dapli_route_resolve(struct dapl_cm_id *conn)
 
       bail:
 	dapl_evd_connection_callback(conn,
-				     IB_CME_LOCAL_FAILURE, NULL, conn->ep);
+				     IB_CME_LOCAL_FAILURE, NULL, 0, conn->ep);
 }
 
 dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep)
@@ -163,13 +164,14 @@ dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep)
 
 	dapl_os_memzero(conn, sizeof(*conn));
 	dapl_os_lock_init(&conn->lock);
-	conn->refs++;
+	dapls_cm_acquire(conn);
 
 	/* create CM_ID, bind to local device, create QP */
 	if (rdma_create_id(g_cm_events, &cm_id, (void *)conn, RDMA_PS_TCP)) {
-		dapl_os_free(conn, sizeof(*conn));
+		dapls_cm_release(conn);
 		return NULL;
 	}
+
 	conn->cm_id = cm_id;
 
 	/* setup timers for address and route resolution */
@@ -182,6 +184,7 @@ dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep)
 	conn->route_retries = dapl_os_get_env_val("DAPL_CM_ROUTE_RETRY_COUNT",
 						  IB_ROUTE_RETRY_COUNT);
 	if (ep != NULL) {
+		dapl_ep_link_cm(ep, conn);
 		conn->ep = ep;
 		conn->hca = ((DAPL_IA *)ep->param.ia_handle)->hca_ptr;
 	}
@@ -189,39 +192,64 @@ dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep)
 	return conn;
 }
 
-/* 
- * Only called from consumer thread via dat_ep_free()
- * accept, reject, or connect.
- * Cannot be called from callback thread.
- * rdma_destroy_id will block until rdma_get_cm_event is acked.
- */
-void dapls_ib_cm_free(dp_ib_cm_handle_t conn, DAPL_EP *ep)
-{
-	dapl_dbg_log(DAPL_DBG_TYPE_CM,
-		     " destroy_conn: conn %p id %d\n", 
-		     conn, conn->cm_id);
+static void dapli_cm_dealloc(dp_ib_cm_handle_t conn) {
 
+	dapl_os_assert(!conn->ref_count);
+	dapl_os_lock_destroy(&conn->lock);
+	dapl_os_free(conn, sizeof(*conn));
+}
+
+void dapls_cm_acquire(dp_ib_cm_handle_t conn)
+{
 	dapl_os_lock(&conn->lock);
-	conn->refs--;
+	conn->ref_count++;
+	dapl_os_unlock(&conn->lock);
+}
+
+void dapls_cm_release(dp_ib_cm_handle_t conn)
+{
+	dapl_os_lock(&conn->lock);
+	conn->ref_count--;
+	if (conn->ref_count) {
+                dapl_os_unlock(&conn->lock);
+		return;
+	}
+	dapl_os_unlock(&conn->lock);
+	dapli_cm_dealloc(conn);
+}
+
+/* BLOCKING: called from dapl_ep_free, EP link will be last ref */
+void dapls_cm_free(dp_ib_cm_handle_t conn)
+{
+	dapl_log(DAPL_DBG_TYPE_CM,
+		 " cm_free: cm %p ep %p refs=%d\n", 
+		 conn, conn->ep, conn->ref_count);
+	
+	dapls_cm_release(conn); /* release alloc ref */
+
+	/* Destroy cm_id, wait until EP is last ref */
+	dapl_os_lock(&conn->lock);
+	if (conn->cm_id) {
+		struct rdma_cm_id *cm_id = conn->cm_id;
+
+		if (cm_id->qp)
+			rdma_destroy_qp(cm_id);
+		conn->cm_id = NULL;
+		dapl_os_unlock(&conn->lock);
+		rdma_destroy_id(cm_id); /* blocking, event processing */
+		dapl_os_lock(&conn->lock);
+	}
+
+	/* EP linking is last reference */
+	while (conn->ref_count != 1) {
+		dapl_os_unlock(&conn->lock);
+		dapl_os_sleep_usec(10000);
+		dapl_os_lock(&conn->lock);
+	}
 	dapl_os_unlock(&conn->lock);
 
-	/* block until event thread complete */
-	while (conn->refs) 
-		dapl_os_sleep_usec(10000);
-	
-	if (ep) {
-		ep->cm_handle = NULL;
-		ep->qp_handle = NULL;
-		ep->qp_state = IB_QP_STATE_ERROR;
-	}
-
-	if (conn->cm_id) {
-		if (conn->cm_id->qp)
-			rdma_destroy_qp(conn->cm_id);
-		rdma_destroy_id(conn->cm_id);
-	}
-
-	dapl_os_free(conn, sizeof(*conn));
+	/* unlink, dequeue from EP. Final ref so release will destroy */
+	dapl_ep_unlink_cm(conn->ep, conn);
 }
 
 static struct dapl_cm_id *dapli_req_recv(struct dapl_cm_id *conn,
@@ -243,11 +271,11 @@ static struct dapl_cm_id *dapli_req_recv(struct dapl_cm_id *conn,
 	if (new_conn) {
 		(void)dapl_os_memzero(new_conn, sizeof(*new_conn));
 		dapl_os_lock_init(&new_conn->lock);
+		dapls_cm_acquire(new_conn);
 		new_conn->cm_id = event->id;	/* provided by uCMA */
 		event->id->context = new_conn;	/* update CM_ID context */
 		new_conn->sp = conn->sp;
 		new_conn->hca = conn->hca;
-		new_conn->refs++;
 
 		/* Get requesters connect data, setup for accept */
 		new_conn->params.responder_resources =
@@ -378,14 +406,14 @@ static void dapli_cm_active_cb(struct dapl_cm_id *conn,
 		}
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		dapl_dbg_log(DAPL_DBG_TYPE_CM,
-			     " active_cb: cm_id %d PORT %d CONNECTED to %s!\n",
-			     conn->cm_id, ntohs(((struct sockaddr_in *)
-						 &conn->cm_id->route.addr.
-						 dst_addr)->sin_port),
-			     inet_ntoa(((struct sockaddr_in *)
-					&conn->cm_id->route.addr.dst_addr)->
-				       sin_addr));
+		dapl_log(DAPL_DBG_TYPE_CM_EST,
+			 " CMA ACTIVE CONN: %x -> %s %x\n",
+			 ntohs(((struct sockaddr_in *)
+				&conn->cm_id->route.addr.src_addr)->sin_port),
+			 inet_ntoa(((struct sockaddr_in *)
+				&conn->cm_id->route.addr.dst_addr)->sin_addr),
+			 ntohs(((struct sockaddr_in *)
+				&conn->cm_id->route.addr.dst_addr)->sin_port));
 
 		/* setup local and remote ports for ep query */
 		conn->ep->param.remote_port_qual =
@@ -416,7 +444,8 @@ static void dapli_cm_active_cb(struct dapl_cm_id *conn,
 
 	dapl_os_unlock(lock);
 	if (conn)
-		dapl_evd_connection_callback(conn, ib_cm_event, pdata, conn->ep);
+		dapl_evd_connection_callback(conn, ib_cm_event, pdata,
+					     event->param.conn.private_data_len, conn->ep);
 }
 
 static void dapli_cm_passive_cb(struct dapl_cm_id *conn,
@@ -459,23 +488,19 @@ static void dapli_cm_passive_cb(struct dapl_cm_id *conn,
 			 "dapl_cm_passive: non-consumer REJ, reason=%d,"
 			 " DST %s, %d\n",
 			 event->status,
-			 inet_ntoa(((struct sockaddr_in *)
-				    &conn->cm_id->route.addr.dst_addr)->
-				   sin_addr),
-			 ntohs(((struct sockaddr_in *)
-				&conn->cm_id->route.addr.dst_addr)->
-			       sin_port));
+			 inet_ntoa(((struct sockaddr_in *)&conn->cm_id->route.addr.dst_addr)->sin_addr),
+			 ntohs(((struct sockaddr_in *)&conn->cm_id->route.addr.dst_addr)->sin_port));
 		ib_cm_event = IB_CME_DESTINATION_REJECT;
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		dapl_dbg_log(DAPL_DBG_TYPE_CM,
-			     " passive_cb: cm_id %p PORT %d CONNECTED from 0x%x!\n",
-			     conn->cm_id, ntohs(((struct sockaddr_in *)
-						 &conn->cm_id->route.addr.
-						 src_addr)->sin_port),
-			     ntohl(((struct sockaddr_in *)
-				    &conn->cm_id->route.addr.dst_addr)->
-				   sin_addr.s_addr));
+		dapl_log(DAPL_DBG_TYPE_CM_EST,
+			 " CMA PASSIVE CONN: %x <- %s %x \n",
+			 ntohs(((struct sockaddr_in *)
+				&conn->cm_id->route.addr.dst_addr)->sin_port),
+			 inet_ntoa(((struct sockaddr_in *)
+				&conn->cm_id->route.addr.src_addr)->sin_addr),
+			 ntohs(((struct sockaddr_in *)
+				&conn->cm_id->route.addr.src_addr)->sin_port));
 		ib_cm_event = IB_CME_CONNECTED;
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
@@ -496,7 +521,8 @@ static void dapli_cm_passive_cb(struct dapl_cm_id *conn,
 
 	dapl_os_unlock(&conn->lock);
 	if (conn_recv)
-		dapls_cr_callback(conn_recv, ib_cm_event, pdata, conn_recv->sp);
+		dapls_cr_callback(conn_recv, ib_cm_event, pdata,
+				  event->param.conn.private_data_len, conn_recv->sp);
 }
 
 /************************ DAPL provider entry points **********************/
@@ -528,13 +554,11 @@ DAT_RETURN dapls_ib_connect(IN DAT_EP_HANDLE ep_handle,
 			    IN DAT_COUNT p_size, IN void *p_data)
 {
 	struct dapl_ep *ep_ptr = ep_handle;
-	struct dapl_cm_id *conn = ep_ptr->cm_handle;
+	struct dapl_cm_id *conn = dapl_get_cm_from_ep(ep_ptr);
 	int ret;
-
-	/* Sanity check */
-	if (NULL == ep_ptr)
-		return DAT_SUCCESS;
-
+	
+	dapl_os_assert(conn != NULL);
+	
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " connect: rSID 0x%llx rPort %d, pdata %p, ln %d\n",
 		     r_qual, ntohs(SID_TO_PORT(r_qual)), p_data, p_size);
@@ -543,8 +567,8 @@ DAT_RETURN dapls_ib_connect(IN DAT_EP_HANDLE ep_handle,
 
 	/* Setup QP/CM parameters and private data in cm_id */
 	(void)dapl_os_memzero(&conn->params, sizeof(conn->params));
-	conn->params.responder_resources =
-	    ep_ptr->param.ep_attr.max_rdma_read_in;
+	conn->params.responder_resources = 
+		ep_ptr->param.ep_attr.max_rdma_read_in;
 	conn->params.initiator_depth = ep_ptr->param.ep_attr.max_rdma_read_out;
 	conn->params.flow_control = 1;
 	conn->params.rnr_retry_count = IB_RNR_RETRY_COUNT;
@@ -569,7 +593,7 @@ DAT_RETURN dapls_ib_connect(IN DAT_EP_HANDLE ep_handle,
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " dapl_cma_connect: rdma_resolve_addr ERR 0x%x %s\n",
 			 ret, strerror(errno));
-		return dapl_convert_errno(errno, "ib_connect");
+		return dapl_convert_errno(errno, "rdma_resolve_addr");
 	}
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " connect: resolve_addr: cm_id %p -> %s port %d\n",
@@ -599,17 +623,45 @@ DAT_RETURN dapls_ib_connect(IN DAT_EP_HANDLE ep_handle,
 DAT_RETURN
 dapls_ib_disconnect(IN DAPL_EP * ep_ptr, IN DAT_CLOSE_FLAGS close_flags)
 {
-	dp_ib_cm_handle_t conn = ep_ptr->cm_handle;
+	struct dapl_cm_id *conn = dapl_get_cm_from_ep(ep_ptr);
+	int drep_time = 25;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " disconnect(ep %p, conn %p, id %d flags %x)\n",
 		     ep_ptr, conn, (conn ? conn->cm_id : 0), close_flags);
 
-	if ((conn == IB_INVALID_HANDLE) || (conn->cm_id == NULL))
+	if ((conn == NULL) || (conn->cm_id == NULL))
 		return DAT_SUCCESS;
 
 	/* no graceful half-pipe disconnect option */
 	rdma_disconnect(conn->cm_id);
+
+	/* ABRUPT close, wait for callback and DISCONNECTED state */
+	if (close_flags == DAT_CLOSE_ABRUPT_FLAG) {
+		DAPL_EVD *evd = NULL;
+		DAT_EVENT_NUMBER num = DAT_CONNECTION_EVENT_DISCONNECTED;
+
+		dapl_os_lock(&ep_ptr->header.lock);
+		/* limit DREP waiting, other side could be down */
+		while (--drep_time && ep_ptr->param.ep_state != DAT_EP_STATE_DISCONNECTED) {
+			dapl_os_unlock(&ep_ptr->header.lock);
+			dapl_os_sleep_usec(10000);
+			dapl_os_lock(&ep_ptr->header.lock);
+		}
+		if (ep_ptr->param.ep_state != DAT_EP_STATE_DISCONNECTED) {
+			dapl_log(DAPL_DBG_TYPE_CM_WARN,
+				 " WARNING: disconnect(ep %p, conn %p, id %d) timed out\n",
+				 ep_ptr, conn, (conn ? conn->cm_id : 0));
+			ep_ptr->param.ep_state = DAT_EP_STATE_DISCONNECTED;
+			evd = (DAPL_EVD *)ep_ptr->param.connect_evd_handle;
+		}
+		dapl_os_unlock(&ep_ptr->header.lock);
+
+		if (evd) {
+			dapl_sp_remove_ep(ep_ptr);
+			dapls_evd_post_connection_event(evd, num, ep_ptr, 0, 0);
+		}
+	}
 
 	/* 
 	 * DAT event notification occurs from the callback
@@ -642,7 +694,6 @@ dapls_ib_disconnect_clean(IN DAPL_EP * ep_ptr,
 			  IN const ib_cm_events_t ib_cm_event)
 {
 	/* nothing to do */
-	return;
 }
 
 /*
@@ -679,13 +730,13 @@ dapls_ib_setup_conn_listener(IN DAPL_IA * ia_ptr,
 
 	dapl_os_memzero(conn, sizeof(*conn));
 	dapl_os_lock_init(&conn->lock);
-	conn->refs++;
+	dapls_cm_acquire(conn);
 
 	/* create CM_ID, bind to local device, create QP */
 	if (rdma_create_id
 	    (g_cm_events, &conn->cm_id, (void *)conn, RDMA_PS_TCP)) {
-		dapl_os_free(conn, sizeof(*conn));
-		return (dapl_convert_errno(errno, "setup_listener"));
+		dapls_cm_release(conn);
+		return (dapl_convert_errno(errno, "rdma_create_id"));
 	}
 
 	/* open identifies the local device; per DAT specification */
@@ -699,7 +750,7 @@ dapls_ib_setup_conn_listener(IN DAPL_IA * ia_ptr,
 			dat_status = DAT_CONN_QUAL_IN_USE;
 		else
 			dat_status =
-			    dapl_convert_errno(errno, "setup_listener");
+			    dapl_convert_errno(errno, "rdma_bind_addr");
 		goto bail;
 	}
 
@@ -723,16 +774,16 @@ dapls_ib_setup_conn_listener(IN DAPL_IA * ia_ptr,
 			dat_status = DAT_CONN_QUAL_IN_USE;
 		else
 			dat_status =
-			    dapl_convert_errno(errno, "setup_listener");
+			    dapl_convert_errno(errno, "rdma_listen");
 		goto bail;
 	}
 
 	/* success */
 	return DAT_SUCCESS;
 
-      bail:
+bail:
 	rdma_destroy_id(conn->cm_id);
-	dapl_os_free(conn, sizeof(*conn));
+	dapls_cm_release(conn);
 	return dat_status;
 }
 
@@ -759,13 +810,18 @@ dapls_ib_remove_conn_listener(IN DAPL_IA * ia_ptr, IN DAPL_SP * sp_ptr)
 	ib_cm_srvc_handle_t conn = sp_ptr->cm_srvc_handle;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
-		     " remove_listen(ia_ptr %p sp_ptr %p cm_ptr %p)\n",
+		     " remove_listen(ia_ptr %p sp_ptr %p conn %p)\n",
 		     ia_ptr, sp_ptr, conn);
 
 	if (conn != IB_INVALID_HANDLE) {
 		sp_ptr->cm_srvc_handle = NULL;
-		dapls_ib_cm_free(conn, NULL);
+		if (conn->cm_id) {
+			rdma_destroy_id(conn->cm_id);
+			conn->cm_id = NULL;
+		}
+		dapls_cm_release(conn);
 	}
+		
 	return DAT_SUCCESS;
 }
 
@@ -798,6 +854,7 @@ dapls_ib_accept_connection(IN DAT_CR_HANDLE cr_handle,
 	DAPL_EP *ep_ptr = (DAPL_EP *) ep_handle;
 	DAPL_IA *ia_ptr = ep_ptr->header.owner_ia;
 	struct dapl_cm_id *cr_conn = cr_ptr->ib_cm_handle;
+	struct dapl_cm_id *ep_conn = dapl_get_cm_from_ep(ep_ptr);
 	int ret;
 	DAT_RETURN dat_status;
 
@@ -832,18 +889,27 @@ dapls_ib_accept_connection(IN DAT_CR_HANDLE cr_handle,
 	 * a local device (cm_id and QP) when created. Move the QP
 	 * to the new cm_id only if device and port numbers match.
 	 */
-	if (ep_ptr->cm_handle->cm_id->verbs == cr_conn->cm_id->verbs &&
-	    ep_ptr->cm_handle->cm_id->port_num == cr_conn->cm_id->port_num) {
+	if (ep_conn->cm_id->verbs == cr_conn->cm_id->verbs &&
+	    ep_conn->cm_id->port_num == cr_conn->cm_id->port_num) {
 		/* move QP to new cr_conn, remove QP ref in EP cm_id */
-		cr_conn->cm_id->qp = ep_ptr->cm_handle->cm_id->qp;
-		ep_ptr->cm_handle->cm_id->qp = NULL;
-		dapls_ib_cm_free(ep_ptr->cm_handle, NULL);
+		cr_conn->cm_id->qp = ep_conn->cm_id->qp;
+
+		/* remove old CM to EP linking, destroy CM object */
+		dapl_ep_unlink_cm(ep_ptr, ep_conn);
+		ep_conn->cm_id->qp = NULL;
+		ep_conn->ep = NULL;
+		rdma_destroy_id(ep_conn->cm_id);
+		dapls_cm_release(ep_conn);
+
+		/* add new CM to EP linking, qp_handle unchanged */
+		dapl_ep_link_cm(ep_ptr, cr_conn);
+		cr_conn->ep = ep_ptr;
 	} else {
 		dapl_log(DAPL_DBG_TYPE_ERR,
 			 " dapl_cma_accept: ERR dev(%p!=%p) or"
 			 " port mismatch(%d!=%d)\n",
-			 ep_ptr->cm_handle->cm_id->verbs, cr_conn->cm_id->verbs,
-			 ntohs(ep_ptr->cm_handle->cm_id->port_num),
+			 ep_conn->cm_id->verbs, cr_conn->cm_id->verbs,
+			 ntohs(ep_conn->cm_id->port_num),
 			 ntohs(cr_conn->cm_id->port_num));
 		dat_status = DAT_INTERNAL_ERROR;
 		goto bail;
@@ -855,15 +921,14 @@ dapls_ib_accept_connection(IN DAT_CR_HANDLE cr_handle,
 
 	ret = rdma_accept(cr_conn->cm_id, &cr_conn->params);
 	if (ret) {
-		dapl_log(DAPL_DBG_TYPE_ERR, " dapl_cma_accept: ERR %d %s\n",
+		dapl_log(DAPL_DBG_TYPE_ERR, " dapl_rdma_accept: ERR %d %s\n",
 			 ret, strerror(errno));
-		dat_status = dapl_convert_errno(ret, "accept");
+		dat_status = dapl_convert_errno(errno, "accept");
+		
+		/* remove new cr_conn EP to CM linking */
+		dapl_ep_unlink_cm(ep_ptr, cr_conn);
 		goto bail;
 	}
-
-	/* save accepted conn and EP reference, qp_handle unchanged */
-	ep_ptr->cm_handle = cr_conn;
-	cr_conn->ep = ep_ptr;
 
 	/* setup local and remote ports for ep query */
 	/* Note: port qual in network order */
@@ -873,9 +938,12 @@ dapls_ib_accept_connection(IN DAT_CR_HANDLE cr_handle,
 	    PORT_TO_SID(rdma_get_src_port(cr_conn->cm_id));
 
 	return DAT_SUCCESS;
-      bail:
+bail:
 	rdma_reject(cr_conn->cm_id, NULL, 0);
-	dapls_ib_cm_free(cr_conn, NULL);
+
+	/* no EP linking, ok to destroy */
+	rdma_destroy_id(cr_conn->cm_id);
+	dapls_cm_release(cr_conn);
 	return dat_status;
 }
 
@@ -922,11 +990,6 @@ dapls_ib_reject_connection(IN dp_ib_cm_handle_t cm_handle,
 		return DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_CR);
 	}
 
-	if (private_data_size >
-	    dapls_ib_private_data_size(NULL, DAPL_PDATA_CONN_REJ,
-				       cm_handle->hca))
-		return DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG3);
-
 	/* setup pdata_hdr and users data, in CR pdata buffer */
 	dapl_os_memcpy(cm_handle->p_data, &pdata_hdr, offset);
 	if (private_data_size)
@@ -941,7 +1004,9 @@ dapls_ib_reject_connection(IN dp_ib_cm_handle_t cm_handle,
 	ret = rdma_reject(cm_handle->cm_id,
 			  cm_handle->p_data, offset + private_data_size);
 
-	dapls_ib_cm_free(cm_handle, NULL);
+	/* no EP linking, ok to destroy */
+	rdma_destroy_id(cm_handle->cm_id);
+	dapls_cm_release(cm_handle);
 	return dapl_convert_errno(ret, "reject");
 }
 
@@ -965,7 +1030,7 @@ DAT_RETURN
 dapls_ib_cm_remote_addr(IN DAT_HANDLE dat_handle, OUT DAT_SOCK_ADDR6 * raddr)
 {
 	DAPL_HEADER *header;
-	dp_ib_cm_handle_t ib_cm_handle;
+	dp_ib_cm_handle_t conn;
 	struct rdma_addr *ipaddr;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_EP,
@@ -974,19 +1039,19 @@ dapls_ib_cm_remote_addr(IN DAT_HANDLE dat_handle, OUT DAT_SOCK_ADDR6 * raddr)
 
 	header = (DAPL_HEADER *) dat_handle;
 
-	if (header->magic == DAPL_MAGIC_EP)
-		ib_cm_handle = ((DAPL_EP *) dat_handle)->cm_handle;
+	if (header->magic == DAPL_MAGIC_EP) 
+		conn = dapl_get_cm_from_ep((DAPL_EP *) dat_handle);
 	else if (header->magic == DAPL_MAGIC_CR)
-		ib_cm_handle = ((DAPL_CR *) dat_handle)->ib_cm_handle;
+		conn = ((DAPL_CR *) dat_handle)->ib_cm_handle;
 	else
 		return DAT_INVALID_HANDLE;
 
 	/* get remote IP address from cm_id route */
-	ipaddr = &ib_cm_handle->cm_id->route.addr;
+	ipaddr = &conn->cm_id->route.addr;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
 		     " remote_addr: conn %p id %p SRC %x DST %x PORT %d\n",
-		     ib_cm_handle, ib_cm_handle->cm_id,
+		     conn, conn->cm_id,
 		     ntohl(((struct sockaddr_in *)
 			    &ipaddr->src_addr)->sin_addr.s_addr),
 		     ntohl(((struct sockaddr_in *)
@@ -1001,165 +1066,21 @@ dapls_ib_cm_remote_addr(IN DAT_HANDLE dat_handle, OUT DAT_SOCK_ADDR6 * raddr)
 /*
  * dapls_ib_private_data_size
  *
- * Return the size of private data given a connection op type
+ * Return the size of max private data 
  *
  * Input:
- *	prd_ptr		private data pointer
- *	conn_op		connection operation type
  *      hca_ptr         hca pointer, needed for transport type
- *
- * If prd_ptr is NULL, this is a query for the max size supported by
- * the provider, otherwise it is the actual size of the private data
- * contained in prd_ptr.
- *
  *
  * Output:
  *	None
  *
  * Returns:
- * 	length of private data
+ * 	maximum private data rdma_cm will supply from transport.
  *
  */
-int dapls_ib_private_data_size(IN DAPL_PRIVATE * prd_ptr,
-			       IN DAPL_PDATA_OP conn_op, IN DAPL_HCA * hca_ptr)
+int dapls_ib_private_data_size(IN DAPL_HCA * hca_ptr)
 {
-	int size;
-
-	if (hca_ptr->ib_hca_handle->device->transport_type
-	    == IBV_TRANSPORT_IWARP)
-		return (IWARP_MAX_PDATA_SIZE - sizeof(struct dapl_pdata_hdr));
-
-	switch (conn_op) {
-
-	case DAPL_PDATA_CONN_REQ:
-		size = IB_MAX_REQ_PDATA_SIZE;
-		break;
-	case DAPL_PDATA_CONN_REP:
-		size = IB_MAX_REP_PDATA_SIZE;
-		break;
-	case DAPL_PDATA_CONN_REJ:
-		size = IB_MAX_REJ_PDATA_SIZE - sizeof(struct dapl_pdata_hdr);
-		break;
-	case DAPL_PDATA_CONN_DREQ:
-		size = IB_MAX_DREQ_PDATA_SIZE;
-		break;
-	case DAPL_PDATA_CONN_DREP:
-		size = IB_MAX_DREP_PDATA_SIZE;
-		break;
-	default:
-		size = 0;
-
-	}			/* end case */
-
-	return size;
-}
-
-/*
- * Map all CMA event codes to the DAT equivelent.
- */
-#define DAPL_IB_EVENT_CNT	13
-
-static struct ib_cm_event_map {
-	const ib_cm_events_t ib_cm_event;
-	DAT_EVENT_NUMBER dat_event_num;
-} ib_cm_event_map[DAPL_IB_EVENT_CNT] = {
-	/* 00 */  {
-	IB_CME_CONNECTED, DAT_CONNECTION_EVENT_ESTABLISHED},
-	    /* 01 */  {
-	IB_CME_DISCONNECTED, DAT_CONNECTION_EVENT_DISCONNECTED},
-	    /* 02 */  {
-	IB_CME_DISCONNECTED_ON_LINK_DOWN,
-		    DAT_CONNECTION_EVENT_DISCONNECTED},
-	    /* 03 */  {
-	IB_CME_CONNECTION_REQUEST_PENDING, DAT_CONNECTION_REQUEST_EVENT},
-	    /* 04 */  {
-	IB_CME_CONNECTION_REQUEST_PENDING_PRIVATE_DATA,
-		    DAT_CONNECTION_REQUEST_EVENT},
-	    /* 05 */  {
-	IB_CME_CONNECTION_REQUEST_ACKED, DAT_CONNECTION_REQUEST_EVENT},
-	    /* 06 */  {
-	IB_CME_DESTINATION_REJECT,
-		    DAT_CONNECTION_EVENT_NON_PEER_REJECTED},
-	    /* 07 */  {
-	IB_CME_DESTINATION_REJECT_PRIVATE_DATA,
-		    DAT_CONNECTION_EVENT_PEER_REJECTED},
-	    /* 08 */  {
-	IB_CME_DESTINATION_UNREACHABLE, DAT_CONNECTION_EVENT_UNREACHABLE},
-	    /* 09 */  {
-	IB_CME_TOO_MANY_CONNECTION_REQUESTS,
-		    DAT_CONNECTION_EVENT_NON_PEER_REJECTED},
-	    /* 10 */  {
-	IB_CME_LOCAL_FAILURE, DAT_CONNECTION_EVENT_BROKEN},
-	    /* 11 */  {
-	IB_CME_BROKEN, DAT_CONNECTION_EVENT_BROKEN},
-	    /* 12 */  {
-IB_CME_TIMEOUT, DAT_CONNECTION_EVENT_TIMED_OUT},};
-
-/*
- * dapls_ib_get_cm_event
- *
- * Return a DAT connection event given a provider CM event.
- *
- * Input:
- *	dat_event_num	DAT event we need an equivelent CM event for
- *
- * Output:
- * 	none
- *
- * Returns:
- * 	ib_cm_event of translated DAPL value
- */
-DAT_EVENT_NUMBER
-dapls_ib_get_dat_event(IN const ib_cm_events_t ib_cm_event,
-		       IN DAT_BOOLEAN active)
-{
-	DAT_EVENT_NUMBER dat_event_num;
-	int i;
-
-	active = active;
-
-	dat_event_num = 0;
-	for (i = 0; i < DAPL_IB_EVENT_CNT; i++) {
-		if (ib_cm_event == ib_cm_event_map[i].ib_cm_event) {
-			dat_event_num = ib_cm_event_map[i].dat_event_num;
-			break;
-		}
-	}
-	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
-		     "dapls_ib_get_dat_event: event(%s) ib=0x%x dat=0x%x\n",
-		     active ? "active" : "passive", ib_cm_event, dat_event_num);
-
-	return dat_event_num;
-}
-
-/*
- * dapls_ib_get_dat_event
- *
- * Return a DAT connection event given a provider CM event.
- * 
- * Input:
- *	ib_cm_event	event provided to the dapl callback routine
- *	active		switch indicating active or passive connection
- *
- * Output:
- * 	none
- *
- * Returns:
- * 	DAT_EVENT_NUMBER of translated provider value
- */
-ib_cm_events_t dapls_ib_get_cm_event(IN DAT_EVENT_NUMBER dat_event_num)
-{
-	ib_cm_events_t ib_cm_event;
-	int i;
-
-	ib_cm_event = 0;
-	for (i = 0; i < DAPL_IB_EVENT_CNT; i++) {
-		if (dat_event_num == ib_cm_event_map[i].dat_event_num) {
-			ib_cm_event = ib_cm_event_map[i].ib_cm_event;
-			break;
-		}
-	}
-	return ib_cm_event;
+	return RDMA_MAX_PRIVATE_DATA;
 }
 
 void dapli_cma_event_cb(void)
@@ -1176,20 +1097,19 @@ void dapli_cma_event_cb(void)
 		else
 			conn = (struct dapl_cm_id *)event->id->context;
 
+		dapls_cm_acquire(conn);
+		
+		/* destroying cm_id, consumer thread blocking waiting for ACK */
+		if (conn->cm_id == NULL) {
+			dapls_cm_release(conn);
+			rdma_ack_cm_event(event);
+			return;
+		}
+
 		dapl_dbg_log(DAPL_DBG_TYPE_CM,
 			     " cm_event: EVENT=%d ID=%p LID=%p CTX=%p\n",
 			     event->event, event->id, event->listen_id, conn);
 		
-		/* cm_free is blocked waiting for ack  */
-		dapl_os_lock(&conn->lock);
-		if (!conn->refs) {
-			dapl_os_unlock(&conn->lock);
-			rdma_ack_cm_event(event);
-			return;
-		}
-		conn->refs++;
-		dapl_os_unlock(&conn->lock);
-
 		switch (event->event) {
 		case RDMA_CM_EVENT_ADDR_RESOLVED:
 			dapli_addr_resolve(conn);
@@ -1238,7 +1158,7 @@ void dapli_cma_event_cb(void)
 
 			dapl_evd_connection_callback(conn,
 						     IB_CME_DESTINATION_UNREACHABLE,
-						     NULL, conn->ep);
+						     NULL, 0, conn->ep);
 			break;
 
 		case RDMA_CM_EVENT_ROUTE_ERROR:
@@ -1267,14 +1187,14 @@ void dapli_cma_event_cb(void)
 
 				dapl_evd_connection_callback(conn,
 							     IB_CME_DESTINATION_UNREACHABLE,
-							     NULL, conn->ep);
+							     NULL, 0, conn->ep);
 			}
 			break;
 
 		case RDMA_CM_EVENT_DEVICE_REMOVAL:
 			dapl_evd_connection_callback(conn,
 						     IB_CME_LOCAL_FAILURE,
-						     NULL, conn->ep);
+						     NULL, 0, conn->ep);
 			break;
 		case RDMA_CM_EVENT_CONNECT_REQUEST:
 		case RDMA_CM_EVENT_CONNECT_ERROR:
@@ -1303,10 +1223,7 @@ void dapli_cma_event_cb(void)
 		
 		/* ack event, unblocks destroy_cm_id in consumer threads */
 		rdma_ack_cm_event(event);
-
-		dapl_os_lock(&conn->lock);
-                conn->refs--;
-		dapl_os_unlock(&conn->lock);
+                dapls_cm_release(conn);
 	} 
 }
 

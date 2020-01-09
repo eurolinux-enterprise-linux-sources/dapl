@@ -65,6 +65,7 @@ void
 dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 			     IN const ib_cm_events_t ib_cm_event,
 			     IN const void *private_data_ptr,
+			     IN const int private_data_size,
 			     IN const void *context)
 {
 	DAPL_EP *ep_ptr;
@@ -72,7 +73,6 @@ dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 	DAPL_PRIVATE *prd_ptr;
 	DAT_EVENT_NUMBER dat_event_num;
 	DAT_RETURN dat_status;
-	int private_data_size;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM | DAPL_DBG_TYPE_CALLBACK,
 		     "--> dapl_evd_connection_callback: ctxt: %p event: %x cm_handle %p\n",
@@ -96,7 +96,6 @@ dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 	DAPL_CNTR(evd_ptr, DCNT_EVD_CONN_CALLBACK);
 
 	prd_ptr = (DAPL_PRIVATE *) private_data_ptr;
-	private_data_size = 0;
 	/*
 	 * All operations effect the EP, so lock it once and unlock
 	 * when necessary
@@ -131,17 +130,6 @@ dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 				break;
 			}
 			ep_ptr->param.ep_state = DAT_EP_STATE_CONNECTED;
-			ep_ptr->cm_handle = ib_cm_handle;
-			if (prd_ptr == NULL) {
-				private_data_size = 0;
-			} else {
-				private_data_size =
-				    dapls_ib_private_data_size(prd_ptr,
-							       DAPL_PDATA_CONN_REP,
-							       ep_ptr->header.
-							       owner_ia->
-							       hca_ptr);
-			}
 
 			if (private_data_size > 0) {
 				/* copy in the private data */
@@ -157,13 +145,6 @@ dapl_evd_connection_callback(IN dp_ib_cm_handle_t ib_cm_handle,
 	case DAT_CONNECTION_EVENT_PEER_REJECTED:
 		{
 			/* peer reject may include private data */
-			if (prd_ptr != NULL)
-				private_data_size =
-				    dapls_ib_private_data_size(prd_ptr,
-							       DAPL_PDATA_CONN_REJ,
-							       ep_ptr->header.
-							       owner_ia->
-							       hca_ptr);
 
 			if (private_data_size > 0)
 				dapl_os_memcpy(ep_ptr->private.private_data,

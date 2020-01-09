@@ -71,7 +71,7 @@ void dapl_init(void)
 
 	/* set up debug type */
 	g_dapl_dbg_type = dapl_os_get_env_val("DAPL_DBG_TYPE",
-					      DAPL_DBG_TYPE_ERR);
+					      DAPL_DBG_TYPE_ERR | DAPL_DBG_TYPE_WARN);
 	/* set up debug destination */
 	g_dapl_dbg_dest = dapl_os_get_env_val("DAPL_DBG_DEST",
 					      DAPL_DBG_DEST_STDOUT);

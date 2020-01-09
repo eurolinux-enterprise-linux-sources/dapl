@@ -67,7 +67,6 @@ DAT_RETURN  dapli_ib_thread_init(void);
 void dapli_ib_thread_destroy(void);
 
 #if defined(_WIN64) || defined(_WIN32)
-#include "..\..\..\..\..\etc\user\comp_channel.cpp"
 #include <rdma\winverbs.h>
 
 static COMP_SET ufds;
@@ -216,8 +215,11 @@ static void destroy_cr_pipe(IN DAPL_HCA * hca_ptr)
  * 	0 success, -1 error
  *
  */
+DAT_UINT32 g_parent = 0;
 int32_t dapls_ib_init(void)
 {
+        g_parent = dapl_os_getpid();
+
 	/* initialize hca_list */
 	dapl_os_lock_init(&g_hca_lock);
 	dapl_llist_init_head(&g_hca_list);
@@ -230,6 +232,10 @@ int32_t dapls_ib_init(void)
 
 int32_t dapls_ib_release(void)
 {
+        /* only parent init will cleanup */
+        if (dapl_os_getpid() != g_parent)
+                return 0;
+	
 	dapli_ib_thread_destroy();
 	dapls_os_release();
 	return 0;
@@ -263,7 +269,7 @@ DAT_RETURN dapls_ib_open_hca(IN IB_HCA_NAME hca_name, IN DAPL_HCA * hca_ptr)
 		     " open_hca: %s - %p\n", hca_name, hca_ptr);
 
 	/* get the IP address of the device */
-	dat_status = getlocalipaddr((DAT_SOCK_ADDR *) &hca_ptr->hca_address,
+	dat_status = getlocalipaddr((char *)&hca_ptr->hca_address,
 				    sizeof(DAT_SOCK_ADDR6));
 	if (dat_status != DAT_SUCCESS)
 		return dat_status;
@@ -465,16 +471,10 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 {
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL, " close_hca: %p\n", hca_ptr);
 
-	if (hca_ptr->ib_hca_handle != IB_INVALID_HANDLE) {
-		if (ibv_close_device(hca_ptr->ib_hca_handle))
-			return (dapl_convert_errno(errno, "ib_close_device"));
-		hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
-	}
-
 	dapl_os_lock(&g_hca_lock);
 	if (g_ib_thread_state != IB_THREAD_RUN) {
 		dapl_os_unlock(&g_hca_lock);
-		return (DAT_SUCCESS);
+		goto out;
 	}
 	dapl_os_unlock(&g_hca_lock);
 
@@ -509,6 +509,22 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 		dapl_os_sleep_usec(1000);
 	}
 
+out:
+	if (hca_ptr->ib_trans.ib_cq)
+		ibv_destroy_comp_channel(hca_ptr->ib_trans.ib_cq);
+
+	if (hca_ptr->ib_trans.ib_cq_empty) {
+		struct ibv_comp_channel *channel;
+		channel = hca_ptr->ib_trans.ib_cq_empty->channel;
+		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty);
+		ibv_destroy_comp_channel(channel);
+	}
+
+	if (hca_ptr->ib_hca_handle != IB_INVALID_HANDLE) {
+		if (ibv_close_device(hca_ptr->ib_hca_handle))
+			return (dapl_convert_errno(errno, "ib_close_device"));
+		hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
+	}
 	return (DAT_SUCCESS);
 }
 

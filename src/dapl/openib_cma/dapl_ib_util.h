@@ -33,7 +33,6 @@
 #define _OPENIB_CMA_ 
 
 #include <infiniband/verbs.h>
-#include <rdma/rdma_cma.h>
 #include "openib_osd.h"
 #include "dapl_ib_common.h"
 
@@ -47,23 +46,34 @@
 #define IB_ROUTE_RETRY_COUNT	15	/* 60 sec total */
 #define IB_MAX_AT_RETRY		3
 
-/* CMA private data areas */
-#define CMA_PDATA_HDR		36
-#define	IB_MAX_REQ_PDATA_SIZE	(92-CMA_PDATA_HDR)
-#define	IB_MAX_REP_PDATA_SIZE	(196-CMA_PDATA_HDR)
-#define	IB_MAX_REJ_PDATA_SIZE	(148-CMA_PDATA_HDR)
-#define	IB_MAX_DREQ_PDATA_SIZE	(220-CMA_PDATA_HDR)
-#define	IB_MAX_DREP_PDATA_SIZE	(224-CMA_PDATA_HDR)
-#define	IWARP_MAX_PDATA_SIZE	(512-CMA_PDATA_HDR)
+/* CMA private data areas, use CMA max with known transport definitions */
+#ifndef RDMA_MAX_PRIVATE_DATA
+#if defined(_WIN64) || defined(_WIN32)
+#define RDMA_MAX_PRIVATE_DATA 64 
+#else
+#define RDMA_MAX_PRIVATE_DATA 256
+#endif
+#endif
 
+#define CMA_PDATA_HDR		36
+#define	IB_MAX_REQ_PDATA_SIZE	DAPL_MIN((92-CMA_PDATA_HDR),RDMA_MAX_PRIVATE_DATA)
+#define	IB_MAX_REP_PDATA_SIZE	DAPL_MIN((196-CMA_PDATA_HDR),RDMA_MAX_PRIVATE_DATA)
+#define	IB_MAX_REJ_PDATA_SIZE	DAPL_MIN((148-CMA_PDATA_HDR),RDMA_MAX_PRIVATE_DATA)
+#define	IB_MAX_DREQ_PDATA_SIZE	DAPL_MIN((220-CMA_PDATA_HDR),RDMA_MAX_PRIVATE_DATA)
+#define	IB_MAX_DREP_PDATA_SIZE	DAPL_MIN((224-CMA_PDATA_HDR),RDMA_MAX_PRIVATE_DATA)
+#define	IWARP_MAX_PDATA_SIZE	DAPL_MIN((512-CMA_PDATA_HDR),RDMA_MAX_PRIVATE_DATA)
+
+/* DAPL CM objects MUST include list_entry, ref_count, event for EP linking */
 struct dapl_cm_id {
+	struct dapl_llist_entry		list_entry;
+	struct dapl_llist_entry		local_entry;
+	DAPL_OS_WAIT_OBJECT		event;
 	DAPL_OS_LOCK			lock;
-	int				refs;
+	int				ref_count;
 	int				arp_retries;
 	int				arp_timeout;
 	int				route_retries;
 	int				route_timeout;
-	int				in_callback;
 	struct rdma_cm_id		*cm_id;
 	struct dapl_hca			*hca;
 	struct dapl_sp			*sp;
@@ -111,7 +121,9 @@ typedef struct _ib_hca_transport
 	uint8_t			tclass;
 	uint8_t			mtu;
 	DAT_NAMED_ATTR		named_attr;
-
+	uint8_t			sl;
+	uint16_t		pkey;
+	int			pkey_idx;
 } ib_hca_transport_t;
 
 /* prototypes */
@@ -122,11 +134,15 @@ void dapli_cma_event_cb(void);
 void dapli_async_event_cb(struct _ib_hca_transport *tp);
 void dapli_cq_event_cb(struct _ib_hca_transport *tp);
 dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep);
-void dapls_ib_cm_free(dp_ib_cm_handle_t cm, DAPL_EP *ep);
+void dapls_cm_acquire(dp_ib_cm_handle_t cm);
+void dapls_cm_release(dp_ib_cm_handle_t cm);
+void dapls_cm_free(dp_ib_cm_handle_t cm_ptr);
 
+#ifdef DAPL_COUNTERS
 STATIC _INLINE_ void dapls_print_cm_list(IN DAPL_IA * ia_ptr)
 {
 	return;
 }
+#endif
 
 #endif /*  _DAPL_IB_UTIL_H_ */

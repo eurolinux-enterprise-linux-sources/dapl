@@ -45,6 +45,7 @@
 #include <dat2/dat_registry.h>
 
 #include "dat_osd.h"
+#include "dat_dictionary.h"
 
 /*********************************************************************
  *                                                                   *
@@ -57,6 +58,8 @@ typedef struct DAT_SR_ENTRY
     DAT_PROVIDER_INFO 		info;
     char * 			lib_path;
     char * 			ia_params;
+    DAT_OS_SIZE			lib_path_size;
+    DAT_OS_SIZE			ia_params_size;
     DAT_OS_LIBRARY_HANDLE 	lib_handle;
     DAT_PROVIDER_INIT_FUNC 	init_func;
     DAT_PROVIDER_FINI_FUNC	fini_func;
@@ -82,6 +85,9 @@ dat_sr_insert (
     IN  const DAT_PROVIDER_INFO *info,
     IN  DAT_SR_ENTRY 		*entry );
 
+extern DAT_RETURN dat_sr_remove(
+    IN const DAT_PROVIDER_INFO  *info);
+
 extern DAT_RETURN
 dat_sr_size (
     OUT DAT_COUNT               *size);
@@ -91,6 +97,10 @@ dat_sr_list (
     IN  DAT_COUNT               max_to_return,
     OUT DAT_COUNT               *entries_returned,
     OUT DAT_PROVIDER_INFO       * (dat_provider_list[]) );
+
+extern DAT_RETURN
+dat_sr_remove_all(
+    IN  DAT_DICTIONARY          *p_dictionary);
 
 extern DAT_RETURN
 dat_sr_provider_open (

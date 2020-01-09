@@ -58,7 +58,7 @@ typedef	struct ibv_context	*ib_hca_handle_t;
 typedef ib_hca_handle_t		dapl_ibal_ca_t;
 
 /* QP info to exchange, wire protocol version for these CM's */
-#define DCM_VER 6
+#define DCM_VER 7
 
 /* CM private data areas, same for all operations */
 #define        DCM_MAX_PDATA_SIZE      118
@@ -96,7 +96,10 @@ typedef struct _ib_cm_msg
 	uint32_t		sqpn;  /* src cm qpn */
 	uint32_t		dqpn;  /* dst cm qpn */
 	uint16_t		p_size;
-	uint8_t			resv[14];
+	uint32_t		s_id;  /* src pid */
+	uint32_t		d_id;  /* dst pid */
+	uint8_t			rd_in; /* atomic_rd_in */
+	uint8_t			resv[5];
 	union dcm_addr		saddr;
 	union dcm_addr		daddr;
 	union dcm_addr		saddr_alt;
@@ -148,7 +151,7 @@ typedef uint16_t		ib_hca_port_t;
 
 /* inline send rdma threshold */
 #define	INLINE_SEND_IWARP_DEFAULT	64
-#define	INLINE_SEND_IB_DEFAULT		256
+#define	INLINE_SEND_IB_DEFAULT		64
 
 /* qkey for UD QP's */
 #define DAT_UD_QKEY	0x78654321
@@ -166,11 +169,12 @@ typedef uint16_t		ib_hca_port_t;
 #define DCM_TCLASS	0
 
 /* DAPL uCM timers, default queue sizes */
-#define DCM_RETRY_CNT   10 
+#define DCM_RETRY_CNT   15 
 #define DCM_REP_TIME    800	/* reply timeout in m_secs */
 #define DCM_RTU_TIME    400	/* rtu timeout in m_secs */
 #define DCM_QP_SIZE     500     /* uCM tx, rx qp size */
 #define DCM_CQ_SIZE     500     /* uCM cq size */
+#define DCM_TX_BURST	50	/* uCM signal, every TX burst msgs posted */
 
 /* DTO OPs, ordered for DAPL ENUM definitions */
 #define OP_RDMA_WRITE           IBV_WR_RDMA_WRITE
@@ -279,12 +283,13 @@ typedef enum dapl_cm_state
 	DCM_REJECTING,
 	DCM_REJECTED,
 	DCM_CONNECTED,
-	DCM_RELEASED,
+	DCM_RELEASE,
 	DCM_DISC_PENDING,
 	DCM_DISCONNECTED,
 	DCM_DESTROY,
 	DCM_RTU_PENDING,
-	DCM_DISC_RECV
+	DCM_DISC_RECV,
+	DCM_FREE,
 
 } DAPL_CM_STATE;
 
@@ -298,7 +303,8 @@ int32_t	dapls_ib_release(void);
 /* util.c */
 enum ibv_mtu dapl_ib_mtu(int mtu);
 char *dapl_ib_mtu_str(enum ibv_mtu mtu);
-DAT_RETURN getlocalipaddr(DAT_SOCK_ADDR *addr, int addr_len);
+int getipaddr_netdev(char *name, char *addr, int addr_len);
+DAT_RETURN getlocalipaddr(char *addr, int addr_len);
 
 /* qp.c */
 DAT_RETURN dapls_modify_qp_ud(IN DAPL_HCA *hca, IN ib_qp_handle_t qp);
@@ -333,10 +339,8 @@ dapl_convert_errno( IN int err, IN const char *str )
 {
     if (!err)  return DAT_SUCCESS;
     	
-#if DAPL_DBG
     if ((err != EAGAIN) && (err != ETIMEDOUT))
-	dapl_dbg_log (DAPL_DBG_TYPE_ERR," %s %s\n", str, strerror(err));
-#endif 
+	dapl_log (DAPL_DBG_TYPE_ERR," %s %s\n", str, strerror(err));
 
     switch( err )
     {
@@ -372,14 +376,15 @@ STATIC _INLINE_ char * dapl_cm_state_str(IN int st)
 		"CM_REJECTING",
 		"CM_REJECTED",
 		"CM_CONNECTED",
-		"CM_RELEASED",
+		"CM_RELEASE",
 		"CM_DISC_PENDING",
 		"CM_DISCONNECTED",
 		"CM_DESTROY",
 		"CM_RTU_PENDING",
-		"CM_DISC_RECV"
+		"CM_DISC_RECV",
+		"CM_FREE"
         };
-        return ((st < 0 || st > 15) ? "Invalid CM state?" : state[st]);
+        return ((st < 0 || st > 16) ? "Invalid CM state?" : state[st]);
 }
 
 STATIC _INLINE_ char * dapl_cm_op_str(IN int op)

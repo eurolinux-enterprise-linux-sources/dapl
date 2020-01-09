@@ -31,6 +31,91 @@
 
 int g_dapl_loopback_connection = 0;
 
+#if defined(_WIN64) || defined(_WIN32)
+#include "..\..\..\..\..\etc\user\comp_channel.cpp"
+#include <rdma\winverbs.h>
+
+int getipaddr_netdev(char *name, char *addr, int addr_len)
+{
+	IWVProvider *prov;
+	WV_DEVICE_ADDRESS devaddr;
+	struct addrinfo *res, *ai;
+	HRESULT hr;
+	int index;
+
+	if (strncmp(name, "rdma_dev", 8)) {
+		return EINVAL;
+	}
+
+	index = atoi(name + 8);
+
+	hr = WvGetObject(&IID_IWVProvider, (LPVOID *) &prov);
+	if (FAILED(hr)) {
+		return hr;
+	}
+
+	hr = getaddrinfo("..localmachine", NULL, NULL, &res);
+	if (hr) {
+		goto release;
+	}
+
+	for (ai = res; ai; ai = ai->ai_next) {
+		hr = prov->lpVtbl->TranslateAddress(prov, ai->ai_addr, &devaddr);
+		if (SUCCEEDED(hr) && (ai->ai_addrlen <= addr_len) && (index-- == 0)) {
+			memcpy(addr, ai->ai_addr, ai->ai_addrlen);
+			goto free;
+		}
+	}
+	hr = ENODEV;
+
+free:
+	freeaddrinfo(res);
+release:
+	prov->lpVtbl->Release(prov);
+	return hr;
+}
+
+#else				// _WIN64 || WIN32
+
+/* Get IP address using network device name */
+int getipaddr_netdev(char *name, char *addr, int addr_len)
+{
+	struct ifreq ifr;
+	int skfd, ret, len;
+
+	/* Fill in the structure */
+	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", name);
+	ifr.ifr_hwaddr.sa_family = ARPHRD_INFINIBAND;
+
+	/* Create a socket fd */
+	skfd = socket(PF_INET, SOCK_STREAM, 0);
+	ret = ioctl(skfd, SIOCGIFADDR, &ifr);
+	if (ret)
+		goto bail;
+
+	switch (ifr.ifr_addr.sa_family) {
+#ifdef	AF_INET6
+	case AF_INET6:
+		len = sizeof(struct sockaddr_in6);
+		break;
+#endif
+	case AF_INET:
+	default:
+		len = sizeof(struct sockaddr);
+		break;
+	}
+
+	if (len <= addr_len)
+		memcpy(addr, &ifr.ifr_addr, len);
+	else
+		ret = EINVAL;
+
+      bail:
+	close(skfd);
+	return ret;
+}
+#endif
+
 enum ibv_mtu dapl_ib_mtu(int mtu)
 {
 	switch (mtu) {
@@ -67,12 +152,26 @@ char *dapl_ib_mtu_str(enum ibv_mtu mtu)
 	}
 }
 
-DAT_RETURN getlocalipaddr(DAT_SOCK_ADDR * addr, int addr_len)
+DAT_RETURN getlocalipaddr(char *addr, int addr_len)
 {
 	struct sockaddr_in *sin;
 	struct addrinfo *res, hint, *ai;
 	int ret;
 	char hostname[256];
+	char *netdev = getenv("DAPL_SCM_NETDEV");
+
+	/* use provided netdev instead of default hostname */
+	if (netdev != NULL) {
+		ret = getipaddr_netdev(netdev, addr, addr_len);
+		if (ret) {			
+			dapl_log(DAPL_DBG_TYPE_ERR,
+				 " getlocalipaddr: DAPL_SCM_NETDEV provided %s"
+				" but not configured on system? ERR = %s\n",
+				netdev, strerror(ret));
+			return dapl_convert_errno(ret, "getlocalipaddr");
+		} else 
+			return DAT_SUCCESS;
+	}
 
 	if (addr_len < sizeof(*sin)) {
 		return DAT_INTERNAL_ERROR;
@@ -222,14 +321,59 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 		hca_ptr->ib_trans.named_attr.value =
 		    dapl_ib_mtu_str(hca_ptr->ib_trans.mtu);
 
+		if (hca_ptr->ib_hca_handle->device->transport_type != IBV_TRANSPORT_IB)
+			goto skip_ib;
+
+               /* set SL, PKEY values, defaults = 0 */
+               hca_ptr->ib_trans.pkey_idx = 0;
+               hca_ptr->ib_trans.pkey = htons(dapl_os_get_env_val("DAPL_IB_PKEY", 0));
+               hca_ptr->ib_trans.sl = dapl_os_get_env_val("DAPL_IB_SL", 0);
+
+		/* index provided, get pkey; pkey provided, get index */
+		if (hca_ptr->ib_trans.pkey) {
+			int i; uint16_t pkey = 0;
+			for (i=0; i < dev_attr.max_pkeys; i++) {
+				if (ibv_query_pkey(hca_ptr->ib_hca_handle,
+						   hca_ptr->port_num,
+						   i, &pkey)) {
+					i = dev_attr.max_pkeys;
+					break;
+				}
+				if (pkey == hca_ptr->ib_trans.pkey) {
+					hca_ptr->ib_trans.pkey_idx = i;
+					break;
+				}
+			}
+			if (i == dev_attr.max_pkeys) {
+				dapl_log(DAPL_DBG_TYPE_ERR,
+					 " ERR: new pkey(0x%x), query (%s)"
+					 " err or key !found, using default pkey_idx=0\n",
+					 ntohs(hca_ptr->ib_trans.pkey), strerror(errno));
+			}
+		}
+skip_ib:
+
+#ifdef DEFINE_ATTR_LINK_LAYER
+#ifndef _OPENIB_CMA_
+		if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET)
+			hca_ptr->ib_trans.global = 1;
+
+		dapl_log(DAPL_DBG_TYPE_UTIL,
+			 " query_hca: port.link_layer = 0x%x\n", 
+			 port_attr.link_layer);
+#endif
+#endif
 		dapl_log(DAPL_DBG_TYPE_UTIL,
 			     " query_hca: (%x.%x) eps %d, sz %d evds %d,"
-			     " sz %d mtu %d\n",
+			     " sz %d mtu %d - pkey %x p_idx %d sl %d\n",
 			     ia_attr->hardware_version_major,
 			     ia_attr->hardware_version_minor,
 			     ia_attr->max_eps, ia_attr->max_dto_per_ep,
 			     ia_attr->max_evds, ia_attr->max_evd_qlen,
-			     128 << hca_ptr->ib_trans.mtu);
+			     128 << hca_ptr->ib_trans.mtu,
+			     ntohs(hca_ptr->ib_trans.pkey),
+			     hca_ptr->ib_trans.pkey_idx,
+			     hca_ptr->ib_trans.sl);
 
 		dapl_log(DAPL_DBG_TYPE_UTIL,
 			     " query_hca: msg %llu rdma %llu iov %d lmr %d rmr %d"
@@ -470,4 +614,111 @@ void dapls_query_provider_specific_attr(IN DAPL_IA * ia_ptr,
 
 	/* set MTU to actual settings */
 	ib_attrs[0].value = ia_ptr->hca_ptr->ib_trans.named_attr.value;
+}
+
+/*
+ * Map all socket CM event codes to the DAT equivelent. Common to all providers
+ */
+#define DAPL_IB_EVENT_CNT	13
+
+static struct ib_cm_event_map {
+	const ib_cm_events_t ib_cm_event;
+	DAT_EVENT_NUMBER dat_event_num;
+} ib_cm_event_map[DAPL_IB_EVENT_CNT] = {
+/* 00 */ {IB_CME_CONNECTED, 
+	  DAT_CONNECTION_EVENT_ESTABLISHED},
+/* 01 */ {IB_CME_DISCONNECTED, 
+	  DAT_CONNECTION_EVENT_DISCONNECTED},
+/* 02 */ {IB_CME_DISCONNECTED_ON_LINK_DOWN,
+	  DAT_CONNECTION_EVENT_DISCONNECTED},
+/* 03 */ {IB_CME_CONNECTION_REQUEST_PENDING, 
+	  DAT_CONNECTION_REQUEST_EVENT},
+/* 04 */ {IB_CME_CONNECTION_REQUEST_PENDING_PRIVATE_DATA,
+	  DAT_CONNECTION_REQUEST_EVENT},
+/* 05 */ {IB_CME_CONNECTION_REQUEST_ACKED,
+	  DAT_CONNECTION_EVENT_ESTABLISHED},
+/* 06 */ {IB_CME_DESTINATION_REJECT,
+	  DAT_CONNECTION_EVENT_NON_PEER_REJECTED},
+/* 07 */ {IB_CME_DESTINATION_REJECT_PRIVATE_DATA,
+	  DAT_CONNECTION_EVENT_PEER_REJECTED},
+/* 08 */ {IB_CME_DESTINATION_UNREACHABLE, 
+	  DAT_CONNECTION_EVENT_UNREACHABLE},
+/* 09 */ {IB_CME_TOO_MANY_CONNECTION_REQUESTS,
+	  DAT_CONNECTION_EVENT_NON_PEER_REJECTED},
+/* 10 */ {IB_CME_BROKEN, 
+	  DAT_CONNECTION_EVENT_BROKEN},
+/* 11 */ {IB_CME_TIMEOUT, 
+	  DAT_CONNECTION_EVENT_TIMED_OUT},
+/* 12 */ {IB_CME_LOCAL_FAILURE,		/* always last */
+	  DAT_CONNECTION_EVENT_BROKEN}
+};
+
+/*
+ * dapls_ib_get_cm_event
+ *
+ * Return a DAT connection event given a provider CM event.
+ *
+ * Input:
+ *	dat_event_num	DAT event we need an equivelent CM event for
+ *
+ * Output:
+ * 	none
+ *
+ * Returns:
+ * 	ib_cm_event of translated DAPL value
+ */
+DAT_EVENT_NUMBER
+dapls_ib_get_dat_event(IN const ib_cm_events_t ib_cm_event,
+		       IN DAT_BOOLEAN active)
+{
+	DAT_EVENT_NUMBER dat_event_num;
+	int i;
+
+	active = active;
+
+	if (ib_cm_event > IB_CME_LOCAL_FAILURE)
+		return (DAT_EVENT_NUMBER) 0;
+
+	dat_event_num = 0;
+	for (i = 0; i < DAPL_IB_EVENT_CNT; i++) {
+		if (ib_cm_event == ib_cm_event_map[i].ib_cm_event) {
+			dat_event_num = ib_cm_event_map[i].dat_event_num;
+			break;
+		}
+	}
+	dapl_dbg_log(DAPL_DBG_TYPE_CALLBACK,
+		     "dapls_ib_get_dat_event: event translate(%s) ib=0x%x dat=0x%x\n",
+		     active ? "active" : "passive", ib_cm_event, dat_event_num);
+
+	return dat_event_num;
+}
+
+/*
+ * dapls_ib_get_dat_event
+ *
+ * Return a DAT connection event given a provider CM event.
+ * 
+ * Input:
+ *	ib_cm_event	event provided to the dapl callback routine
+ *	active		switch indicating active or passive connection
+ *
+ * Output:
+ * 	none
+ *
+ * Returns:
+ * 	DAT_EVENT_NUMBER of translated provider value
+ */
+ib_cm_events_t dapls_ib_get_cm_event(IN DAT_EVENT_NUMBER dat_event_num)
+{
+	ib_cm_events_t ib_cm_event;
+	int i;
+
+	ib_cm_event = 0;
+	for (i = 0; i < DAPL_IB_EVENT_CNT; i++) {
+		if (dat_event_num == ib_cm_event_map[i].dat_event_num) {
+			ib_cm_event = ib_cm_event_map[i].ib_cm_event;
+			break;
+		}
+	}
+	return ib_cm_event;
 }

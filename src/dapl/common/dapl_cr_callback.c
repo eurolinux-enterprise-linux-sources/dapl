@@ -51,6 +51,7 @@
 DAT_RETURN dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 				    IN DAPL_SP * sp_ptr,
 				    IN DAPL_PRIVATE * prd_ptr,
+				    IN int private_data_size,
 				    IN DAPL_EVD * evd_ptr);
 
 DAPL_EP *dapli_get_sp_ep(IN dp_ib_cm_handle_t ib_cm_handle,
@@ -74,8 +75,9 @@ DAPL_EP *dapli_get_sp_ep(IN dp_ib_cm_handle_t ib_cm_handle,
  * 	None
  *
  */
-void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_t ib_cm_event, IN const void *private_data_ptr,	/* event data */
-		       IN const void *context)
+void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_t ib_cm_event,
+                       IN const void *private_data_ptr, IN const int private_data_size,
+                       IN const void *context)
 {
 	DAPL_EP *ep_ptr;
 	DAPL_EVD *evd_ptr;
@@ -174,8 +176,7 @@ void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_
 			 * event if appropriate.
 			 */
 			dat_status = dapli_connection_request(ib_cm_handle,
-							      sp_ptr,
-							      prd_ptr, evd_ptr);
+							      sp_ptr, prd_ptr, private_data_size, evd_ptr);
 			/* Set evd_ptr = NULL so we don't generate an event below */
 			evd_ptr = NULL;
 
@@ -205,7 +206,6 @@ void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_
 			}
 
 			ep_ptr->param.ep_state = DAT_EP_STATE_CONNECTED;
-			ep_ptr->cm_handle = ib_cm_handle;
 			dapl_os_unlock(&ep_ptr->header.lock);
 
 			break;
@@ -242,7 +242,6 @@ void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_
 			 */
 			dapl_os_lock(&ep_ptr->header.lock);
 			ep_ptr->param.ep_state = DAT_EP_STATE_DISCONNECTED;
-			ep_ptr->cm_handle = IB_INVALID_HANDLE;
 			dapls_ib_disconnect_clean(ep_ptr, DAT_FALSE,
 						  ib_cm_event);
 			dapl_os_unlock(&ep_ptr->header.lock);
@@ -308,7 +307,8 @@ void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_
 DAT_RETURN
 dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 			 IN DAPL_SP * sp_ptr,
-			 IN DAPL_PRIVATE * prd_ptr, IN DAPL_EVD * evd_ptr)
+			 IN DAPL_PRIVATE * prd_ptr, IN int private_data_size,
+			 IN DAPL_EVD * evd_ptr)
 {
 	DAT_RETURN dat_status;
 
@@ -346,14 +346,7 @@ dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 
 	/* Private data size will be determined by the provider layer */
 	cr_ptr->param.private_data = cr_ptr->private_data;
-	if (prd_ptr == NULL) {
-		cr_ptr->param.private_data_size = 0;
-	} else {
-		cr_ptr->param.private_data_size =
-		    dapls_ib_private_data_size(prd_ptr, DAPL_PDATA_CONN_REQ,
-					       sp_ptr->header.owner_ia->
-					       hca_ptr);
-	}
+	cr_ptr->param.private_data_size = private_data_size;
 	if (cr_ptr->param.private_data_size > 0) {
 		dapl_os_memcpy(cr_ptr->private_data,
 			       prd_ptr->private_data,
@@ -401,7 +394,7 @@ dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 			ep_ptr->param.ep_state =
 			    DAT_EP_STATE_PASSIVE_CONNECTION_PENDING;
 		}
-		ep_ptr->cm_handle = ib_cm_handle;
+		dapl_ep_link_cm(ep_ptr, ib_cm_handle);
 	}
 
 	/* link the CR onto the SP so we can pick it up later */

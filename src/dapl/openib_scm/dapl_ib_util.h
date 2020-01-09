@@ -31,11 +31,16 @@
 #include "openib_osd.h"
 #include "dapl_ib_common.h"
 
+/* DAPL CM objects MUST include list_entry, ref_count, event for EP linking */
 struct ib_cm_handle
 { 
-	struct dapl_llist_entry	entry;
+	struct dapl_llist_entry	list_entry;
+	struct dapl_llist_entry	local_entry;
+        DAPL_OS_WAIT_OBJECT	event;
 	DAPL_OS_LOCK		lock;
+	int			ref_count;
 	int			state;
+	int 			retry;
 	DAPL_SOCKET		socket;
 	struct dapl_hca		*hca;
 	struct dapl_sp		*sp;	
@@ -45,7 +50,7 @@ struct ib_cm_handle
 	DAT_SOCK_ADDR6          addr; 
 };
 
-typedef struct ib_cm_handle	*dp_ib_cm_handle_t;
+typedef struct ib_cm_handle 	*dp_ib_cm_handle_t;
 typedef dp_ib_cm_handle_t	ib_cm_srvc_handle_t;
 
 /* Definitions */
@@ -59,6 +64,7 @@ typedef dp_ib_cm_handle_t	ib_cm_srvc_handle_t;
 #define SCM_ACK_RETRY 7  /* 3 bits, 7 * 268ms = 1.8 seconds */
 #define SCM_RNR_TIMER 12 /* 5 bits, 12 =.64ms, 28 =163ms, 31 =491ms */
 #define SCM_RNR_RETRY 7  /* 3 bits, 7 == infinite */
+#define SCM_CR_RETRY  5  /* retries for busy server, connect refused */
 #define SCM_IB_MTU    2048
 
 /* Global routing defaults */
@@ -102,6 +108,10 @@ typedef struct _ib_hca_transport
 	uint8_t			mtu;
 	DAT_NAMED_ATTR		named_attr;
 	DAPL_SOCKET		scm[2];
+	uint8_t			sl;
+	uint16_t		pkey;
+	int			pkey_idx;
+
 } ib_hca_transport_t;
 
 /* prototypes */
@@ -110,9 +120,12 @@ int dapli_cq_thread_init(struct dapl_hca *hca_ptr);
 void dapli_cq_thread_destroy(struct dapl_hca *hca_ptr);
 void dapli_async_event_cb(struct _ib_hca_transport *tp);
 void dapli_cq_event_cb(struct _ib_hca_transport *tp);
-DAT_RETURN dapli_socket_disconnect(dp_ib_cm_handle_t cm_ptr);
-dp_ib_cm_handle_t dapls_ib_cm_create(DAPL_EP *ep);
-void dapls_ib_cm_free(dp_ib_cm_handle_t cm, DAPL_EP *ep);
+void dapls_cm_acquire(dp_ib_cm_handle_t cm_ptr);
+void dapls_cm_release(dp_ib_cm_handle_t cm_ptr);
+void dapls_cm_free(dp_ib_cm_handle_t cm_ptr);
+
+#ifdef DAPL_COUNTERS
 void dapls_print_cm_list(IN DAPL_IA *ia_ptr);
+#endif
 
 #endif /*  _DAPL_IB_UTIL_H_ */

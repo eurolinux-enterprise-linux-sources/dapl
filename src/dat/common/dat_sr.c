@@ -94,6 +94,11 @@ extern DAT_RETURN dat_sr_fini(void)
 {
 	DAT_RETURN status;
 
+	status = dat_sr_remove_all(g_sr_dictionary);
+	if (DAT_SUCCESS != status) {
+		return status;
+	}
+
 	status = dat_os_lock_destroy(&g_sr_lock);
 	if (DAT_SUCCESS != status) {
 		return status;
@@ -116,9 +121,7 @@ dat_sr_insert(IN const DAT_PROVIDER_INFO * info, IN DAT_SR_ENTRY * entry)
 {
 	DAT_RETURN status;
 	DAT_SR_ENTRY *data;
-	DAT_OS_SIZE lib_path_size;
 	DAT_OS_SIZE lib_path_len;
-	DAT_OS_SIZE ia_params_size;
 	DAT_OS_SIZE ia_params_len;
 	DAT_DICTIONARY_ENTRY dict_entry;
 	DAT_DICTIONARY_DATA prev_data;
@@ -132,9 +135,9 @@ dat_sr_insert(IN const DAT_PROVIDER_INFO * info, IN DAT_SR_ENTRY * entry)
 	dat_os_memset(data, '\0', sizeof(DAT_SR_ENTRY));
 
 	lib_path_len = strlen(entry->lib_path);
-	lib_path_size = (lib_path_len + 1) * sizeof(char);
+	data->lib_path_size = (lib_path_len + 1) * sizeof(char);
 
-	if (NULL == (data->lib_path = dat_os_alloc(lib_path_size))) {
+	if (NULL == (data->lib_path = dat_os_alloc(data->lib_path_size))) {
 		status =
 		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 		goto bail;
@@ -144,9 +147,9 @@ dat_sr_insert(IN const DAT_PROVIDER_INFO * info, IN DAT_SR_ENTRY * entry)
 	data->lib_path[lib_path_len] = '\0';
 
 	ia_params_len = strlen(entry->ia_params);
-	ia_params_size = (ia_params_len + 1) * sizeof(char);
+	data->ia_params_size = (ia_params_len + 1) * sizeof(char);
 
-	if (NULL == (data->ia_params = dat_os_alloc(ia_params_size))) {
+	if (NULL == (data->ia_params = dat_os_alloc(data->ia_params_size))) {
 		status =
 		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 		goto bail;
@@ -197,11 +200,11 @@ dat_sr_insert(IN const DAT_PROVIDER_INFO * info, IN DAT_SR_ENTRY * entry)
 	if (DAT_SUCCESS != status) {
 		if (NULL != data) {
 			if (NULL != data->lib_path) {
-				dat_os_free(data->lib_path, lib_path_size);
+				dat_os_free(data->lib_path, data->lib_path_size);
 			}
 
 			if (NULL != data->ia_params) {
-				dat_os_free(data->ia_params, ia_params_size);
+				dat_os_free(data->ia_params, data->ia_params_size);
 			}
 
 			dat_os_free(data, sizeof(DAT_SR_ENTRY));
@@ -211,6 +214,42 @@ dat_sr_insert(IN const DAT_PROVIDER_INFO * info, IN DAT_SR_ENTRY * entry)
 			(void)dat_dictionary_entry_destroy(dict_entry);
 		}
 	}
+
+	return status;
+}
+
+//***********************************************************************
+// Function: dat_sr_size
+//***********************************************************************
+extern DAT_RETURN dat_sr_remove(IN const DAT_PROVIDER_INFO *info)
+{
+	DAT_DICTIONARY_ENTRY dict_entry = NULL;
+	DAT_RETURN status = DAT_ERROR(DAT_PROVIDER_IN_USE, 0);
+	DAT_SR_ENTRY *data;
+
+	dat_os_lock(&g_sr_lock);
+	status = dat_dictionary_search(g_sr_dictionary, info,
+				       (DAT_DICTIONARY_DATA)&data);
+	if (DAT_SUCCESS != status)
+		goto bail;
+
+	if (0 != ((DAT_SR_ENTRY *) data)->ref_count)
+		goto bail;
+
+	status = dat_dictionary_remove(g_sr_dictionary,
+				       &dict_entry, info,
+				       (DAT_DICTIONARY_DATA)&data);
+	if (DAT_SUCCESS != status)
+		goto bail;
+
+	dat_os_free(data->lib_path, data->lib_path_size);
+	dat_os_free(data->ia_params, data->ia_params_size);
+	dat_os_free(data, sizeof(DAT_SR_ENTRY));
+bail:
+	dat_os_unlock(&g_sr_lock);
+
+	if (NULL != dict_entry)
+		(void)dat_dictionary_entry_destroy(dict_entry);
 
 	return status;
 }
@@ -300,6 +339,62 @@ dat_sr_list(IN DAT_COUNT max_to_return,
 
 	return status;
 }
+
+//***********************************************************************
+// Function: dat_sr_remove_all()
+//***********************************************************************
+extern DAT_RETURN dat_sr_remove_all(IN  DAT_DICTIONARY *p_dictionary)
+{
+	int i;
+	DAT_RETURN status = DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
+	DAT_COUNT entries = 0;
+	DAT_PROVIDER_INFO  **plist;
+
+	/* get provider count */
+	dat_sr_size(&entries);
+
+	/* need array of pointers to info */
+	plist = dat_os_alloc(entries * sizeof(DAT_PROVIDER_INFO *));
+	if (plist == NULL)
+		goto bail;
+
+	dat_os_memset(plist, 0, entries * sizeof(DAT_PROVIDER_INFO *));
+	for (i = 0; i < entries; i++ ) {
+		plist[i] = dat_os_alloc(sizeof(DAT_PROVIDER_INFO));
+		if (plist[i] == NULL)
+			goto bail;
+	}
+
+	/* remove and destroy each SR entry */
+	status = dat_sr_list(entries, &entries, plist);
+	if (DAT_SUCCESS != status)
+		goto bail;
+
+	for (i=0;i<entries;i++) {
+		status = dat_sr_remove(plist[i]);
+		if (DAT_SUCCESS != status) {
+			dat_os_dbg_print(DAT_OS_DBG_TYPE_SR,
+					 " WARNING: libdat2 remove SR"
+					 " provider: IA %s busy\n",
+					 plist[i]->ia_name);
+			goto bail;
+		}
+		dat_os_dbg_print(DAT_OS_DBG_TYPE_SR,
+				 " libdat2 removed SR"
+				 " provider: IA %s\n",
+				 plist[i]->ia_name);
+	}
+bail:
+	for (i = 0; i < entries; i++ ) {
+		if (plist[i] != NULL)
+			dat_os_free(plist[i], sizeof(DAT_PROVIDER_INFO));
+	}
+	dat_os_free(plist, entries * sizeof(DAT_PROVIDER_INFO *));
+
+	return status;
+
+}
+
 
 //***********************************************************************
 // Function: dat_sr_provider_open

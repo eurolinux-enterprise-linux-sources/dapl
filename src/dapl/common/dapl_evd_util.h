@@ -137,7 +137,8 @@ dapls_evd_post_connection_event_ext (
 extern void dapl_evd_connection_callback (
     IN	dp_ib_cm_handle_t	ib_cm_handle,
     IN	const ib_cm_events_t	ib_cm_events,
-    IN	const void 		*instant_data_p,
+    IN	const void 		*private_data_ptr,
+    IN	const int		private_data_size,
     IN	const void *		context );
 
 /* dto verb callback */
@@ -164,11 +165,14 @@ extern void dapl_evd_qp_async_error_callback (
     IN	ib_error_record_t *	cause_ptr,
     IN	void *			context);
 
-extern void dapls_evd_copy_cq (
+extern DAT_RETURN dapls_evd_copy_cq (
     DAPL_EVD 			*evd_ptr);
 
 extern DAT_RETURN dapls_evd_cq_poll_to_event (
     IN DAPL_EVD 		*evd_ptr,
     OUT DAT_EVENT		*event);
+
+extern void dapls_evd_post_overflow_event (
+    IN DAPL_EVD			*evd_ptr);
 
 #endif

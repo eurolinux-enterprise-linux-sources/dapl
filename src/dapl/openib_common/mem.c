@@ -55,10 +55,6 @@ STATIC _INLINE_ int dapls_convert_privileges(IN DAT_MEM_PRIV_FLAGS privileges)
 		access |= IBV_ACCESS_REMOTE_WRITE;
 	if (DAT_MEM_PRIV_REMOTE_READ_FLAG & privileges)
 		access |= IBV_ACCESS_REMOTE_READ;
-	if (DAT_MEM_PRIV_REMOTE_READ_FLAG & privileges)
-		access |= IBV_ACCESS_REMOTE_READ;
-	if (DAT_MEM_PRIV_REMOTE_READ_FLAG & privileges)
-		access |= IBV_ACCESS_REMOTE_READ;
 #ifdef DAT_EXTENSIONS
 	if (DAT_IB_MEM_PRIV_REMOTE_ATOMIC & privileges)
 		access |= IBV_ACCESS_REMOTE_ATOMIC;

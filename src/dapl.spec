@@ -32,7 +32,7 @@
 #
 # $Id: $
 Name: dapl
-Version: 2.0.25
+Version: 2.0.32
 Release: 1%{?dist}
 Summary: A Library for userspace access to RDMA devices using OS Agnostic DAT APIs.
 
@@ -110,6 +110,10 @@ echo ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx
 echo ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> %{_sysconfdir}/dat.conf
 echo ofa-v2-mthca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 1" ""' >> %{_sysconfdir}/dat.conf
 echo ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 2" ""' >> %{_sysconfdir}/dat.conf
+echo ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> %{_sysconfdir}/dat.conf
+echo ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth3 0" ""' >> %{_sysconfdir}/dat.conf
+echo ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> %{_sysconfdir}/dat.conf
+echo ofa-v2-scm-roe-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> %{_sysconfdir}/dat.conf
 
 %postun 
 /sbin/ldconfig
@@ -121,7 +125,7 @@ fi
 %files
 %defattr(-,root,root,-)
 %{_libdir}/libda*.so.*
-%doc AUTHORS README ChangeLog
+%doc AUTHORS README COPYING ChangeLog LICENSE.txt LICENSE2.txt LICENSE3.txt
 
 %files devel
 %defattr(-,root,root,-)
@@ -140,6 +144,27 @@ fi
 %{_mandir}/man5/*.5*
 
 %changelog
+* Sun Feb 13 2011 Arlin Davis <ardavis@ichips.intel.com> - 2.0.32
+- DAT/DAPL Version 2.0.32 Release 1, OFED 1.5.3 GA 
+
+* Fri Dec 10 2010 Arlin Davis <ardavis@ichips.intel.com> - 2.0.31
+- DAT/DAPL Version 2.0.31 Release 1, OFED 1.5.3  
+
+* Mon Aug 9 2010 Arlin Davis <ardavis@ichips.intel.com> - 2.0.30
+- DAT/DAPL Version 2.0.30 Release 1, OFED 1.5.2 RC4 
+
+* Thu Jun 17 2010 Arlin Davis <ardavis@ichips.intel.com> - 2.0.29
+- DAT/DAPL Version 2.0.29 Release 1, OFED 1.5.2 RC2 
+
+* Mon May 24 2010 Arlin Davis <ardavis@ichips.intel.com> - 2.0.28
+- DAT/DAPL Version 2.0.28 Release 1, OFED 1.5.2 RC1 
+
+* Tue Feb 23 2010 Arlin Davis <ardavis@ichips.intel.com> - 2.0.27
+- DAT/DAPL Version 2.0.27 Release 1, OFED 1.5.1  
+
+* Tue Jan 11 2010 Arlin Davis <ardavis@ichips.intel.com> - 2.0.26
+- DAT/DAPL Version 2.0.26 Release 1, OFED 1.5, OFED 1.5-RDMAoE  
+
 * Tue Nov 24 2009 Arlin Davis <ardavis@ichips.intel.com> - 2.0.25
 - DAT/DAPL Version 2.0.25 Release 1, OFED 1.5 RC3 
 

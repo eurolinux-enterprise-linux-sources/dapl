@@ -141,6 +141,7 @@ DAPL_EP *dapl_ep_alloc(IN DAPL_IA * ia_ptr, IN const DAT_EP_ATTR * ep_attr)
 	ep_ptr->header.user_context.as_ptr = NULL;
 
 	dapl_llist_init_entry(&ep_ptr->header.ia_list_entry);
+	dapl_llist_init_head(&ep_ptr->cm_list_head);
 	dapl_os_lock_init(&ep_ptr->header.lock);
 
 	/*
@@ -161,7 +162,6 @@ DAPL_EP *dapl_ep_alloc(IN DAPL_IA * ia_ptr, IN const DAT_EP_ATTR * ep_attr)
 	ep_ptr->qp_handle = IB_INVALID_HANDLE;
 	ep_ptr->qpn = 0;
 	ep_ptr->qp_state = DAPL_QP_STATE_UNATTACHED;
-	ep_ptr->cm_handle = IB_INVALID_HANDLE;
 
 	if (DAT_SUCCESS != dapls_cb_create(&ep_ptr->req_buffer,
 					   ep_ptr,
@@ -214,13 +214,6 @@ void dapl_ep_dealloc(IN DAPL_EP * ep_ptr)
 	if (NULL != ep_ptr->cxn_timer) {
 		dapl_os_free(ep_ptr->cxn_timer, sizeof(DAPL_OS_TIMER));
 	}
-#if defined(_WIN32) || defined(_WIN64)
-	if (ep_ptr->ibal_cm_handle) {
-		dapl_os_free(ep_ptr->ibal_cm_handle,
-			     sizeof(*ep_ptr->ibal_cm_handle));
-		ep_ptr->ibal_cm_handle = NULL;
-	}
-#endif
 
 #ifdef DAPL_COUNTERS
 	dapl_os_free(ep_ptr->cntrs, sizeof(DAT_UINT64) * DCNT_EP_ALL_COUNTERS);
@@ -417,7 +410,7 @@ void dapls_ep_timeout(uintptr_t arg)
 	 * The disconnect_clean interface requires the provided dependent 
 	 *cm event number.
 	 */
-	ib_cm_event = dapls_ib_get_cm_event(DAT_CONNECTION_EVENT_DISCONNECTED);
+	ib_cm_event = dapls_ib_get_cm_event(DAT_CONNECTION_EVENT_TIMED_OUT);
 	dapls_ib_disconnect_clean(ep_ptr, DAT_TRUE, ib_cm_event);
 
 	(void)dapls_evd_post_connection_event((DAPL_EVD *) ep_ptr->param.
@@ -537,6 +530,7 @@ dapl_ep_legacy_post_disconnect(DAPL_EP * ep_ptr,
 {
 	ib_cm_events_t ib_cm_event;
 	DAPL_CR *cr_ptr;
+	dp_ib_cm_handle_t cm_ptr;
 
 	/*
 	 * Acquire the lock and make sure we didn't get a callback
@@ -557,6 +551,8 @@ dapl_ep_legacy_post_disconnect(DAPL_EP * ep_ptr,
 		    dapls_ib_get_cm_event(DAT_CONNECTION_EVENT_DISCONNECTED);
 
 		cr_ptr = ep_ptr->cr_ptr;
+		cm_ptr = (dapl_llist_is_empty(&ep_ptr->cm_list_head)
+			  ? NULL : dapl_llist_peek_head(&ep_ptr->cm_list_head));
 		dapl_os_unlock(&ep_ptr->header.lock);
 
 		if (cr_ptr != NULL) {
@@ -565,15 +561,68 @@ dapl_ep_legacy_post_disconnect(DAPL_EP * ep_ptr,
 				     ep_ptr, cr_ptr->ib_cm_handle);
 
 			dapls_cr_callback(cr_ptr->ib_cm_handle,
-					  ib_cm_event, NULL, cr_ptr->sp_ptr);
+					  ib_cm_event, NULL, 0, cr_ptr->sp_ptr);
 		} else {
-			dapl_evd_connection_callback(ep_ptr->cm_handle,
+			dapl_evd_connection_callback(cm_ptr,
 						     ib_cm_event,
-						     NULL, (void *)ep_ptr);
+						     NULL, 0, (void *)ep_ptr);
 		}
 	} else {
 		dapl_os_unlock(&ep_ptr->header.lock);
 	}
+}
+
+/*
+ * dapl_ep_link_cm
+ *
+ * Add linking of provider's CM object to a EP structure
+ * This enables multiple CM's per EP, and syncronization
+ *
+ * Input:
+ *	DAPL_EP *ep_ptr
+ *	dp_ib_cm_handle_t *cm_ptr  defined in provider's dapl_util.h
+ *
+ *	CM objects linked with EP using  ->list_entry
+ * Output:
+ * 	none
+ *
+ * Returns:
+ * 	none
+ *
+ */
+void dapl_ep_link_cm(IN DAPL_EP *ep_ptr, IN dp_ib_cm_handle_t cm_ptr)
+{
+	dapl_os_lock(&ep_ptr->header.lock);
+	dapls_cm_acquire(cm_ptr);
+	dapl_llist_add_tail(&ep_ptr->cm_list_head, &cm_ptr->list_entry, cm_ptr);
+	dapl_os_unlock(&ep_ptr->header.lock);
+}
+
+void dapl_ep_unlink_cm(IN DAPL_EP *ep_ptr, IN dp_ib_cm_handle_t cm_ptr)
+{
+	dapl_os_lock(&ep_ptr->header.lock);
+	dapl_llist_remove_entry(&ep_ptr->cm_list_head, &cm_ptr->list_entry);
+	dapls_cm_release(cm_ptr);
+	dapl_os_unlock(&ep_ptr->header.lock);
+}
+
+static void dapli_ep_flush_evd(DAPL_EVD *evd_ptr)
+{
+	DAT_RETURN dat_status;
+
+	dapl_os_lock(&evd_ptr->header.lock);
+	dat_status = dapls_evd_copy_cq(evd_ptr);
+	dapl_os_unlock(&evd_ptr->header.lock);
+
+	if (dat_status == DAT_QUEUE_FULL)
+		dapls_evd_post_overflow_event(evd_ptr);
+}
+
+void dapls_ep_flush_cqs(DAPL_EP * ep_ptr)
+{
+	dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.request_evd_handle);
+	while (dapls_cb_pending(&ep_ptr->recv_buffer))
+		dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.recv_evd_handle);
 }
 
 /*

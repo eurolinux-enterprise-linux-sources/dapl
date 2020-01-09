@@ -128,32 +128,6 @@ dapli_lmr_create_virtual(IN DAPL_IA * ia,
 		goto bail;
 	}
 
-	/* if the LMR context is already in the hash table */
-	dat_status = dapls_hash_search(ia->hca_ptr->lmr_hash_table,
-				       lmr->param.lmr_context, NULL);
-	if (dat_status == DAT_SUCCESS) {
-		(void)dapls_ib_mr_deregister(lmr);
-		dapl_lmr_dealloc(lmr);
-
-		dat_status =
-		    DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_LMR_IN_USE);
-		goto bail;
-	}
-
-	dat_status = dapls_hash_insert(ia->hca_ptr->lmr_hash_table,
-				       lmr->param.lmr_context, lmr);
-	if (dat_status != DAT_SUCCESS) {
-		(void)dapls_ib_mr_deregister(lmr);
-		dapl_lmr_dealloc(lmr);
-
-		/* The value returned by dapls_hash_insert(.) is not    */
-		/* returned to the consumer because the spec. requires */
-		/* that dat_lmr_create(.) return only certain values.  */
-		dat_status =
-		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
-		goto bail;
-	}
-
 	dapl_os_atomic_inc(&pz->pz_ref_count);
 	*lmr_handle = (DAT_LMR_HANDLE) lmr;
 
@@ -189,7 +163,6 @@ dapli_lmr_create_lmr(IN DAPL_IA * ia,
 	DAPL_LMR *lmr;
 	DAT_REGION_DESCRIPTION reg_desc;
 	DAT_RETURN dat_status;
-	DAPL_HASH_DATA hash_lmr;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_API,
 		     "dapl_lmr_create_lmr (%p, %p, %p, %x, %x, %p, %p, %p, %p)\n",
@@ -199,14 +172,6 @@ dapli_lmr_create_lmr(IN DAPL_IA * ia,
 		     lmr_handle,
 		     lmr_context, registered_length, registered_address);
 
-	dat_status = dapls_hash_search(ia->hca_ptr->lmr_hash_table,
-				       original_lmr->param.lmr_context,
-				       &hash_lmr);
-	if (dat_status != DAT_SUCCESS) {
-		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG2);
-		goto bail;
-	}
-	lmr = (DAPL_LMR *) hash_lmr;
 	reg_desc.for_lmr_handle = (DAT_LMR_HANDLE) original_lmr;
 
 	lmr = dapl_lmr_alloc(ia,
@@ -225,32 +190,6 @@ dapli_lmr_create_lmr(IN DAPL_IA * ia,
 
 	if (DAT_SUCCESS != dat_status) {
 		dapl_lmr_dealloc(lmr);
-		goto bail;
-	}
-
-	/* if the LMR context is already in the hash table */
-	dat_status = dapls_hash_search(ia->hca_ptr->lmr_hash_table,
-				       lmr->param.lmr_context, NULL);
-	if (dat_status == DAT_SUCCESS) {
-		dapls_ib_mr_deregister(lmr);
-		dapl_lmr_dealloc(lmr);
-
-		dat_status =
-		    DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_LMR_IN_USE);
-		goto bail;
-	}
-
-	dat_status = dapls_hash_insert(ia->hca_ptr->lmr_hash_table,
-				       lmr->param.lmr_context, lmr);
-	if (dat_status != DAT_SUCCESS) {
-		dapls_ib_mr_deregister(lmr);
-		dapl_lmr_dealloc(lmr);
-
-		/* The value returned by dapls_hash_insert(.) is not    */
-		/* returned to the consumer because the spec. requires */
-		/* that dat_lmr_create(.) return only certain values.  */
-		dat_status =
-		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 		goto bail;
 	}
 
@@ -325,32 +264,6 @@ dapli_lmr_create_shared(IN DAPL_IA * ia,
 		dat_status =
 		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES,
 			      DAT_RESOURCE_MEMORY_REGION);
-		goto bail;
-	}
-
-	/* if the LMR context is already in the hash table */
-	dat_status = dapls_hash_search(ia->hca_ptr->lmr_hash_table,
-				       lmr->param.lmr_context, NULL);
-	if (DAT_SUCCESS == dat_status) {
-		(void)dapls_ib_mr_deregister(lmr);
-		dapl_lmr_dealloc(lmr);
-
-		dat_status =
-		    DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_LMR_IN_USE);
-		goto bail;
-	}
-
-	dat_status = dapls_hash_insert(ia->hca_ptr->lmr_hash_table,
-				       lmr->param.lmr_context, lmr);
-	if (dat_status != DAT_SUCCESS) {
-		(void)dapls_ib_mr_deregister(lmr);
-		dapl_lmr_dealloc(lmr);
-
-		/* The value returned by dapls_hash_insert(.) is not    */
-		/* returned to the consumer because the spec. requires */
-		/* that dat_lmr_create(.) return only certain values.  */
-		dat_status =
-		    DAT_ERROR(DAT_INSUFFICIENT_RESOURCES, DAT_RESOURCE_MEMORY);
 		goto bail;
 	}
 

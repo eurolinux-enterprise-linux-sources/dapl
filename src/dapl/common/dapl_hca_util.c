@@ -38,7 +38,6 @@
 #include "dapl_adapter_util.h"
 #include "dapl_provider.h"
 #include "dapl_hca_util.h"
-#include "dapl_hash.h"
 
 /*
  * dapl_hca_alloc
@@ -66,13 +65,6 @@ DAPL_HCA *dapl_hca_alloc(char *name, char *port)
 	}
 
 	dapl_os_memzero(hca_ptr, sizeof(DAPL_HCA));
-
-	if (DAT_SUCCESS !=
-	    dapls_hash_create(DAPL_HASH_TABLE_DEFAULT_CAPACITY,
-			      &hca_ptr->lmr_hash_table)) {
-		goto bail;
-	}
-
 	dapl_os_lock_init(&hca_ptr->lock);
 	dapl_llist_init_head(&hca_ptr->ia_list_head);
 
@@ -87,13 +79,8 @@ DAPL_HCA *dapl_hca_alloc(char *name, char *port)
 	return (hca_ptr);
 
       bail:
-	if (NULL != hca_ptr) {
-		if (NULL != hca_ptr->lmr_hash_table) {
-			dapls_hash_free(hca_ptr->lmr_hash_table);
-		}
-
+	if (NULL != hca_ptr) 
 		dapl_os_free(hca_ptr, sizeof(DAPL_HCA));
-	}
 
 	return NULL;
 }
@@ -115,7 +102,6 @@ DAPL_HCA *dapl_hca_alloc(char *name, char *port)
  */
 void dapl_hca_free(DAPL_HCA * hca_ptr)
 {
-	(void)dapls_hash_free(hca_ptr->lmr_hash_table);
 	dapl_os_free(hca_ptr->name, dapl_os_strlen(hca_ptr->name) + 1);
 	dapl_os_free(hca_ptr, sizeof(DAPL_HCA));
 }

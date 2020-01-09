@@ -79,7 +79,6 @@ dapl_ep_connect(IN DAT_EP_HANDLE ep_handle,
 	DAPL_EP alloc_ep;
 	DAT_RETURN dat_status;
 	DAT_COUNT req_hdr_size;
-	DAT_UINT32 max_req_pdata_size;
 	void *private_data_ptr;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_API | DAPL_DBG_TYPE_CM,
@@ -258,16 +257,6 @@ dapl_ep_connect(IN DAT_EP_HANDLE ep_handle,
 	 */
 	req_hdr_size = (sizeof(DAPL_PRIVATE) - DAPL_MAX_PRIVATE_DATA_SIZE);
 
-	max_req_pdata_size =
-	    dapls_ib_private_data_size(NULL, DAPL_PDATA_CONN_REQ,
-				       ep_ptr->header.owner_ia->hca_ptr);
-
-	if (private_data_size + req_hdr_size > (DAT_COUNT) max_req_pdata_size) {
-		dapl_os_unlock(&ep_ptr->header.lock);
-		dat_status = DAT_ERROR(DAT_INVALID_PARAMETER, DAT_INVALID_ARG5);
-		goto bail;
-	}
-
 	/* transition the state before requesting a connection to avoid
 	 * race conditions
 	 */
@@ -338,13 +327,16 @@ dapl_ep_connect(IN DAT_EP_HANDLE ep_handle,
 		dapl_os_lock(&ep_ptr->header.lock);
 		if (ep_ptr->param.ep_state ==
 		    DAT_EP_STATE_ACTIVE_CONNECTION_PENDING
-		    && timeout != DAT_TIMEOUT_INFINITE) {
+		    && timeout != DAT_TIMEOUT_INFINITE &&
+	    	    ep_ptr->param.ep_attr.service_type == DAT_SERVICE_TYPE_RC) {
 			ep_ptr->cxn_timer =
 			    (DAPL_OS_TIMER *)
 			    dapl_os_alloc(sizeof(DAPL_OS_TIMER));
 
 			dapls_timer_set(ep_ptr->cxn_timer,
 					dapls_ep_timeout, ep_ptr, timeout);
+
+			dapl_log(DAPL_DBG_TYPE_EP, " dapl_ep_connect timeout = %d us\n", timeout);
 		}
 		dapl_os_unlock(&ep_ptr->header.lock);
 	}

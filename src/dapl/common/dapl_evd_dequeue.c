@@ -69,9 +69,6 @@ DAT_RETURN DAT_API dapl_evd_dequeue(IN DAT_EVD_HANDLE evd_handle,
 	DAT_EVENT *local_event;
 	DAT_RETURN dat_status;
 
-	dapl_dbg_log(DAPL_DBG_TYPE_API,
-		     "dapl_evd_dequeue (%p, %p)\n", evd_handle, event);
-
 	evd_ptr = (DAPL_EVD *) evd_handle;
 	dat_status = DAT_SUCCESS;
 
@@ -125,10 +122,14 @@ DAT_RETURN DAT_API dapl_evd_dequeue(IN DAT_EVD_HANDLE evd_handle,
 		DAPL_CNTR(evd_ptr, DCNT_EVD_DEQUEUE_NOT_FOUND);
 	}
 
+#ifdef DAPL_DBG
+	if (dat_status == DAT_SUCCESS) 
+		dapl_dbg_log(DAPL_DBG_TYPE_EVD,
+			     "dapl_evd_dequeue() Event(%p) = 0x%x\n",
+			     event->evd_handle, event->event_number);
+#endif
 	dapl_os_unlock(&evd_ptr->header.lock);
       bail:
-	dapl_dbg_log(DAPL_DBG_TYPE_RTN,
-		     "dapl_evd_dequeue () returns 0x%x\n", dat_status);
 
 	return dat_status;
 }

@@ -150,8 +150,7 @@ dapl_ia_query(IN DAT_IA_HANDLE ia_handle,
 		 *      to 0 unless IBHOSTS_NAMING is enabled.
 		 */
 		provider_attr->max_private_data_size =
-		    dapls_ib_private_data_size(NULL, DAPL_PDATA_CONN_REQ,
-					       ia_ptr->hca_ptr) -
+		    dapls_ib_private_data_size(ia_ptr->hca_ptr) -
 		    (sizeof(DAPL_PRIVATE) - DAPL_MAX_PRIVATE_DATA_SIZE);
 		provider_attr->supports_multipath = DAT_FALSE;
 		provider_attr->ep_creator = DAT_PSP_CREATES_EP_NEVER;

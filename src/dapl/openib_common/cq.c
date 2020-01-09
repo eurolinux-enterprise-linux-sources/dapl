@@ -296,7 +296,7 @@ dapls_wait_comp_channel(IN struct ibv_comp_channel *channel, IN uint32_t timeout
 	else if (status == 0)
 		return ETIMEDOUT;
 	else
-		return status;
+		return errno;
 }
 #endif
 
@@ -321,7 +321,7 @@ dapls_evd_dto_wait(IN DAPL_EVD * evd_ptr, IN uint32_t timeout)
 
 	dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
 		     " cq_object_wait: RET evd %p ibv_cq %p %s\n",
-		     evd_ptr, ibv_cq, strerror(errno));
+		     evd_ptr, ibv_cq, strerror(status));
 
 	return dapl_convert_errno(status, "cq_wait_object_wait");
 }

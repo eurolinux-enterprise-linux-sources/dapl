@@ -37,7 +37,6 @@ static void ucm_service_destroy(IN DAPL_HCA *hca);
 static int  ucm_service_create(IN DAPL_HCA *hca);
 
 #if defined (_WIN32)
-#include "..\..\..\..\..\etc\user\comp_channel.cpp"
 #include <rdma\winverbs.h>
 
 static int32_t create_os_signal(IN DAPL_HCA * hca_ptr)
@@ -238,6 +237,7 @@ found:
 		goto err;
 	} else {
 		hca_ptr->ib_trans.addr.ib.lid = htons(port_attr.lid);
+		hca_ptr->ib_trans.lid = htons(port_attr.lid);
 	}
 
 	/* get gid for this hca-port, network order */
@@ -401,6 +401,16 @@ DAT_RETURN dapls_ib_close_hca(IN DAPL_HCA * hca_ptr)
 	destroy_os_signal(hca_ptr);
 	ucm_service_destroy(hca_ptr);
 
+	if (hca_ptr->ib_trans.ib_cq)
+		ibv_destroy_comp_channel(hca_ptr->ib_trans.ib_cq);
+
+	if (hca_ptr->ib_trans.ib_cq_empty) {
+		struct ibv_comp_channel *channel;
+		channel = hca_ptr->ib_trans.ib_cq_empty->channel;
+		ibv_destroy_cq(hca_ptr->ib_trans.ib_cq_empty);
+		ibv_destroy_comp_channel(channel);
+	}
+
 	if (hca_ptr->ib_hca_handle != IB_INVALID_HANDLE) {
 		if (ibv_close_device(hca_ptr->ib_hca_handle))
 			return (dapl_convert_errno(errno, "ib_close_device"));
@@ -475,6 +485,7 @@ static int ucm_service_create(IN DAPL_HCA *hca)
 	tp->cm_timer = DAPL_MIN(tp->rep_time,tp->rtu_time);
 	tp->qpe = dapl_os_get_env_val("DAPL_UCM_QP_SIZE", DCM_QP_SIZE);
 	tp->cqe = dapl_os_get_env_val("DAPL_UCM_CQ_SIZE", DCM_CQ_SIZE);
+	tp->burst = dapl_os_get_env_val("DAPL_UCM_TX_BURST", DCM_TX_BURST);
 	tp->pd = ibv_alloc_pd(hca->ib_hca_handle);
         if (!tp->pd) 
                 goto bail;
@@ -486,6 +497,7 @@ static int ucm_service_create(IN DAPL_HCA *hca)
     	tp->rch = ibv_create_comp_channel(hca->ib_hca_handle);
 	if (!tp->rch) 
 		goto bail;
+	dapls_config_comp_channel(tp->rch);
 
 	tp->scq = ibv_create_cq(hca->ib_hca_handle, tp->cqe, hca, NULL, 0);
 	if (!tp->scq) 
@@ -515,6 +527,7 @@ static int ucm_service_create(IN DAPL_HCA *hca)
 	tp->sid = (uint8_t*) dapl_os_alloc(sizeof(uint8_t) * 0xffff);
 	tp->rbuf = (void*) dapl_os_alloc((mlen + hlen) * tp->qpe);
 	tp->sbuf = (void*) dapl_os_alloc(mlen * tp->qpe);
+	tp->s_hd = tp->s_tl = 0;
 
 	if (!tp->ah || !tp->rbuf || !tp->sbuf || !tp->sid)
 		goto bail;
@@ -571,8 +584,6 @@ void ucm_async_event(struct dapl_hca *hca)
 {
 	struct ibv_async_event event;
 	struct _ib_hca_transport *tp = &hca->ib_trans;
-
-	dapl_log(DAPL_DBG_TYPE_WARN, " async_event(%p)\n", hca);
 
 	if (!ibv_get_async_event(hca->ib_hca_handle, &event)) {
 
