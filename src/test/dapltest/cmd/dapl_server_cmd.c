@@ -34,6 +34,7 @@ void DT_Server_Cmd_Init(Server_Cmd_t * Server_Cmd)
 {
 	DT_dapltest_debug = 0;
 	Server_Cmd->debug = false;
+	Server_Cmd->port = SERVER_PORT_NUMBER;
 	Server_Cmd->dapl_name[0] = '\0';
 	Server_Cmd->ReliabilityLevel = DAT_QOS_BEST_EFFORT;
 }
@@ -44,7 +45,7 @@ DT_Server_Cmd_Parse(Server_Cmd_t * Server_Cmd,
 {
 	int c;
 	for (;;) {
-		c = DT_mygetopt_r(my_argc, my_argv, "dD:R:", opts);
+		c = DT_mygetopt_r(my_argc, my_argv, "dD:R:n:", opts);
 		if (c == EOF) {
 			break;
 		}
@@ -67,6 +68,11 @@ DT_Server_Cmd_Parse(Server_Cmd_t * Server_Cmd,
 				if (0 == Server_Cmd->ReliabilityLevel) {
 					return (false);
 				}
+				break;
+			}
+		case 'n':
+			{
+				Server_Cmd->port = atoi(opts->optarg);
 				break;
 			}
 		case '?':
@@ -96,8 +102,8 @@ void DT_Server_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE:              [-D <device Name>]\n");
 	DT_Mdep_printf("USAGE:              [-d] : debug (zero)\n");
 	DT_Mdep_printf("USAGE:              [-R <service reliability>]\n");
-	DT_Mdep_printf
-	    ("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
+	DT_Mdep_printf("USAGE:              [-n <server port number>]\n");
+	DT_Mdep_printf("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
 	DT_Mdep_printf("USAGE:                  (HT == QOS_HIGH_THROUGHPUT)\n");
 	DT_Mdep_printf("USAGE:                  (LL == QOS_LOW_LATENCY)\n");
 	DT_Mdep_printf("USAGE:                  (EC == QOS_ECONOMY)\n");
@@ -111,4 +117,5 @@ void DT_Server_Cmd_Print(Server_Cmd_t * Server_Cmd)
 {
 	DT_Mdep_printf("Server_Cmd.debug:       %d\n", Server_Cmd->debug);
 	DT_Mdep_printf("Server_Cmd.dapl_name: %s\n", Server_Cmd->dapl_name);
+	DT_Mdep_printf("Server_Cmd.port:       %d\n", Server_Cmd->port);
 }

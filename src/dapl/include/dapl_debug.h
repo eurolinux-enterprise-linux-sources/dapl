@@ -70,7 +70,12 @@ typedef enum
     DAPL_DBG_TYPE_THREAD  	= 0x4000,
     DAPL_DBG_TYPE_CM_EST  	= 0x8000,
     DAPL_DBG_TYPE_CM_WARN  	= 0x10000,
-    DAPL_DBG_TYPE_EXTENSION	= 0x20000
+    DAPL_DBG_TYPE_EXTENSION	= 0x20000,
+    DAPL_DBG_TYPE_CM_STATS	= 0x40000,
+    DAPL_DBG_TYPE_CM_ERRS	= 0x80000,
+    DAPL_DBG_TYPE_LINK_ERRS	= 0x100000,
+    DAPL_DBG_TYPE_LINK_WARN	= 0x200000,
+    DAPL_DBG_TYPE_DIAG_ERRS	= 0x400000,
 
 } DAPL_DBG_TYPE;
 
@@ -99,6 +104,7 @@ extern void dapl_internal_dbg_log(DAPL_DBG_TYPE type,  const char *fmt,  ...);
 
 #define DAPL_CNTR(h_ptr, cntr) ((DAT_UINT64*)h_ptr->cntrs)[cntr]++
 #define DAPL_CNTR_DATA(h_ptr, cntr, data) ((DAT_UINT64*)h_ptr->cntrs)[cntr]+= data
+#define DAPL_CNTR_RESET(h_ptr, cntr) ((DAT_UINT64*)h_ptr->cntrs)[cntr] = 0
 
 DAT_RETURN dapl_query_counter(DAT_HANDLE dh, 
 			      int counter, 
@@ -106,11 +112,17 @@ DAT_RETURN dapl_query_counter(DAT_HANDLE dh,
 			      int reset);
 char *dapl_query_counter_name(DAT_HANDLE dh, int counter);
 void dapl_print_counter(DAT_HANDLE dh, int counter, int reset);
+void dapl_print_counter_str(DAT_HANDLE dh, int counter, int reset, const char *pattern);
+void dapl_start_counters(DAT_HANDLE ia, DAT_IA_COUNTER_TYPE type);
+void dapl_stop_counters(DAT_HANDLE ia, DAT_IA_COUNTER_TYPE type);
+void dapli_start_counters(DAT_HANDLE ia);
+void dapli_stop_counters(DAT_HANDLE ia);
 
 #else
 
 #define DAPL_CNTR(handle, cntr)
 #define DAPL_CNTR_DATA(handle, cntr, data)
+#define DAPL_CNTR_RESET(handle, cntr)
 
 #endif /* DAPL_COUNTERS */
 

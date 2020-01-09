@@ -178,6 +178,9 @@ dats_get_ia_handle(IN DAT_IA_HANDLE handle, OUT DAT_IA_HANDLE * ia_handle_p)
 {
 	DAT_RETURN dat_status = DAT_SUCCESS;
 
+	if (handle == NULL)
+		return DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_IA);
+
 	/* handle to vector */
 	if (DAT_IA_HANDLE_TO_UL(handle) >= g_hv.handle_max) {
 		unsigned long i;
@@ -289,6 +292,11 @@ DAT_RETURN DAT_API dat_ia_query(IN DAT_IA_HANDLE ia_handle,
 DAT_RETURN DAT_API dat_set_consumer_context(IN DAT_HANDLE dat_handle,
 					    IN DAT_CONTEXT context)
 {
+	if (dat_handle == NULL) {
+		return DAT_ERROR(DAT_INVALID_HANDLE,
+				 DAT_INVALID_HANDLE1);
+	}
+
 	if (dats_is_ia_handle(dat_handle)) {
 		DAT_IA_HANDLE dapl_ia_handle;
 		DAT_RETURN dat_status;
@@ -298,7 +306,7 @@ DAT_RETURN DAT_API dat_set_consumer_context(IN DAT_HANDLE dat_handle,
 
 		/* failure to map the handle is unlikely but possible */
 		/* in a mult-threaded environment                     */
-		if (DAT_SUCCESS == dat_status) {
+		if (DAT_SUCCESS != dat_status) {
 			return DAT_ERROR(DAT_INVALID_HANDLE,
 					 DAT_INVALID_HANDLE1);
 		}
@@ -312,6 +320,11 @@ DAT_RETURN DAT_API dat_set_consumer_context(IN DAT_HANDLE dat_handle,
 DAT_RETURN DAT_API dat_get_consumer_context(IN DAT_HANDLE dat_handle,
 					    OUT DAT_CONTEXT * context)
 {
+	if (dat_handle == NULL) {
+		return DAT_ERROR(DAT_INVALID_HANDLE,
+				 DAT_INVALID_HANDLE1);
+	}
+
 	if (dats_is_ia_handle(dat_handle)) {
 		DAT_IA_HANDLE dapl_ia_handle;
 		DAT_RETURN dat_status;
@@ -321,7 +334,7 @@ DAT_RETURN DAT_API dat_get_consumer_context(IN DAT_HANDLE dat_handle,
 
 		/* failure to map the handle is unlikely but possible */
 		/* in a mult-threaded environment                     */
-		if (DAT_SUCCESS == dat_status) {
+		if (DAT_SUCCESS != dat_status) {
 			return DAT_ERROR(DAT_INVALID_HANDLE,
 					 DAT_INVALID_HANDLE1);
 		}
@@ -335,6 +348,11 @@ DAT_RETURN DAT_API dat_get_consumer_context(IN DAT_HANDLE dat_handle,
 DAT_RETURN DAT_API dat_get_handle_type(IN DAT_HANDLE dat_handle,
 				       OUT DAT_HANDLE_TYPE * type)
 {
+	if (dat_handle == NULL) {
+		return DAT_ERROR(DAT_INVALID_HANDLE,
+				 DAT_INVALID_HANDLE1);
+	}
+
 	if (dats_is_ia_handle(dat_handle)) {
 		DAT_IA_HANDLE dapl_ia_handle;
 		DAT_RETURN dat_status;
@@ -344,7 +362,7 @@ DAT_RETURN DAT_API dat_get_handle_type(IN DAT_HANDLE dat_handle,
 
 		/* failure to map the handle is unlikely but possible */
 		/* in a mult-threaded environment                     */
-		if (DAT_SUCCESS == dat_status) {
+		if (DAT_SUCCESS != dat_status) {
 			return DAT_ERROR(DAT_INVALID_HANDLE,
 					 DAT_INVALID_HANDLE1);
 		}
@@ -1006,6 +1024,9 @@ DAT_RETURN DAT_API dat_srq_create(IN DAT_IA_HANDLE ia_handle,
 
 DAT_RETURN DAT_API dat_srq_free(IN DAT_SRQ_HANDLE srq_handle)
 {
+	if (srq_handle == NULL) {
+		return DAT_ERROR(DAT_INVALID_HANDLE, DAT_INVALID_HANDLE_SRQ);
+	}
 	return DAT_SRQ_FREE(srq_handle);
 }
 
@@ -1059,6 +1080,11 @@ DAT_RETURN DAT_API dat_extension_op(IN DAT_HANDLE handle,
 	DAT_RETURN status;
 	DAT_IA_HANDLE dapl_handle;
 	va_list args;
+
+	if (handle == NULL) {
+		return DAT_ERROR(DAT_INVALID_HANDLE,
+				 DAT_INVALID_HANDLE1);
+	}
 
 	/* If not IA handle then just passthrough */
 	if (dats_get_ia_handle(handle, &dapl_handle) != DAT_SUCCESS) {

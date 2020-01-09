@@ -184,6 +184,32 @@ dapl_extensions(IN DAT_HANDLE dat_handle,
 			status = DAT_SUCCESS;
 			break;
 		}
+	case DAT_IB_START_COUNTERS_OP:
+		{
+			DAT_IA_COUNTER_TYPE type;
+
+			dapl_dbg_log(DAPL_DBG_TYPE_RTN,
+				     " Start counter extension call\n");
+
+			type = va_arg(args, int);
+
+			dapl_start_counters(dat_handle, type);
+			status = DAT_SUCCESS;
+			break;
+		}
+	case DAT_IB_STOP_COUNTERS_OP:
+		{
+			DAT_IA_COUNTER_TYPE type;
+
+			dapl_dbg_log(DAPL_DBG_TYPE_RTN,
+				     " Start counter extension call\n");
+
+			type = va_arg(args, int);
+
+			dapl_stop_counters(dat_handle, type);
+			status = DAT_SUCCESS;
+			break;
+		}
 #endif				/* DAPL_COUNTERS */
 #ifdef DAT_IB_COLLECTIVES
 	case DAT_IB_COLLECTIVE_CREATE_MEMBER_OP:

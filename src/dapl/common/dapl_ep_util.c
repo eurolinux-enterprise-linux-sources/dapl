@@ -352,6 +352,10 @@ dapl_ep_post_send_req(IN DAT_EP_HANDLE ep_handle,
 
 	ep_ptr = (DAPL_EP *) ep_handle;
 
+	if ((ep_ptr->param.ep_state != DAT_EP_STATE_CONNECTED) &&
+	    (ep_ptr->param.ep_state != DAT_EP_STATE_DISCONNECTED))
+		return(DAT_ERROR(DAT_INVALID_STATE, DAT_INVALID_STATE_EP_UNCONNECTED));
+
 	/*
 	 * Synchronization ok since this buffer is only used for send
 	 * requests, which aren't allowed to race with each other.
@@ -620,9 +624,11 @@ static void dapli_ep_flush_evd(DAPL_EVD *evd_ptr)
 
 void dapls_ep_flush_cqs(DAPL_EP * ep_ptr)
 {
-	dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.request_evd_handle);
-	while (dapls_cb_pending(&ep_ptr->recv_buffer))
-		dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.recv_evd_handle);
+	if (ep_ptr->param.request_evd_handle)
+		dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.request_evd_handle);
+	if (ep_ptr->param.recv_evd_handle)
+		while (dapls_cb_pending(&ep_ptr->recv_buffer))
+			dapli_ep_flush_evd((DAPL_EVD *) ep_ptr->param.recv_evd_handle);
 }
 
 /*

@@ -165,6 +165,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
 			params_ptr->ReliabilityLevel =
 			    Server_Cmd->ReliabilityLevel;
 			params_ptr->debug = Server_Cmd->debug;
+			params_ptr->server_port = Server_Cmd->port;
 			break;
 		}
 	case 'T':		/* Transaction Test */
@@ -180,6 +181,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
 			params_ptr->ReliabilityLevel =
 			    Transaction_Cmd->ReliabilityLevel;
 			params_ptr->debug = Transaction_Cmd->debug;
+			params_ptr->server_port = Transaction_Cmd->port;
 			DT_NetAddrLookupHostAddress(&params_ptr->server_netaddr,
 						    Transaction_Cmd->
 						    server_name);
@@ -213,6 +215,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
 			params_ptr->ReliabilityLevel =
 			    Limit_Cmd->ReliabilityLevel;
 			params_ptr->debug = Limit_Cmd->debug;
+			params_ptr->server_port = Limit_Cmd->port;
 			break;
 		}
 	case 'P':		/* Performance Test */
@@ -232,6 +235,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
 
 			params_ptr->ReliabilityLevel = Performance_Cmd->qos;
 			params_ptr->debug = Performance_Cmd->debug;
+			params_ptr->server_port = Performance_Cmd->port;
 			DT_NetAddrLookupHostAddress(&params_ptr->server_netaddr,
 						    Performance_Cmd->
 						    server_name);
@@ -250,6 +254,7 @@ bool DT_Params_Parse(int argc, char *argv[], Params_t * params_ptr)
 			DT_NetAddrLookupHostAddress(&params_ptr->server_netaddr,
 						    FFT_Cmd->server_name);
 			params_ptr->debug = false;
+			params_ptr->server_port = FFT_Cmd->port;
 			break;
 		}
 

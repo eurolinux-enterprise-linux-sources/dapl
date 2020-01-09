@@ -1,3 +1,540 @@
+commit d398aef3c8bbd4fbadb113a5d8e324153e555cea
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 3 15:21:08 2013 -0700
+
+    dapltest: fix endian swap issue with performance test
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 53534445d649812061b1849b1a77a3499ba0cdd0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 1 15:40:17 2013 -0700
+
+    SCM: getifaddrs modfications for better out of the box experience
+    
+    socket cm will now walk list of interfaces and ignore loopback
+    and ignore IB devices, unless the IB netdev is the only device.
+    Works better in a heterogenous environment with a mix of net device.
+    Tested with br0, mic0, and mic0:ib netdev mixes.
+    Overriding with DAPL_SCM_NETDEV still works as is.
+    
+    Signed-off-by: Patrick Mccormick <patrick.m.mccormick@intel.com>
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3315b8148ba52da67e422cf9afe6fa35d2161885
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 1 14:03:51 2013 -0700
+
+    ucm, scm: UD mode triggers list_head assert with large scale alltoall test
+    
+    1024+ ranks, IMB alltoall may hit assert when running Intel MPI in UD mode.
+    
+    CR clean up was implemented with EP to CR references still linked.
+    During cr_accept, the CR remote_ia_address is linked to EP object
+    by mistake with UD mode. UD mode my have multiple CRs per EP so
+    no direct mappings to CR memory can exist unless RC mode which
+    always has one EP to CR mapping.
+    
+    In scm, ucm: for CM object free with CR references the search and
+    unlinking from SP must be under SP lock to serialize. Also,
+    cleanup thread wakeup logic to only trigger the thread if
+    reference count indicates the need for more processing.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 40bf5a11b3c8b9767fee95fdbb544c5ddb05777f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 22 12:37:21 2013 -0700
+
+    Release 2.0.38
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 54d5fb2180f6f27141455d5252d26f40fd04d28f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jul 16 16:12:37 2013 -0700
+
+    dapltest: add -n parameter to override default server port number (45278)
+    
+    Modify all tests and commands to take a new -n parameter option for server
+    listen port. The default port, when running multiple EP's and threads,
+    will sometimes collide and fail with EADDRINUSE on iWARP configurations
+    using rdma_bind_addr with sin_port=0.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 617952fec1b8ca5ec5fc96d5568b90c1ba833ca3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 12 11:52:33 2013 -0700
+
+    ucm,scm: UD mode creates many CR objects per EP that needs cleaned up
+    
+    After connection is established and the AH is provided to consumer
+    on UD connect establishment there is no need to keep the CR object
+    on the SP. For large clusters this results in a growing memory
+    footprint for CR objects and long cleanup times on device close.
+    
+    Change ucm and scm providers to unlink and free CR resources
+    during CM object free if this is a UD QP and CONN_EST state.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 43a4b28c39199ca47d3af1f456e065cf7fbd741c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 24 14:19:22 2013 -0700
+
+    cma: add DAPL_CM_TOS environment variable to enable passing a TOS to the RDMA CM
+    
+    Signed-off-by Matthew Finlay <matt@mellanox.com>
+    Acked-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7e791ac2b328982d98cb88a41e0037b5cc26a693
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jun 6 18:22:52 2013 -0700
+
+    Release 2.0.37
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b10a904e2b782b77098b4bed03d244bdef5eba5b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 29 16:59:09 2013 -0700
+
+    common: add support for ia name during dat_ia_query
+    
+    the device name was not being updated during a query. Copy
+    the hca name into ia_attr->adapter_name for consumers.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a1428ea1aa05567c806062f87428d204ea002c55
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 29 16:53:18 2013 -0700
+
+    common: dapl_os_atomic_inc/dec() not working as expected on ppc64 machines.
+    
+    Signed-off-by: Pradeep Satyanarayana <pradeep@us.ibm.com>
+    Acked-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 704950f9ab6e03347dc4f1ac2bcd7d2b6b8fb8eb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 29 16:45:20 2013 -0700
+
+    dapltest: ppc64 endian issue with exchanged mem handle and address
+    
+    Signed-off-by: Pradeep Satyanarayana <pradeep@us.ibm.com>
+    Signed-off-by: Aravinda Venkatramana <Aravinda.Venkatramana@emulex.com>
+    Acked-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ee9dadbfe5a2b4f89419a2ce60953b987bf60144
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 5 10:00:28 2012 -0700
+
+    Release 2.0.36
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 30e1e33a7e5617ccd39da8b54df3fda8fe273f20
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 5 09:58:21 2012 -0700
+
+    scm: increase ACK timeout to 20 for a default value to match other providers.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit cb18396c3a3a44e1d7f025be95d416a78ad1e4f0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 14 14:51:38 2012 -0700
+
+    common: allow qp modify in init state
+    
+    Allow consumer to modify attributes via dat_ep_modify
+    in init state.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 885ded2eed3be6d3b3fb8ff3d5ba3eadf9aeaa98
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu May 10 14:57:31 2012 -0700
+
+    common: check for valid states during ep posting
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f23517eeef4d43445f14b9555829dc358d33eefd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu May 10 13:35:55 2012 -0700
+
+    dat.conf: keep list of providers in order for backward compatibility
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9e8f991ed9374a540ef8657f87993d6f81bd7a08
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu May 10 10:49:09 2012 -0700
+
+    ucm: record and silently drop a duplicate reject CM message
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a135cfc506e28b12e27a31b80146699c31bd2282
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 25 13:37:53 2012 -0700
+
+    windows: new version of getlocalipaddr not portable
+    
+    revert to the original getaddrinfo method for windows
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4cedaeed09769be14ea16ad5a75b63d3889085d1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 25 13:36:52 2012 -0700
+
+    dapltest: DFLT_QLEN is defined in multiple tests
+    
+    add #ifdef checking in transaction test.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4726416988a587c8baa395a08787d16f0dd21374
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 25 13:10:39 2012 -0700
+
+    Release 2.0.35
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4988c58427b9f54f7e0a1465513c9625fa1ac1d6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 25 13:07:10 2012 -0700
+
+    config/build: remove post/postun hacking used to modify dat.conf
+    
+    Return to the tried and true method of managing configuration
+    files via %config directive and remove ugly sed editing methods.
+    The dat.conf includes both v1 and v2 device entries to insure
+    backward compatibility. Add doc/dat.conf
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 294aa2f58fe4c27826337dc44f8c2d238938d252
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 23 10:35:24 2012 -0700
+
+    config: clean up help option displays with ext-type options
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e286d99817d28597a4c11b242c6c2278a284e396
+Author: stan smith <stan.smith@intel.com>
+Date:   Mon Apr 23 10:32:00 2012 -0700
+
+    windows: Provide auto-detect between RoCE and Infiniband for Windows.
+    
+    For RoCE, enable transport global ID use.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit dd0003426101be19206ba68b22d27b55677e0589
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 19 17:40:45 2012 -0700
+
+    ucm: update UD cm provider to support new CM stat and error counters
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 47685e12497a8f9eec4f37225a4b1e44649aab04
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 19 17:40:03 2012 -0700
+
+    scm: update socket cm provider to support new CM stat and error counters
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 50ed4fcc7a998877dcb17af7cde2ee8896295b7f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 19 17:15:22 2012 -0700
+
+    commom: add cm, link, and diag event counters in IB extended builds
+    
+    Add additional event monitoring capabilities during runtime to help
+    isolate issues during scaling in lieu of logging/printing warning
+    messages. Counters have been added to provider CM services and counters
+    have been added and mapped to sysfs ib_cm, device port and device
+    diag counters. ibdev_path is used for device sysfs counters.
+    
+    uDAPL CM events are tracked on a per IA instance via internal
+    provider counters. The ib_cm, link, and diag events are tracked on a
+    per platform basis via sysfs. For these running counters a start
+    and stop function is provided for sampling and mapping to DAPL
+    64 bit counters. All counters, along with new start and stop functions,
+    are provided via dat_ib_extensions.h. New IB extension version is 2.0.7
+    
+    New DCNT_IA_xx counters include 40 cm, 9 link, and 9 diag types.
+    
+    To enable new counters (default build is disabled):
+    	./configure --enable-counters
+    
+    New bitmappings have been added to DAPL_DBG_TYPE environment
+    variable to automatically start/stop counters and log
+    errors if counters are enabled. The following will control
+    CM, LINK, and DIAG respectively:
+    
+       DAPL_DBG_TYPE_CM_ERRS	= 0x080000,
+       DAPL_DBG_TYPE_LINK_ERRS	= 0x100000,
+       DAPL_DBG_TYPE_DIAG_ERRS	= 0x400000,
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0fc4298cad74f47b10c59b1808c8077910fc7c9d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 17 15:24:22 2012 -0700
+
+    scm: use ioctl SIOCIFCONF to get complete list of configured netdev interfaces
+    
+    replace usage of getaddrinfo since is doesnt actually return bound addresses
+    and can return the loopback address in some configurations. Some
+    systems may not have eth0 configured so you cannot assume eth0 as a non-loopback
+    default netdev.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 844076f2a0b749db4648c7a3cff16b328fc94b5b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Feb 17 10:28:48 2012 -0800
+
+    ucm: UD send failures at scale, ucm_send ERR: get_smsg(hd=149,tl=150)
+    
+    Full sendq should retry polling completions instead of failing.
+    When sendq is full and all requests are pending the get send message
+    code should retry polling for completions and not return error on first
+    empty CQ attempt. Give HCA a chance to complete some batched requests.
+    Also, clean up the send message error logging.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d15865106ffbd37de07e5adea7c31a4e79b5fe5c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 6 14:04:37 2012 -0800
+
+    scm: fix retry count on connection pending timeout
+    
+    Retry count not being decremented on connection TIMEOUT.
+    Also, cleanup log messages on CONN and REP pending and
+    add local port to output.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit c7a61ae813c8f8fe8b8fb326bf115bc77be8fea4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 6 14:03:20 2012 -0800
+
+    ucm: cleanup debug message, ntohl on p_size is incorrect
+    
+    private data size is a short, change to ntohs on log message
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7779fe08d1577cf4949c48c6a7e7c2e52ff71a6b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 30 10:19:29 2012 -0800
+
+    cma, scm, ucm: allow EP (QP) creation without EVD (CQ)
+    
+    Provide ability to create a EP/QP with no EVD/CQ on either the
+    request or receive queue. The current implementation allows on
+    receive queue but not request queue. Not all ofa devices support
+    a null CQ so if necessary create a dummy CQ at the time of
+    QP creation. Also, if no CQ is specified set appropriate QP
+    max wr/sge attributes to zero.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 79888537df15161107487378372fd8c1dc8c764f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 30 10:09:42 2012 -0800
+
+    common: add DAPL_DBG_TYPE_CM_STATS (0x40000) to debug log options
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 16b0d53e4b734dbc2644ca9b08c536aebbc5d1cb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jan 25 11:54:29 2012 -0800
+
+    common: dapls_ep_flush_cq will segfault when no CQ is attached to EP
+    
+    add check for NULL request/receive EVD (cq) before flushing.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 960538d9c5cf944e1d58104e43483d91337bccd2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jan 25 11:50:21 2012 -0800
+
+    common: ep_create should allow max_request_iov attribute setting of zero
+    
+    When creating an EP without a request EVD (cq) the max_request_iov
+    and max_request_sge will be 0. Allow this combination when checking
+    attribute settings for ARG6.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ae9bd7d8b18f0f63a5ab8c049aa7b1010ab27ce0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jan 18 15:47:12 2012 -0800
+
+    common: add check for NULL handle on ext calls, SRQ free, and helper functions
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f77dcf8ad81261f466e7bb0bb63dfed33c062e90
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 13 12:01:26 2012 -0800
+
+    common: add missing sub-types to dat_strerror()
+    
+    "unknown minor error" string returned with valid sub types.
+    Update function for sub-type error codes in dat_error.h.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d4963d5b18220091e85fb8fab882906b29382739
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jan 12 09:54:59 2012 -0800
+
+    common: extended CR event processing missing rejects on errors
+    
+    When processing an inbound CR event callback a non-user reject should be
+    sent to client in the case of a non-listening SP, allocation error,
+    or EVD overrun. Changes made to dapls_evd_post_cr_event_ext callback.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 391006dfded6601488f32a3e10de329a575ab355
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jan 12 09:39:46 2012 -0800
+
+    ucm: incorrectly sends user reject during CR callback errors
+    
+    Add reason checking on provider rejects and set appropriate op type
+    in reject message. Reject can be called from cr callback during
+    failures. User reject will be IB_CM_REJ_REASON_CONSUMER_REJ.
+    Add warning message on active side.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 292c633250b9e0b6644e4d529170123fc5f301e7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 10 15:42:24 2012 -0800
+
+    common: change dbg level on CR callback if not listening on SP
+    
+    Change from from CM to CM_WARN level and include in non-debug build.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3b35315460b7412605affff6f9a22532c738e1c9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 9 15:03:21 2012 -0800
+
+    scm: incorrectly sends user reject during CR callback errors
+    
+    Add reason checking on provider rejects and set appropriate op type
+    in reject message. Reject can be called from cr callback during
+    failures. User reject will be IB_CM_REJ_REASON_CONSUMER_REJ.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 285f3798c1b006f0e614fee2ecd58049eb5fabd3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 9 10:29:26 2012 -0800
+
+    dat: add check for NULL handle on IA calls
+    
+    check added to dats_get_ia_handle()
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d29a85aecd0976be0ea677c4d55ee80b8c9b5f52
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Dec 7 16:39:55 2011 -0800
+
+    cma,scm,ucm: extra reference on EP, with RSP, causes dat_ep_free() to hang
+    
+    Need to add check for RSP or PSP provider type service points during
+    passive side accepts before taking CR reference on the EP. In these
+    cases, the EP is already linked to inbound CR.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit c5ff770c2ef572561f409181d2627d645334a9bf
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Dec 7 16:34:17 2011 -0800
+
+    common: RSP service points incorrectly freed during CR callback
+    
+    The RSP service point is being removed because of improper
+    state/flag checking during CR callback. Add state check
+    for DAPL_SP_STATE_RSP_LISTENING.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit cf402be628dd54c3139cc66af30232b13ef0c70a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 2 15:45:30 2011 -0800
+
+    common: clean up dat_rsp_create log message
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2bdbcdb883dc1de3fc5f53b1a2accc9b56801b02
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 2 15:44:04 2011 -0800
+
+    common: cleanup debug message on EVD overflows
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b880f8a612f1b031aa403a2a924ab605b28f2986
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 2 15:31:09 2011 -0800
+
+    scm: return correct event error code when remote host refuses requests
+    
+    changed from TIMEOUT to NON_PEER_REJECTED
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 442588d75b3408fb2072c567cb673061c65c1f75
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 2 15:29:08 2011 -0800
+
+    dapltest: server CR EVD is too small for multi-client configurations.
+    
+    Increase default size from 8 to 32.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a5acb2355958501a0a0855bd9b1d533f29148626
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 2 15:28:31 2011 -0800
+
+    Common: CR EVD overflow causes segfault.
+    
+    The CR is freed up incorrectly before unlinking with SP.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit df31e386354a4755b0cd416d27a1f9334340ca65
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 2 16:36:22 2011 -0700
+
+    Release 2.0.34
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
 commit be8891b39ab9817216fd5736c6e2cce98ec78e91
 Author: Arlin Davis <arlin.r.davis@intel.com>
 Date:   Wed Nov 2 10:40:02 2011 -0700

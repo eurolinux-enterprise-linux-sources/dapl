@@ -342,7 +342,7 @@ dapl_convert_errno( IN int err, IN const char *str )
     if (!err)  return DAT_SUCCESS;
     	
     if ((err != EAGAIN) && (err != ETIMEDOUT))
-	dapl_log (DAPL_DBG_TYPE_ERR," %s %s\n", str, strerror(err));
+	dapl_log (DAPL_DBG_TYPE_ERR," DAPL ERR %s %s\n", str, strerror(err));
 
     switch( err )
     {

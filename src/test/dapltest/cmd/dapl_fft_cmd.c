@@ -45,6 +45,7 @@ void DT_FFT_Cmd_Init(FFT_Cmd_t * cmd)
 	cmd->num_iter = 1000;
 	cmd->num_threads = 10;
 	cmd->num_vis = 500;
+	cmd->port = SERVER_PORT_NUMBER;
 	cmd->ReliabilityLevel = DAT_QOS_BEST_EFFORT;
 }
 
@@ -57,7 +58,7 @@ bool DT_FFT_Cmd_Parse(FFT_Cmd_t * cmd,
 	unsigned int len;
 
 	for (;;) {
-		c = DT_mygetopt_r(my_argc, my_argv, "D:f:s:i:t:v:R:", opts);
+		c = DT_mygetopt_r(my_argc, my_argv, "D:f:s:i:t:v:R:n:", opts);
 		if (c == EOF) {
 			break;
 		}
@@ -201,7 +202,11 @@ bool DT_FFT_Cmd_Parse(FFT_Cmd_t * cmd,
 				}
 				break;
 			}
-
+		case 'n':
+			{
+				cmd->port = atoi(opts->optarg);
+				break;
+			}
 		case '?':
 		default:
 			{
@@ -286,6 +291,7 @@ void DT_FFT_Cmd_Usage(void)
 		"dapltest -T F [-D <dev_name>] -f <funcfeature> [-i <iter_num>] \n"
 		    "[-t <num_threads>] [-v <num_vis>] [-s <server_name>] [case0] [case1] [...]\n"
 		    "USAGE:        [-D <device Name>]\n"
+		    "USAGE:        [-n <server port number>]\n"
 		    "USAGE:         -f <func_feature>\n"
 		    "USAGE:             hwconn\n"
 		    "USAGE:             endpoint\n"

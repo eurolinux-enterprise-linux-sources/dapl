@@ -48,6 +48,7 @@ struct ib_cm_handle
 	struct dapl_hca		*hca;
 	struct dapl_sp		*sp;	
 	struct dapl_ep 		*ep;
+	struct dapl_cr 		*cr;
 	struct ibv_ah		*ah;
 	uint16_t		p_size; /* accept p_data, for retries */
 	uint8_t			p_data[DCM_MAX_PDATA_SIZE];

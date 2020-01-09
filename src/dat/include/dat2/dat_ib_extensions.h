@@ -73,9 +73,10 @@
  * 2.0.4 - Add DAT_IB_UD_CONNECTION_REJECT_EVENT extended UD event
  * 2.0.5 - Add DAT_IB_UD extended UD connection error events
  * 2.0.6 - Add MPI over IB collective extensions
+ * 2.0.7 - Add new IA counters for dapl CM, device LINK, device DIAG
  *
  */
-#define DAT_IB_EXTENSION_VERSION	206	/* 2.0.6 */
+#define DAT_IB_EXTENSION_VERSION	207	/* 2.0.7 */
 #define DAT_IB_ATTR_COUNTERS		"DAT_COUNTERS"
 #define DAT_IB_ATTR_FETCH_AND_ADD	"DAT_IB_FETCH_AND_ADD"
 #define DAT_IB_ATTR_CMP_AND_SWAP	"DAT_IB_CMP_AND_SWAP"
@@ -151,6 +152,8 @@ typedef enum dat_ib_op
 	DAT_IB_COLLECTIVE_SCAN_OP,
 	DAT_IB_COLLECTIVE_BROADCAST_OP,
 	DAT_IB_COLLECTIVE_BARRIER_OP,
+	DAT_IB_START_COUNTERS_OP,
+	DAT_IB_STOP_COUNTERS_OP,
 	
 } DAT_IB_OP;
 
@@ -369,6 +372,65 @@ typedef enum dat_ia_counters
 	DCNT_IA_ASYNC_ERROR,
 	DCNT_IA_ASYNC_QP_ERROR,
 	DCNT_IA_ASYNC_CQ_ERROR,
+	DCNT_IA_CM_LISTEN,
+	DCNT_IA_CM_REQ_TX,
+	DCNT_IA_CM_REQ_RX,
+	DCNT_IA_CM_REP_TX,
+	DCNT_IA_CM_REP_RX,
+	DCNT_IA_CM_RTU_TX,
+	DCNT_IA_CM_RTU_RX,
+	DCNT_IA_CM_USER_REJ_TX,
+	DCNT_IA_CM_USER_REJ_RX,
+	DCNT_IA_CM_ACTIVE_EST,
+	DCNT_IA_CM_PASSIVE_EST,
+	DCNT_IA_CM_AH_REQ_TX,
+	DCNT_IA_CM_AH_REQ_RX,
+	DCNT_IA_CM_AH_RESOLVED,
+	DCNT_IA_CM_DREQ_TX,
+	DCNT_IA_CM_DREQ_RX,
+	DCNT_IA_CM_DREP_TX,
+	DCNT_IA_CM_DREP_RX,
+	DCNT_IA_CM_MRA_TX,
+	DCNT_IA_CM_MRA_RX,
+	DCNT_IA_CM_REQ_FULLQ_POLL,
+	DCNT_IA_CM_ERR,
+	DCNT_IA_CM_ERR_REQ_FULLQ,
+	DCNT_IA_CM_ERR_REQ_DUP,
+	DCNT_IA_CM_ERR_REQ_RETRY,
+	DCNT_IA_CM_ERR_REP_DUP,
+	DCNT_IA_CM_ERR_REP_RETRY,
+	DCNT_IA_CM_ERR_RTU_DUP,
+	DCNT_IA_CM_ERR_RTU_RETRY,
+	DCNT_IA_CM_ERR_REFUSED,
+	DCNT_IA_CM_ERR_RESET,
+	DCNT_IA_CM_ERR_TIMEOUT,
+	DCNT_IA_CM_ERR_REJ_TX,
+	DCNT_IA_CM_ERR_REJ_RX,
+	DCNT_IA_CM_ERR_DREQ_DUP,
+	DCNT_IA_CM_ERR_DREQ_RETRY,
+	DCNT_IA_CM_ERR_DREP_DUP,
+	DCNT_IA_CM_ERR_DREP_RETRY,
+	DCNT_IA_CM_ERR_MRA_DUP,
+	DCNT_IA_CM_ERR_MRA_RETRY,
+	DCNT_IA_CM_ERR_UNEXPECTED,
+	DCNT_IA_LNK_ERR_RCV,
+	DCNT_IA_LNK_ERR_RCV_REM_PHYS,
+	DCNT_IA_LNK_ERR_RCV_CONSTRAINT,
+	DCNT_IA_LNK_ERR_XMT_DISCARDS,
+	DCNT_IA_LNK_ERR_XMT_CONTRAINT,
+	DCNT_IA_LNK_ERR_INTEGRITY,
+	DCNT_IA_LNK_ERR_EXC_BUF_OVERRUN,
+	DCNT_IA_LNK_WARN_RCV_SW_RELAY,
+	DCNT_IA_LNK_WARN_XMT_WAIT,
+	DCNT_IA_DIAG_ERR_RQ_RAE,
+	DCNT_IA_DIAG_ERR_RQ_OOS,
+	DCNT_IA_DIAG_ERR_RQ_RIRE,
+	DCNT_IA_DIAG_ERR_RQ_UDSDPRD,
+	DCNT_IA_DIAG_ERR_SQ_RAE,
+	DCNT_IA_DIAG_ERR_SQ_OOS,
+	DCNT_IA_DIAG_ERR_SQ_RIRE,
+	DCNT_IA_DIAG_ERR_SQ_RREE,
+	DCNT_IA_DIAG_ERR_SQ_TREE,
 	DCNT_IA_ALL_COUNTERS,  /* MUST be last */
 
 } DAT_IA_COUNTERS;
@@ -424,6 +486,19 @@ typedef enum dat_evd_counters
 	DCNT_EVD_ALL_COUNTERS,  /* MUST be last */
 
 } DAT_EVD_COUNTERS;
+
+/*
+ * Definitions IA Counter Types
+ * 	for sampling running counters
+ *
+ */
+typedef enum dat_ia_counter_type
+{
+	DCNT_IA_CM,
+	DCNT_IA_LNK,
+	DCNT_IA_DIAG,
+
+} DAT_IA_COUNTER_TYPE;
 
 /*
  * Data type for reduce operations
@@ -653,6 +728,24 @@ dat_strerror_ext_status (
 		IN (DAT_IB_OP) DAT_PRINT_COUNTERS_OP, \
 		IN (int) (cntr), \
 		IN (int) (reset))
+
+/*
+ * Start and stop counter(s):
+ * Provide IA, call will start sampling running IB counters
+ * 	DAT_HANDLE dat_handle, counter type (link, diag)
+ *
+ */
+#define dat_ib_start_counter(dat_handle, type) \
+	dat_extension_op(\
+		IN (DAT_HANDLE) dat_handle, \
+		IN (DAT_IB_OP) DAT_IB_START_COUNTERS_OP, \
+		IN (DAT_COUNTER_TYPE) (type))
+
+#define dat_ib_stop_counter(dat_handle, type) \
+	dat_extension_op(\
+		IN (DAT_HANDLE) dat_handle, \
+		IN (DAT_IB_OP) DAT_IB_STOP_COUNTERS_OP, \
+		IN (DAT_COUNTER_TYPE) (type))
 
 /*
  ************************ MPI IB Collective Functions ***********************

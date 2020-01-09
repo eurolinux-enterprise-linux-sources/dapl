@@ -152,8 +152,8 @@ void dapls_cr_callback(IN dp_ib_cm_handle_t ib_cm_handle, IN const ib_cm_events_
 			dapl_os_lock(&sp_ptr->header.lock);
 			if (sp_ptr->listening == DAT_FALSE) {
 				dapl_os_unlock(&sp_ptr->header.lock);
-				dapl_dbg_log(DAPL_DBG_TYPE_CM,
-					     "---> dapls_cr_callback: conn event on down SP\n");
+				dapl_log(DAPL_DBG_TYPE_CM_WARN,
+					 " cr_callback: CR event on non-listening SP\n");
 				(void)dapls_ib_reject_connection(ib_cm_handle,
 								 DAT_CONNECTION_EVENT_UNREACHABLE,
 								 0, NULL);
@@ -414,7 +414,6 @@ dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 						     (DAT_CR_HANDLE) cr_ptr);
 
 	if (dat_status != DAT_SUCCESS) {
-		dapls_cr_free(cr_ptr);
 		(void)dapls_ib_reject_connection(ib_cm_handle,
 						 DAT_CONNECTION_EVENT_BROKEN,
 						 0, NULL);
@@ -423,6 +422,7 @@ dapli_connection_request(IN dp_ib_cm_handle_t ib_cm_handle,
 		dapl_os_lock(&sp_ptr->header.lock);
 		dapl_sp_remove_cr(sp_ptr, cr_ptr);
 		dapl_os_unlock(&sp_ptr->header.lock);
+		dapls_cr_free(cr_ptr);
 		return DAT_INSUFFICIENT_RESOURCES;
 	}
 
@@ -499,7 +499,8 @@ DAPL_EP *dapli_get_sp_ep(IN dp_ib_cm_handle_t ib_cm_handle,
 		 * up after the last CR is removed
 		 */
 		if (sp_ptr->listening != DAT_TRUE && sp_ptr->cr_list_count == 0
-		    && sp_ptr->state != DAPL_SP_STATE_FREE) {
+		    && sp_ptr->state != DAPL_SP_STATE_FREE
+		    && sp_ptr->state != DAPL_SP_STATE_RSP_LISTENING) {
 			dapl_dbg_log(DAPL_DBG_TYPE_CM,
 				     "--> dapli_get_sp_ep! disconnect dump sp: %p \n",
 				     sp_ptr);

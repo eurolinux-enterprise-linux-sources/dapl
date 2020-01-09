@@ -119,8 +119,7 @@ int dapltest(int argc, char *argv[])
 void Dapltest_Main_Usage(void)
 {
 	DT_Mdep_printf("USAGE:\n");
-	DT_Mdep_printf
-	    ("USAGE:     dapltest -T <Test_Type> [-D IA_name] [test-specific args]\n");
+	DT_Mdep_printf("USAGE:     dapltest -T <Test_Type> [-D IA_name] [-n port_number] [test-specific args]\n");
 	DT_Mdep_printf("USAGE:         where <Test_Type>\n");
 	DT_Mdep_printf("USAGE:         S = Run as a server\n");
 	DT_Mdep_printf("USAGE:         T = Transaction Test\n");
@@ -129,11 +128,12 @@ void Dapltest_Main_Usage(void)
 	DT_Mdep_printf("USAGE:         L = Limit Test\n");
 	DT_Mdep_printf("USAGE:         F = FFT Test\n");
 	DT_Mdep_printf("USAGE:\n");
-	DT_Mdep_printf
-	    ("USAGE:         -D Interface_Adapter {default ibnic0v2}\n");
+	DT_Mdep_printf("USAGE:         -D Interface_Adapter {default ibnic0v2}\n");
+	DT_Mdep_printf("USAGE:\n");
+	DT_Mdep_printf("USAGE:         -n server_port_number {default 42768}\n");
 	DT_Mdep_printf("USAGE:\n");
 	DT_Mdep_printf
-	    ("NOTE:\tRun as server taking defaults (dapltest -T S [-D ibnic0v2])\n");
+	    ("NOTE:\tRun as server taking defaults (dapltest -T S [-D ibnic0v2] [-p 42768])\n");
 	DT_Mdep_printf("NOTE:         dapltest\n");
 	DT_Mdep_printf("NOTE:\n");
 	DT_Mdep_printf

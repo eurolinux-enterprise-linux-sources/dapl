@@ -192,18 +192,16 @@ static void DT_Transaction_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE:     dapltest -T T\n");
 	DT_Mdep_printf("USAGE:              -s <server Name>\n");
 	DT_Mdep_printf("USAGE:              [-D <device Name>]\n");
+	DT_Mdep_printf("USAGE:              [-n <server port number>]\n");
 	DT_Mdep_printf("USAGE:              [-d] : debug (zero)\n");
-	DT_Mdep_printf
-	    ("USAGE:              [-i <num iterations>]     : (1, 000)\n");
+	DT_Mdep_printf("USAGE:              [-i <num iterations>]     : (1, 000)\n");
 	DT_Mdep_printf("USAGE:              [-t <num threads>]        : (1)\n");
 	DT_Mdep_printf("USAGE:              [-w <num EPs per thread>] : (1)\n");
 	DT_Mdep_printf("USAGE:              [-V ] : Validate data: (false)\n");
-	DT_Mdep_printf
-	    ("USAGE:              [-P ] : DTO Completion Polling: (false)\n");
+	DT_Mdep_printf("USAGE:              [-P ] : DTO Completion Polling: (false)\n");
 	DT_Mdep_printf("USAGE:              [-r ] : Use RSPs: (false)\n");
 	DT_Mdep_printf("USAGE:              [-R <service reliability>]\n");
-	DT_Mdep_printf
-	    ("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
+	DT_Mdep_printf("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
 	DT_Mdep_printf("USAGE:                  (HT == QOS_HIGH_THROUGHPUT)\n");
 	DT_Mdep_printf("USAGE:                  (LL == QOS_LOW_LATENCY)\n");
 	DT_Mdep_printf("USAGE:                  (EC == QOS_ECONOMY)\n");
@@ -216,16 +214,12 @@ static void DT_Transaction_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE:                     : \"RR\" (RDMA READ)\n");
 	DT_Mdep_printf("USAGE:                     : \"RW\" (RDMA WRITE)\n");
 	DT_Mdep_printf("USAGE:     [seg_size [num_segs] ]      : (4096, 1)\n");
-	DT_Mdep_printf
-	    ("USAGE:     [-f]                 : Reap sends on recv\n");
+	DT_Mdep_printf("USAGE:     [-f]                 : Reap sends on recv\n");
 	DT_Mdep_printf("USAGE:\n");
 	DT_Mdep_printf("NOTE: -f is only allowed on \"SR\" OPs\n");
-	DT_Mdep_printf
-	    ("NOTE: -f must appear in pairs (one client, one server)\n");
-	DT_Mdep_printf
-	    ("NOTE: At least one server SR and one client SR OP are required\n");
-	DT_Mdep_printf
-	    ("NOTE: and use of -V results in the use of three extra OPs\n");
+	DT_Mdep_printf("NOTE: -f must appear in pairs (one client, one server)\n");
+	DT_Mdep_printf("NOTE: At least one server SR and one client SR OP are required\n");
+	DT_Mdep_printf("NOTE: and use of -V results in the use of three extra OPs\n");
 }
 
 void DT_Transaction_Cmd_Init(Transaction_Cmd_t * cmd)
@@ -238,6 +232,7 @@ void DT_Transaction_Cmd_Init(Transaction_Cmd_t * cmd)
 	cmd->eps_per_thread = 1;
 	cmd->debug = false;
 	cmd->validate = false;
+	cmd->port = SERVER_PORT_NUMBER;
 	cmd->ReliabilityLevel = DAT_QOS_BEST_EFFORT;
 }
 
@@ -250,7 +245,7 @@ DT_Transaction_Cmd_Parse(Transaction_Cmd_t * cmd,
 	int i;
 	char op[100];
 	for (;;) {
-		c = DT_mygetopt_r(my_argc, my_argv, "rQVPdw:s:D:i:t:v:R:",
+		c = DT_mygetopt_r(my_argc, my_argv, "rQVPdw:s:D:i:t:v:R:n:",
 				  opts);
 		if (c == EOF) {
 			break;
@@ -339,6 +334,11 @@ DT_Transaction_Cmd_Parse(Transaction_Cmd_t * cmd,
 				    DT_ParseQoS(opts->optarg);
 				break;
 			}
+		case 'n':
+			{
+				cmd->port = atoi(opts->optarg);
+				break;
+			}
 		case '?':
 		default:
 			{
@@ -422,6 +422,8 @@ void DT_Transaction_Cmd_Print(Transaction_Cmd_t * cmd)
 	DT_Mdep_printf("-------------------------------------\n");
 	DT_Mdep_printf("TransCmd.server_name              : %s\n",
 		       cmd->server_name);
+	DT_Mdep_printf("TransCmd.server_port_number       : %d\n",
+		       cmd->port);
 	DT_Mdep_printf("TransCmd.num_iterations           : %d\n",
 		       cmd->num_iterations);
 	DT_Mdep_printf("TransCmd.num_threads              : %d\n",

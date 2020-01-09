@@ -34,7 +34,7 @@
 #undef DFLT_QLEN
 #endif
 
-#define DFLT_QLEN 8		/* default event queue length */
+#define DFLT_QLEN 32		/* default event queue length */
 
 int send_control_data(DT_Tdep_Print_Head * phead,
 		      unsigned char *buffp,
@@ -97,7 +97,7 @@ void DT_cs_Server(Params_t * params_ptr)
 		goto server_exit;
 	}
 	DT_Mdep_LockInit(&ps_ptr->num_clients_lock);
-	ps_ptr->NextPortNumber = SERVER_PORT_NUMBER + 1;
+	ps_ptr->NextPortNumber = params_ptr->server_port + 1;
 	ps_ptr->num_clients = 0;
 
 	/* Open the IA */
@@ -191,7 +191,7 @@ void DT_cs_Server(Params_t * params_ptr)
 
 	/* Create PSP */
 	ret = dat_psp_create(ps_ptr->ia_handle,
-			     SERVER_PORT_NUMBER,
+			     params_ptr->server_port,
 			     ps_ptr->creq_evd_hdl,
 			     DAT_PSP_CONSUMER_FLAG, &ps_ptr->psp_handle);
 	if (ret != DAT_SUCCESS) {
@@ -303,7 +303,7 @@ void DT_cs_Server(Params_t * params_ptr)
 				  module));
 		if (!DT_cr_event_wait(phead, ps_ptr->creq_evd_hdl, &cr_stat)
 		    || !DT_cr_check(phead, &cr_stat, ps_ptr->psp_handle,
-				    SERVER_PORT_NUMBER, &cr_handle, module)) {
+				    params_ptr->server_port, &cr_handle, module)) {
 
 			DT_Tdep_PT_Printf(phead,
 					  "CR Check failed, file %s line %d\n",
@@ -434,8 +434,8 @@ void DT_cs_Server(Params_t * params_ptr)
 		pt_ptr->Server_Info.is_little_endian =
 		    DT_local_is_little_endian;
 		/* reset port, don't eat up port space on long runs */
-		if (ps_ptr->NextPortNumber >= SERVER_PORT_NUMBER + 1000)
-			ps_ptr->NextPortNumber = SERVER_PORT_NUMBER + 1;
+		if (ps_ptr->NextPortNumber >= params_ptr->server_port + 1000)
+			ps_ptr->NextPortNumber = params_ptr->server_port + 1;
 		pt_ptr->Server_Info.first_port_number = ps_ptr->NextPortNumber;
 		ps_ptr->NextPortNumber += pt_ptr->Client_Info.total_threads;
 

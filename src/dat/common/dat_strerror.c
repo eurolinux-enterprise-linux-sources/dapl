@@ -233,6 +233,11 @@ dat_strerror_minor(IN DAT_RETURN value, OUT const char **message)
 			*message = "DAT_RESOURCE_CREDITS";
 			return DAT_SUCCESS;
 		}
+	case DAT_RESOURCE_SRQ:
+		{
+			*message = "DAT_RESOURCE_SRQ";
+			return DAT_SUCCESS;
+		}
 	case DAT_INVALID_HANDLE_IA:
 		{
 			*message = "DAT_INVALID_HANDLE_IA";
@@ -301,6 +306,66 @@ dat_strerror_minor(IN DAT_RETURN value, OUT const char **message)
 	case DAT_INVALID_HANDLE_EVD_ASYNC:
 		{
 			*message = "DAT_INVALID_HANDLE_EVD_ASYNC";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE_SRQ:
+		{
+			*message = "DAT_INVALID_HANDLE_SRQ";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE_CSP:
+		{
+			*message = "DAT_INVALID_HANDLE_CSP";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE1:
+		{
+			*message = "DAT_INVALID_HANDLE1";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE2:
+		{
+			*message = "DAT_INVALID_HANDLE2";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE3:
+		{
+			*message = "DAT_INVALID_HANDLE3";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE4:
+		{
+			*message = "DAT_INVALID_HANDLE4";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE5:
+		{
+			*message = "DAT_INVALID_HANDLE5";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE6:
+		{
+			*message = "DAT_INVALID_HANDLE6";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE7:
+		{
+			*message = "DAT_INVALID_HANDLE7";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE8:
+		{
+			*message = "DAT_INVALID_HANDLE8";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE9:
+		{
+			*message = "DAT_INVALID_HANDLE9";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_HANDLE10:
+		{
+			*message = "DAT_INVALID_HANDLE10";
 			return DAT_SUCCESS;
 		}
 	case DAT_INVALID_ARG1:
@@ -406,6 +471,51 @@ dat_strerror_minor(IN DAT_RETURN value, OUT const char **message)
 	case DAT_INVALID_STATE_EP_NOTREADY:
 		{
 			*message = "DAT_INVALID_STATE_EP_NOTREADY";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_RECV_WATERMARK:
+		{
+			*message = "DAT_INVALID_STATE_EP_RECV_WATERMARK";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_PZ:
+		{
+			*message = "DAT_INVALID_STATE_EP_PZ";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_EVD_REQUEST:
+		{
+			*message = "DAT_INVALID_STATE_EP_EVD_REQUEST";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_EVD_RECV:
+		{
+			*message = "DAT_INVALID_STATE_EP_EVD_RCV";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_EVD_CONNECT:
+		{
+			*message = "DAT_INVALID_STATE_EP_EVD_CONNECT";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_UNCONFIGURED:
+		{
+			*message = "DAT_INVALID_STATE_EP_UNCONFIGURED";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_UNCONFRESERVED:
+		{
+			*message = "DAT_INVALID_STATE_EP_UNCONFRESERVED";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_UNCONFPASSIVE:
+		{
+			*message = "DAT_INVALID_STATE_EP_UNCONFPASSIVE";
+			return DAT_SUCCESS;
+		}
+	case DAT_INVALID_STATE_EP_UNCONFTENTATIVE:
+		{
+			*message = "DAT_INVALID_STATE_EP_UNCONFTENTATIVE";
 			return DAT_SUCCESS;
 		}
 	case DAT_INVALID_STATE_CNO_IN_USE:

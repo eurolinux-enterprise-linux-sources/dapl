@@ -33,6 +33,8 @@
 
 #include "dapl_proto.h"
 
+#define SERVER_PORT_NUMBER ((DAT_CONN_QUAL)0xB0de)
+
 typedef enum
 {
     RDMA_READ,

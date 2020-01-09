@@ -62,6 +62,7 @@ typedef struct
     DAT_UINT32		debug;			/* -d */
     DAT_UINT32		maximum;		/* -m */
     DAT_UINT32 		Test_List[ LIM_NUM_TESTS ];
+    DAT_CONN_QUAL	port;			/* -n */
 } Limit_Cmd_t;
 
 #pragma pack ()

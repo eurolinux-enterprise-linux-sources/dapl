@@ -59,11 +59,12 @@ typedef struct
     DAT_UINT32      debug;		/* -d */
     DAT_UINT32      validate;		/* -V */
     DAT_UINT32      poll;		/* -P */
+    DAT_CONN_QUAL   port;		/* -n */
     char            dapl_name[NAME_SZ]; /* -D */
     DAT_QOS         ReliabilityLevel;
     DAT_UINT32      num_ops;
     Transaction_Cmd_Op_t op[MAX_OPS];
-} Transaction_Cmd_t;
+ } Transaction_Cmd_t;
 #pragma pack ()
 
 #endif

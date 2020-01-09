@@ -38,6 +38,7 @@ typedef struct
     bool            debug;		/* -d */
     char            dapl_name[256];	/* -D device name */
     DAT_QOS         ReliabilityLevel;	/* -R */
+    DAT_CONN_QUAL   port;		/* -n */
 } Server_Cmd_t;
 #pragma pack ()
 

@@ -266,6 +266,10 @@ dapl_ia_open(IN const DAT_NAME_PTR name,
 	*ia_handle_ptr = ia_ptr;
 	*async_evd_handle_ptr = evd_ptr;
 
+#if DAPL_COUNTERS
+	dapli_start_counters((DAT_HANDLE)ia_ptr);
+#endif
+
       bail:
 	if (dat_status != DAT_SUCCESS) {
 		if (ia_ptr) {

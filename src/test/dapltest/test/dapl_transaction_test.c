@@ -43,6 +43,10 @@
  */
 #define SYNC_BUFF_SIZE		64
 
+#ifdef DFLT_QLEN
+#undef DFLT_QLEN
+#endif
+
 #define DFLT_QLEN      8	/* default event queue length */
 #define DFLT_TMO      10	/* default timeout (seconds)  */
 #define MAX_CONN_RETRY 8

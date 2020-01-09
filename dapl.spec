@@ -1,12 +1,13 @@
 Name: dapl
-Version: 2.0.34
-Release: 1%{?dist}
+Version: 2.0.39
+Release: 2%{?dist}
 Summary: Library providing access to the DAT 2.0 API
 Group: System Environment/Libraries
 License: GPLv2 or BSD or CPL
 Url: http://openfabrics.org/
 Source0: http://www.openfabrics.org/downloads/dapl/dapl-%{version}.tar.gz
 Patch3: dapl-2.0.25-dat_ia_open_hang.patch
+Patch4: dapl-2.0.34-compile.patch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -44,6 +45,7 @@ Useful test suites to validate the dapl library API's and operation.
 %prep
 %setup -q
 %patch3 -p1 -b .bz649360
+%patch4 -p1 -b .bz1029509
 aclocal -I config && libtoolize --force --copy && autoheader && \
     automake --foreign --add-missing --copy && autoconf
 
@@ -86,6 +88,15 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*
 
 %changelog
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 2.0.39-2
+- Mass rebuild 2013-12-27
+
+* Wed Dec 19 2013 Jay Fenlason <fenlason@redhat.com> - 2.0.39-1
+- Upgrade to latest version
+  Resolves: rhbz#985117
+- Fix a compile problem with NULL not being defined
+  Resolves: rhbz#1029509
+
 * Mon Jan 23 2012 Doug Ledford <dledford@redhat.com> - 2.0.34-1
 - Update to latest upstream version
 - Rebuild against new libibverbs (FDR link speed capable and IBoE enabled)

@@ -215,7 +215,7 @@ DT_cs_Client(Params_t * params_ptr,
 
 	DT_Tdep_PT_Debug(1, (phead, "%s: Connect Endpoint\n", module));
       retry:
-	ret = dat_ep_connect(ep_handle, server_netaddr, SERVER_PORT_NUMBER, DAT_TIMEOUT_INFINITE, 0, (DAT_PVOID) 0,	/* no private data */
+	ret = dat_ep_connect(ep_handle, server_netaddr, params_ptr->server_port, DAT_TIMEOUT_INFINITE, 0, (DAT_PVOID) 0,	/* no private data */
 			     params_ptr->ReliabilityLevel,
 			     DAT_CONNECT_DEFAULT_FLAG);
 	if (ret != DAT_SUCCESS) {

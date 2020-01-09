@@ -70,6 +70,7 @@ typedef struct
     bool	    local_is_little_endian;
     bool	    debug;
     double	    cpu_mhz;
+    int		    server_port;
 } Params_t;
 
 #endif

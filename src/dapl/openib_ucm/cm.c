@@ -32,6 +32,7 @@
 #include "dapl_name_service.h"
 #include "dapl_ib_util.h"
 #include "dapl_ep_util.h"
+#include "dapl_sp_util.h"
 #include "dapl_osd.h"
 
 
@@ -173,6 +174,7 @@ static void ucm_check_timers(dp_ib_cm_handle_t cm, int *timer)
 				 (time - cm->timer)/1000,
 				 cm->hca->ib_trans.rep_time << cm->retries);
 			cm->retries++;
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_REQ_RETRY);
 			dapl_os_unlock(&cm->lock);
 			dapli_cm_connect(cm->ep, cm);
 			return;
@@ -195,6 +197,7 @@ static void ucm_check_timers(dp_ib_cm_handle_t cm, int *timer)
 				 (time - cm->timer)/1000, 
 				 cm->hca->ib_trans.rtu_time << cm->retries);
 			cm->retries++;
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_REP_RETRY);
 			dapl_os_unlock(&cm->lock);
 			ucm_reply(cm);
 			return;
@@ -217,6 +220,7 @@ static void ucm_check_timers(dp_ib_cm_handle_t cm, int *timer)
 				 (time - cm->timer)/1000, 
 				 cm->hca->ib_trans.rtu_time << cm->retries);
 			cm->retries++;
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_DREQ_RETRY);
 			dapl_os_unlock(&cm->lock);
 			dapli_cm_disconnect(cm);
                         return;
@@ -234,41 +238,47 @@ static void ucm_check_timers(dp_ib_cm_handle_t cm, int *timer)
 static ib_cm_msg_t *ucm_get_smsg(ib_hca_transport_t *tp)
 {
 	ib_cm_msg_t *msg = NULL; 
-	int ret, polled = 0, hd = tp->s_hd;
+	int ret, polled = 1, hd = tp->s_hd;
 
 	hd++;
 
 	if (hd == tp->qpe)
 		hd = 0;
 retry:
-	if (hd == tp->s_tl)
+	if (hd == tp->s_tl) {
 		msg = NULL;
+		if (polled % 1000000 == 0)
+			dapl_log(DAPL_DBG_TYPE_WARN,
+				 " ucm_get_smsg: FULLq hd %d == tl %d,"
+				 " completions stalled, polls=%d\n",
+				 hd, tp->s_tl, polled);
+	}
 	else {
 		msg = &tp->sbuf[hd];
 		tp->s_hd = hd; /* new hd */
 	}
 
 	/* if empty, process some completions */
-	if ((msg == NULL) && (!polled)) {
+	if (msg == NULL) {
 		struct ibv_wc wc;
 
 		/* process completions, based on UCM_TX_BURST */
 		ret = ibv_poll_cq(tp->scq, 1, &wc);
 		if (ret < 0) {
 			dapl_log(DAPL_DBG_TYPE_WARN,
-				" get_smsg: cq %p %s\n", 
+				" get_smsg: cq %p %s\n",
 				tp->scq, strerror(errno));
+			return NULL;
 		}
 		/* free up completed sends, update tail */
-		if (ret > 0) {
+		if (ret > 0)
 			tp->s_tl = (int)wc.wr_id;
-			dapl_log(DAPL_DBG_TYPE_CM,
-				" get_smsg: wr_cmp (%d) s_tl=%d\n", 
-				wc.status, tp->s_tl);
-		}
+
 		polled++;
 		goto retry;
 	}
+	DAPL_CNTR_DATA(((DAPL_IA *)dapl_llist_peek_head(&tp->hca->ia_list_head)), DCNT_IA_CM_ERR_REQ_FULLQ, polled > 1 ? 1:0);
+	DAPL_CNTR_DATA(((DAPL_IA *)dapl_llist_peek_head(&tp->hca->ia_list_head)), DCNT_IA_CM_REQ_FULLQ_POLL, polled - 1);
 	return msg;
 }
 
@@ -318,6 +328,7 @@ static int ucm_reject(ib_hca_transport_t *tp, ib_cm_msg_t *msg)
 		     ntohs(smsg.daddr.ib.lid),
 		     ntohl(smsg.dqpn), ntohs(smsg.dport));
 
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&tp->hca->ia_list_head)), DCNT_IA_CM_ERR_REJ_TX);
 	return (ucm_send(tp, &smsg, NULL, 0));
 }
 
@@ -362,7 +373,9 @@ static void ucm_process_recv(ib_hca_transport_t *tp,
 				 ntohl(cm->msg.d_id));
 
 			cm->msg.op = htons(DCM_RTU);
-			ucm_send(&cm->hca->ib_trans, &cm->msg, NULL, 0); 		
+			ucm_send(&cm->hca->ib_trans, &cm->msg, NULL, 0);
+
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_RTU_RETRY);
 		}
 		dapl_os_unlock(&cm->lock);
 		break;
@@ -389,6 +402,8 @@ static void ucm_process_recv(ib_hca_transport_t *tp,
 			cm->msg.op = htons(DCM_DREP);
 			ucm_send(&cm->hca->ib_trans, &cm->msg, NULL, 0); 
 			
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_DREP_RETRY);
+
 		} else if (ntohs(msg->op) != DCM_DREP){
 			/* DREP ok to ignore, any other print warning */
 			dapl_log(DAPL_DBG_TYPE_WARN,
@@ -397,16 +412,24 @@ static void ucm_process_recv(ib_hca_transport_t *tp,
 				cm, dapl_cm_op_str(ntohs(msg->op)),
 				dapl_cm_state_str(cm->state),
 				ntohs(msg->sport), ntohl(msg->sqpn));
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_UNEXPECTED);
 		}
 		dapl_os_unlock(&cm->lock);
 		break;
+	case DCM_REJECTED:
+		if (ntohs(msg->op) == DCM_REJ_USER) {
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_USER_REJ_RX);
+			dapl_os_unlock(&cm->lock);
+			break;
+		}
 	default:
 		dapl_log(DAPL_DBG_TYPE_WARN,
-				" ucm_recv: UNKNOWN state"
-				" <- op %s, %s spsp %x sqpn %x\n", 
-				dapl_cm_op_str(ntohs(msg->op)), 
-				dapl_cm_state_str(cm->state), 
-				ntohs(msg->sport), ntohl(msg->sqpn));
+			" ucm_recv: Warning, UNKNOWN state"
+			" <- op %s, %s spsp %x sqpn %x slid %x\n",
+			dapl_cm_op_str(ntohs(msg->op)),
+			dapl_cm_state_str(cm->state),
+			ntohs(msg->sport), ntohl(msg->sqpn),
+			ntohs(msg->saddr.ib.lid));
 		dapl_os_unlock(&cm->lock);
 		break;
 	}
@@ -473,6 +496,8 @@ retry_listenq:
 					 ntohs(cm->msg.saddr.ib.lid), ntohs(cm->msg.sport),
 					 ntohl(cm->msg.sqpn), ntohl(cm->msg.saddr.ib.qpn));
 
+					DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_REQ_DUP);
+
 					return NULL;
 			}
 		}
@@ -512,6 +537,10 @@ retry_listenq:
 			 ntohs(msg->sport), ntohl(msg->sqpn),
 			 ntohl(msg->saddr.ib.qpn), ntohl(msg->s_id),
 			 ntohl(msg->d_id));
+
+		if (ntohs(msg->op) == DCM_DREP) {
+			DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_DREP_DUP);
+		}
 	}
 
 	return found;
@@ -740,15 +769,29 @@ bail:
 	return NULL;
 }
 
-/* schedule destruction of CM object */
+/* schedule destruction of CM object, clean UD CR */
 void dapli_cm_free(dp_ib_cm_handle_t cm)
 {
+	DAPL_SP *sp_ptr = cm->sp;
+
 	dapl_log(DAPL_DBG_TYPE_CM,
-		 " dapli_cm_free: cm %p %s ep %p refs=%d\n", 
+		 " dapli_cm_free: cm %p %s ep %p sp %p cr_cnt %d refs=%d\n",
 		 cm, dapl_cm_state_str(cm->state),
-		 cm->ep, cm->ref_count);
+		 cm->ep, sp_ptr, sp_ptr ? sp_ptr->cr_list_count:0, cm->ref_count);
 
 	dapl_os_lock(&cm->lock);
+	if (sp_ptr && cm->state == DCM_CONNECTED &&
+	    cm->msg.daddr.ib.qp_type == IBV_QPT_UD) {
+		dapl_os_lock(&sp_ptr->header.lock);
+		cm->cr = dapl_sp_search_cr(sp_ptr, cm);
+		dapl_log(DAPL_DBG_TYPE_CM, " dapli_cm_free: UD CR %p\n", cm->cr);
+
+		if (cm->cr != NULL) {
+			dapl_sp_remove_cr(sp_ptr, cm->cr);
+			/* free CR at EP destroy */
+		}
+		dapl_os_unlock(&sp_ptr->header.lock);
+	}
 	cm->state = DCM_FREE;
 	dapls_thread_signal(&cm->hca->ib_trans.signal);
 	dapl_os_unlock(&cm->lock);
@@ -766,12 +809,12 @@ void dapls_cm_free(dp_ib_cm_handle_t cm)
 	dapl_os_lock(&cm->lock);
 	if (cm->state != DCM_FREE) 
 		cm->state = DCM_FREE;
-	
-	dapl_os_unlock(&cm->lock);
-	dapls_thread_signal(&cm->hca->ib_trans.signal);
 
-	dapl_os_lock(&cm->lock);
+	if (cm->cr)
+		dapls_cr_free(cm->cr);
+
 	if (cm->ref_count != 1) {
+		dapls_thread_signal(&cm->hca->ib_trans.signal);
 		dapl_os_unlock(&cm->lock);
 		dapl_os_wait_object_wait(&cm->f_event, DAT_TIMEOUT_INFINITE);
 		dapl_os_lock(&cm->lock);
@@ -873,6 +916,7 @@ DAT_RETURN dapli_cm_disconnect(dp_ib_cm_handle_t cm)
 		cm->msg.op = htons(DCM_DREQ);
 		finalize = 0; /* wait for DREP, wakeup timer after DREQ sent */
 		wakeup = 1;
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_DREQ_TX);
 		break;
 	case DCM_DISC_PENDING:
 		/* DREQ timeout, resend until retries exhausted */
@@ -889,6 +933,7 @@ DAT_RETURN dapli_cm_disconnect(dp_ib_cm_handle_t cm)
 				htons(cm->msg.dport));
 			finalize = 1;
 		}
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_DREQ_RETRY);
 		break;
 	case DCM_DISC_RECV:
 		/* CM_THREAD: move to err state to flush, if not UD */
@@ -897,6 +942,7 @@ DAT_RETURN dapli_cm_disconnect(dp_ib_cm_handle_t cm)
 
 		/* DREQ received, send DREP and schedule event, finalize */
 		cm->msg.op = htons(DCM_DREP);
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_DREP_TX);
 		break;
 	case DCM_DISCONNECTED:
 		dapl_os_unlock(&cm->lock);
@@ -994,15 +1040,18 @@ dapli_cm_connect(DAPL_EP *ep, dp_ib_cm_handle_t cm)
 		goto bail;
 	}
 	dapl_os_unlock(&cm->lock);
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)),
+		  ep->qp_handle->qp_type == IBV_QPT_UD ? DCNT_IA_CM_AH_REQ_TX : DCNT_IA_CM_REQ_TX);
 
 	return DAT_SUCCESS;
 
 bail:
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR);
 	dapl_log(DAPL_DBG_TYPE_WARN, 
-		 " connect: ERR %s -> cm_lid %x cm_qpn %x r_psp %x p_sz=%d\n",
-		 strerror(errno), htons(cm->msg.daddr.ib.lid), 
+		 " connect: snd ERR -> cm_lid %x cm_qpn %x r_psp %x p_sz=%d\n",
+		 htons(cm->msg.daddr.ib.lid),
 		 htonl(cm->msg.dqpn), htons(cm->msg.dport), 
-		 htonl(cm->msg.p_size));
+		 htons(cm->msg.p_size));
 
 	dapli_cm_free(cm);
 	return DAT_INSUFFICIENT_RESOURCES;
@@ -1065,9 +1114,19 @@ static void ucm_connect_rtu(dp_ib_cm_handle_t cm, ib_cm_msg_t *msg)
 		event = IB_CME_CONNECTED;
 	else if (ntohs(msg->op) == DCM_REJ_USER) 
 		event = IB_CME_DESTINATION_REJECT_PRIVATE_DATA;
-	else  
+	else  {
+		dapl_log(DAPL_DBG_TYPE_WARN,
+			 " Warning, non-user CR REJECT:"
+			 " cm %p op %s, st %s dlid %x iqp %x port %x <-"
+			 " slid %x iqp %x port %x\n", cm,
+			 dapl_cm_op_str(ntohs(msg->op)),
+			 dapl_cm_state_str(cm->state),
+			 ntohs(msg->daddr.ib.lid), ntohl(msg->daddr.ib.qpn),
+			 ntohs(msg->dport), ntohs(msg->saddr.ib.lid),
+			 ntohl(msg->saddr.ib.qpn), ntohs(msg->sport));
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR_REJ_RX);
 		event = IB_CME_DESTINATION_REJECT;
-	
+	}
 	if (event != IB_CME_CONNECTED) {
 		dapl_log(DAPL_DBG_TYPE_CM, 
 			 " ACTIVE: CM_REQ REJECTED:"
@@ -1137,6 +1196,7 @@ static void ucm_connect_rtu(dp_ib_cm_handle_t cm, ib_cm_msg_t *msg)
 		goto bail;
 	}
 	dapl_os_unlock(&cm->lock);
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_RTU_TX);
 
 	/* init cm_handle and post the event with private data */
 	dapl_dbg_log(DAPL_DBG_TYPE_EP, " ACTIVE: connected!\n");
@@ -1203,9 +1263,16 @@ ud_bail:
 				(DAT_COUNT)ntohs(cm->msg.p_size),
 				(DAT_PVOID *)cm->msg.p_data,
 				(DAT_PVOID *)&xevent);
+
+		if (event != DAT_IB_UD_CONNECTION_EVENT_ESTABLISHED)
+			dapli_cm_free(cm);
+
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_AH_RESOLVED);
+
 	} else
 #endif
 	{
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ACTIVE_EST);
 		dapl_evd_connection_callback(cm,
 					     IB_CME_CONNECTED,
 					     cm->msg.p_data, ntohs(cm->msg.p_size), cm->ep);
@@ -1287,6 +1354,7 @@ static void ucm_accept(ib_cm_srvc_handle_t cm, ib_cm_msg_t *msg)
 					    (DAT_COUNT)ntohs(acm->msg.p_size),
 					    (DAT_PVOID *)acm->msg.p_data,
 					    (DAT_PVOID *)&xevent);
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_AH_REQ_TX);
 	} else
 #endif
 		/* trigger CR event and return SUCCESS */
@@ -1297,6 +1365,7 @@ static void ucm_accept(ib_cm_srvc_handle_t cm, ib_cm_msg_t *msg)
 
 bail:
 	/* schedule work thread cleanup */
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR);
 	dapli_cm_free(acm);
 	return;
 }
@@ -1376,9 +1445,12 @@ static void ucm_accept_rtu(dp_ib_cm_handle_t cm, ib_cm_msg_t *msg)
 				(DAT_COUNT)ntohs(cm->msg.p_size),
 				(DAT_PVOID *)cm->msg.p_data,
 				(DAT_PVOID *)&xevent);
+
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_AH_RESOLVED);
 		dapli_cm_free(cm); /* still attached to EP */
 	} else {
 #endif
+		DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_PASSIVE_EST);
 		dapls_cr_callback(cm, IB_CME_CONNECTED, NULL, 0, cm->sp);
 	}
 	dapl_log(DAPL_DBG_TYPE_CM_EST,
@@ -1389,6 +1461,7 @@ static void ucm_accept_rtu(dp_ib_cm_handle_t cm, ib_cm_msg_t *msg)
 		 ntohl(cm->msg.dqpn));
 	return;
 bail:
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)), DCNT_IA_CM_ERR);
 	dapls_cr_callback(cm, IB_CME_LOCAL_FAILURE, NULL, 0, cm->sp);
 	dapli_cm_free(cm);
 }
@@ -1581,8 +1654,9 @@ dapli_accept_usr(DAPL_EP *ep, DAPL_CR *cr, DAT_COUNT p_size, DAT_PVOID p_data)
 	cm->p_size = p_size;
 	dapl_os_memcpy(&cm->p_data, p_data, p_size);
 
-	/* save state and setup valid reference to EP, HCA */
-	dapl_ep_link_cm(ep, cm);
+	/* save state and setup valid reference to EP, HCA. !PSP !RSP */
+	if (!cm->sp->ep_handle && !cm->sp->psp_flags)
+		dapl_ep_link_cm(ep, cm);
 	cm->ep = ep;
 	cm->hca = ia->hca_ptr;
 
@@ -1598,10 +1672,12 @@ dapli_accept_usr(DAPL_EP *ep, DAPL_CR *cr, DAT_COUNT p_size, DAT_PVOID p_data)
 	}
 	dapl_os_unlock(&cm->lock);
 
+	DAPL_CNTR(ia, DCNT_IA_CM_REP_TX);
 	dapl_dbg_log(DAPL_DBG_TYPE_CM, " PASSIVE: accepted!\n");
 	dapls_thread_signal(&cm->hca->ib_trans.signal);
 	return DAT_SUCCESS;
 bail:
+	DAPL_CNTR(ia, DCNT_IA_CM_ERR);
 	dapli_cm_free(cm);
 	return DAT_INTERNAL_ERROR;
 }
@@ -1810,6 +1886,7 @@ dapls_ib_setup_conn_listener(IN DAPL_IA *ia,
 	/* queue up listen socket to process inbound CR's */
 	cm->state = DCM_LISTEN;
 	dapli_queue_listen(cm);
+	DAPL_CNTR(ia, DCNT_IA_CM_LISTEN);
 
 	return DAT_SUCCESS;
 }
@@ -1941,8 +2018,16 @@ dapls_ib_reject_connection(IN dp_ib_cm_handle_t cm,
 	cm->msg.saddr.ib.qp_type = cm->msg.daddr.ib.qp_type;
 	dapl_os_memcpy(&cm->msg.saddr.ib.gid[0],
 		       &cm->hca->ib_trans.addr.ib.gid, 16); 
-	cm->msg.op = htons(DCM_REJ_USER);
 	
+	if (reason == IB_CM_REJ_REASON_CONSUMER_REJ)
+		cm->msg.op = htons(DCM_REJ_USER);
+	else
+		cm->msg.op = htons(DCM_REJ_CM);
+
+	DAPL_CNTR(((DAPL_IA *)dapl_llist_peek_head(&cm->hca->ia_list_head)),
+		  reason == IB_CM_REJ_REASON_CONSUMER_REJ ?
+		  DCNT_IA_CM_USER_REJ_TX : DCNT_IA_CM_ERR_REJ_TX);
+
 	if (ucm_send(&cm->hca->ib_trans, &cm->msg, pdata, psize)) {
 		dapl_log(DAPL_DBG_TYPE_WARN,
 			 " cm_reject: send ERR: %s\n", strerror(errno));

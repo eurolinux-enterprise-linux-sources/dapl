@@ -67,6 +67,7 @@ typedef struct
     int 		num_threads;	//-t
     int 		num_vis;	//-v
     DAT_QOS		ReliabilityLevel;	//-R
+    DAT_CONN_QUAL    	port;		/* -n */
 } FFT_Cmd_t;
 
 #endif

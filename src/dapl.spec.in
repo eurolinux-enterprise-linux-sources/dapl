@@ -85,46 +85,17 @@ rm -rf %{buildroot}
 make DESTDIR=%{buildroot} install
 # remove unpackaged files from the buildroot
 rm -f %{buildroot}%{_libdir}/*.la
-rm -f %{buildroot}%{_sysconfdir}/*.conf
 
 %clean
 rm -rf %{buildroot}
 
-%post 
-/sbin/ldconfig
-if [ -e %{_sysconfdir}/dat.conf ]; then
-    sed -e '/ofa-v2-.* u2/d' < %{_sysconfdir}/dat.conf > /tmp/$$ofadapl
-    mv /tmp/$$ofadapl %{_sysconfdir}/dat.conf
-fi
-echo ofa-v2-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-ib0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"ib0 0" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-ib1 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"ib1 0" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mthca0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mthca0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mthca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mthca0 2" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-ipath0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ipath0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-ipath0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ipath0 2" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-ehca0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ehca0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-iwarp u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mthca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 2" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth3 0" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> %{_sysconfdir}/dat.conf
-echo ofa-v2-scm-roe-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> %{_sysconfdir}/dat.conf
-
-%postun 
-/sbin/ldconfig
-if [ -e %{_sysconfdir}/dat.conf ]; then
-    sed -e '/ofa-v2-.* u2/d' < %{_sysconfdir}/dat.conf > /tmp/$$ofadapl
-    mv /tmp/$$ofadapl %{_sysconfdir}/dat.conf
-fi
+%post -p /sbin/ldconfig
+%postun -p /sbin/ldconfig
 
 %files
 %defattr(-,root,root,-)
 %{_libdir}/libda*.so.*
+%{_sysconfdir}/dat.conf
 %doc AUTHORS README COPYING ChangeLog LICENSE.txt LICENSE2.txt LICENSE3.txt
 
 %files devel
@@ -144,6 +115,21 @@ fi
 %{_mandir}/man5/*.5*
 
 %changelog
+* Thu Oct 3 2013 Arlin Davis <ardavis@ichips.intel.com> - 2.0.39
+- DAT/DAPL Version 2.0.39 Release 1, OFED 3.5-2 
+
+* Mon Jul 22 2013 Arlin Davis <ardavis@ichips.intel.com> - 2.0.38
+- DAT/DAPL Version 2.0.38 Release 1, OFED 3.5.2 
+
+* Thu Jun 6 2013 Arlin Davis <ardavis@ichips.intel.com> - 2.0.37
+- DAT/DAPL Version 2.0.37 Release 1, OFED 3.5.2 
+
+* Thu Aug 5 2012 Arlin Davis <ardavis@ichips.intel.com> - 2.0.36
+- DAT/DAPL Version 2.0.36 Release 1, OFED 3.x 
+
+* Mon Apr 23 2012 Arlin Davis <ardavis@ichips.intel.com> - 2.0.35
+- DAT/DAPL Version 2.0.35 Release 1, OFED 3.2  
+
 * Wed Nov 2 2011 Arlin Davis <ardavis@ichips.intel.com> - 2.0.34
 - DAT/DAPL Version 2.0.34 Release 1, OFED 1.5.4 GA
 

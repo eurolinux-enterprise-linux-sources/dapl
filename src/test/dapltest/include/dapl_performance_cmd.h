@@ -62,6 +62,7 @@ typedef struct
     DAT_UINT32      		pipeline_len;		/* -p */
     Performance_Cmd_Op_t 	op;
     DAT_UINT32      		use_rsp;		/* -r */
+    DAT_CONN_QUAL      		port;			/* -n */
 
 } Performance_Cmd_t;
 #pragma pack ()

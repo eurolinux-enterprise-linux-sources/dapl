@@ -525,6 +525,13 @@ void dapli_ia_release_hca(DAPL_HCA * hca_ptr)
 	dapl_os_lock(&hca_ptr->lock);
 	dapl_os_atomic_dec(&hca_ptr->handle_ref_count);
 	if (dapl_os_atomic_read(&hca_ptr->handle_ref_count) == 0) {
+#ifdef DAPL_COUNTERS
+{
+		DAPL_IA *ia = (DAPL_IA *)dapl_llist_peek_head(&hca_ptr->ia_list_head);
+		dapli_stop_counters(ia);
+		dapl_os_free(ia->cntrs, sizeof(DAT_UINT64) * DCNT_IA_ALL_COUNTERS);
+}
+#endif
 		dapls_ib_close_hca(hca_ptr);
 		hca_ptr->ib_hca_handle = IB_INVALID_HANDLE;
 		hca_ptr->async_evd = NULL;
@@ -566,11 +573,6 @@ void dapls_ia_free(DAPL_IA * ia_ptr)
 	dapl_hca_unlink_ia(ia_ptr->hca_ptr, ia_ptr);
 	ia_ptr->header.magic = DAPL_MAGIC_INVALID;	/* reset magic to prevent reuse */
 	dapl_os_lock_destroy(&ia_ptr->header.lock);
-
-#ifdef DAPL_COUNTERS
-	dapl_os_free(ia_ptr->cntrs, sizeof(DAT_UINT64) * DCNT_IA_ALL_COUNTERS);
-#endif				/* DAPL_COUNTERS */
-
 	dapl_os_free(ia_ptr, sizeof(DAPL_IA));
 }
 

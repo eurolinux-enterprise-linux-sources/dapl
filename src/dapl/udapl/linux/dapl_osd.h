@@ -188,7 +188,7 @@ dapl_os_atomic_inc (
 		stwcx.	%0,0,%2\n\
 		bne-	1b"
 	: "=&r" (tmp), "+m" (v)
-	: "r" (&v)
+	: "b" (v)
 	: "cc");
 #else  /* !__ia64__ */
     __asm__ __volatile__ (
@@ -227,7 +227,7 @@ dapl_os_atomic_dec (
 		stwcx.	%0,0,%2\n\
 		bne-	1b"
 	: "=&r" (tmp), "+m" (v)
-	: "r" (&v)
+	: "b" (v)
 	: "cc");
 #else  /* !__ia64__ */
     __asm__ __volatile__ (
@@ -515,6 +515,22 @@ STATIC _INLINE_ char * dapl_os_strdup(const char *str)
     return strdup(str);
 }
 
+STATIC _INLINE_ int dapl_os_pstrcmp(const char *pstr, const char *str)
+{
+	int i, ii;
+	int plen = strlen(pstr);
+	int slen = strlen(str);
+
+	for (i=0; i < slen; i++) {
+		for (ii=0; ii < plen && i < slen; ii++, i++) {
+			if ((pstr[ii] == str[i]) && (ii == plen-1))
+				return 0;
+			else if (pstr[ii] != str[i])
+				break;
+		}
+	}
+	return 1;
+}
 
 /*
  * Timer Functions

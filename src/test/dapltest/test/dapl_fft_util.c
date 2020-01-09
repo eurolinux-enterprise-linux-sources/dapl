@@ -274,7 +274,7 @@ void DT_fft_init_server(Params_t * params_ptr, FFT_Cmd_t * cmd,
 	DT_assert_dat(phead, rc == DAT_SUCCESS);
 
 	/* create a PSP */
-	rc = dat_psp_create(conn->ia_handle, SERVER_PORT_NUMBER, conn->cr_evd,
+	rc = dat_psp_create(conn->ia_handle, params_ptr->server_port, conn->cr_evd,
 			    DAT_PSP_CONSUMER_FLAG, &conn->psp_handle);
 	DT_assert_dat(phead, rc == DAT_SUCCESS);
 
@@ -299,7 +299,7 @@ void DT_fft_listen(Params_t * params_ptr, FFT_Connection_t * conn)
 	DT_assert_dat(phead,
 		      DT_cr_event_wait(phead, conn->cr_evd, &conn->cr_stat)
 		      && DT_cr_check(phead, &conn->cr_stat, conn->psp_handle,
-				     SERVER_PORT_NUMBER, &conn->cr_handle,
+				      params_ptr->server_port, &conn->cr_handle,
 				     "DT_fft_listen"));
 
 	/* accept the connection */
@@ -332,7 +332,7 @@ int DT_fft_connect(Params_t * params_ptr, FFT_Connection_t * conn)
 
 		/* attempt to connect, timeout = 10 secs */
 		rc = dat_ep_connect(conn->ep_handle, conn->remote_netaddr,
-				    SERVER_PORT_NUMBER, 10 * 1000000, 0,
+				    params_ptr->server_port, 10 * 1000000, 0,
 				    (DAT_PVOID) 0, DAT_QOS_BEST_EFFORT,
 				    DAT_CONNECT_DEFAULT_FLAG);
 		DT_assert_dat(phead, rc == DAT_SUCCESS);

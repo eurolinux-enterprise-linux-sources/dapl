@@ -171,7 +171,8 @@ dapl_ep_create(IN DAT_IA_HANDLE ia_handle,
 					   && ep_attr->max_request_dtos == 0)
 				       || (recv_evd_handle != DAT_HANDLE_NULL
 					   && ep_attr->max_recv_iov == 0)
-				       || ep_attr->max_request_iov == 0
+				       || (request_evd_handle == DAT_HANDLE_NULL
+					   && ep_attr->max_request_iov != 0)
 				       || (DAT_SUCCESS !=
 					   dapl_ep_check_recv_completion_flags
 					   (ep_attr->recv_completion_flags)))) {

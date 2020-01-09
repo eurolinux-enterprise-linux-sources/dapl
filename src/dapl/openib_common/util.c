@@ -28,6 +28,7 @@
 #include "dapl_osd.h"
 
 #include <stdlib.h>
+#include <ifaddrs.h>
 
 int g_dapl_loopback_connection = 0;
 
@@ -75,83 +76,6 @@ release:
 	return hr;
 }
 
-#else				// _WIN64 || WIN32
-
-/* Get IP address using network device name */
-int getipaddr_netdev(char *name, char *addr, int addr_len)
-{
-	struct ifreq ifr;
-	int skfd, ret, len;
-
-	/* Fill in the structure */
-	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", name);
-	ifr.ifr_hwaddr.sa_family = ARPHRD_INFINIBAND;
-
-	/* Create a socket fd */
-	skfd = socket(PF_INET, SOCK_STREAM, 0);
-	ret = ioctl(skfd, SIOCGIFADDR, &ifr);
-	if (ret)
-		goto bail;
-
-	switch (ifr.ifr_addr.sa_family) {
-#ifdef	AF_INET6
-	case AF_INET6:
-		len = sizeof(struct sockaddr_in6);
-		break;
-#endif
-	case AF_INET:
-	default:
-		len = sizeof(struct sockaddr);
-		break;
-	}
-
-	if (len <= addr_len)
-		memcpy(addr, &ifr.ifr_addr, len);
-	else
-		ret = EINVAL;
-
-      bail:
-	close(skfd);
-	return ret;
-}
-#endif
-
-enum ibv_mtu dapl_ib_mtu(int mtu)
-{
-	switch (mtu) {
-	case 256:
-		return IBV_MTU_256;
-	case 512:
-		return IBV_MTU_512;
-	case 1024:
-		return IBV_MTU_1024;
-	case 2048:
-		return IBV_MTU_2048;
-	case 4096:
-		return IBV_MTU_4096;
-	default:
-		return IBV_MTU_1024;
-	}
-}
-
-char *dapl_ib_mtu_str(enum ibv_mtu mtu)
-{
-	switch (mtu) {
-	case IBV_MTU_256:
-		return "256";
-	case IBV_MTU_512:
-		return "512";
-	case IBV_MTU_1024:
-		return "1024";
-	case IBV_MTU_2048:
-		return "2048";
-	case IBV_MTU_4096:
-		return "4096";
-	default:
-		return "1024";
-	}
-}
-
 DAT_RETURN getlocalipaddr(char *addr, int addr_len)
 {
 	struct sockaddr_in *sin;
@@ -164,13 +88,13 @@ retry:
 	/* use provided netdev instead of default hostname */
 	if (netdev != NULL) {
 		ret = getipaddr_netdev(netdev, addr, addr_len);
-		if (ret) {			
+		if (ret) {
 			dapl_log(DAPL_DBG_TYPE_ERR,
 				 " getlocalipaddr: NETDEV = %s"
 				 " but not configured on system? ERR = %s\n",
 				 netdev, strerror(ret));
 			return dapl_convert_errno(ret, "getlocalipaddr");
-		} else 
+		} else
 			return DAT_SUCCESS;
 	}
 
@@ -215,6 +139,132 @@ retry:
 
 	return ret;
 }
+#else				// _WIN64 || WIN32
+
+/* Get IP address using network device name */
+int getipaddr_netdev(char *name, char *addr, int addr_len)
+{
+	struct ifreq ifr;
+	int skfd, ret, len;
+
+	/* Fill in the structure */
+	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", name);
+
+	/* Create a socket fd */
+	skfd = socket(PF_INET, SOCK_STREAM, 0);
+	ret = ioctl(skfd, SIOCGIFADDR, &ifr);
+	if (ret)
+		goto bail;
+
+	switch (ifr.ifr_addr.sa_family) {
+#ifdef	AF_INET6
+	case AF_INET6:
+		len = sizeof(struct sockaddr_in6);
+		break;
+#endif
+	case AF_INET:
+	default:
+		len = sizeof(struct sockaddr);
+		break;
+	}
+
+	if (len <= addr_len)
+		memcpy(addr, &ifr.ifr_addr, len);
+	else
+		ret = EINVAL;
+
+      bail:
+	close(skfd);
+	return ret;
+}
+
+/* IPv4 only, use IB if netdev set or it's the only interface */
+DAT_RETURN getlocalipaddr (char *addr, int addr_len)
+{
+	struct ifaddrs *ifap, *ifa;
+	int ret, found=0, ib_ok=0;
+	char *netdev = getenv("DAPL_SCM_NETDEV");
+
+	if (netdev != NULL) {
+		ret = getipaddr_netdev(netdev, addr, addr_len);
+		if (ret) {
+			dapl_log(DAPL_DBG_TYPE_ERR, " ERR: NETDEV = %s"
+				 " but not configured on system?\n", netdev);
+			return dapl_convert_errno(errno, "getlocalipaddr");
+		} else {
+			dapl_log(DAPL_DBG_TYPE_UTIL," my_addr %s NETDEV = %s\n",
+				 inet_ntoa(((struct sockaddr_in *)addr)->sin_addr),
+				 netdev);
+			return DAT_SUCCESS;
+		}
+	}
+
+	if ((ret = getifaddrs (&ifap)))
+		return dapl_convert_errno(errno, "getifaddrs");
+
+retry:
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			if (!found && !(ifa->ifa_flags & IFF_LOOPBACK) &&
+			    ((!ib_ok && dapl_os_pstrcmp("ib", ifa->ifa_name)) ||
+			     (ib_ok && !dapl_os_pstrcmp("ib", ifa->ifa_name)))) {
+				memcpy(addr, ifa->ifa_addr, sizeof(struct sockaddr_in));
+				found++;
+			}
+			dapl_log(DAPL_DBG_TYPE_UTIL,
+				 " getifaddrs: %s -> %s\n", ifa->ifa_name,
+				 inet_ntoa(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr));
+		}
+	}
+	if (!found && !ib_ok) {
+		ib_ok = 1;
+		goto retry;
+	}
+	dapl_log(DAPL_DBG_TYPE_UTIL," my_addr %s\n",
+		 inet_ntoa(((struct sockaddr_in *)addr)->sin_addr));
+
+	freeifaddrs(ifap);
+	return (found ? DAT_SUCCESS:DAT_INVALID_ADDRESS);
+}
+#endif
+
+enum ibv_mtu dapl_ib_mtu(int mtu)
+{
+	switch (mtu) {
+	case 256:
+		return IBV_MTU_256;
+	case 512:
+		return IBV_MTU_512;
+	case 1024:
+		return IBV_MTU_1024;
+	case 2048:
+		return IBV_MTU_2048;
+	case 4096:
+		return IBV_MTU_4096;
+	default:
+		return IBV_MTU_1024;
+	}
+}
+
+char *dapl_ib_mtu_str(enum ibv_mtu mtu)
+{
+	switch (mtu) {
+	case IBV_MTU_256:
+		return "256";
+	case IBV_MTU_512:
+		return "512";
+	case IBV_MTU_1024:
+		return "1024";
+	case IBV_MTU_2048:
+		return "2048";
+	case IBV_MTU_4096:
+		return "4096";
+	default:
+		return "1024";
+	}
+}
+
+
 
 /*
  * dapls_ib_query_hca
@@ -263,6 +313,9 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 
 	if (ia_attr != NULL) {
 		(void)dapl_os_memzero(ia_attr, sizeof(*ia_attr));
+		strncpy(ia_attr->adapter_name,
+		        ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
+		        DAT_NAME_MAX_LENGTH - 1);
 		ia_attr->adapter_name[DAT_NAME_MAX_LENGTH - 1] = '\0';
 		ia_attr->vendor_name[DAT_NAME_MAX_LENGTH - 1] = '\0';
 		ia_attr->ia_address_ptr =
@@ -270,7 +323,7 @@ DAT_RETURN dapls_ib_query_hca(IN DAPL_HCA * hca_ptr,
 
 		dapl_dbg_log(DAPL_DBG_TYPE_UTIL,
 			     " query_hca: %s %s \n",
-			     ibv_get_device_name(hca_ptr->ib_trans.ib_dev),
+			     ia_attr->adapter_name,
 			     inet_ntoa(((struct sockaddr_in *)
 					&hca_ptr->hca_address)->sin_addr));
 
@@ -369,6 +422,17 @@ skip_ib:
 		dapl_log(DAPL_DBG_TYPE_UTIL,
 			 " query_hca: port.link_layer = 0x%x\n", 
 			 port_attr.link_layer);
+#endif
+#endif
+
+#ifdef _WIN32
+#ifndef _OPENIB_CMA_
+		if (port_attr.transport != IBV_TRANSPORT_IB)
+			hca_ptr->ib_trans.global = 1;
+
+		dapl_log(DAPL_DBG_TYPE_UTIL,
+			 " query_hca: port.transport %d ib_trans.global %d\n",
+			 port_attr.transport, hca_ptr->ib_trans.global);
 #endif
 #endif
 		dapl_log(DAPL_DBG_TYPE_UTIL,
@@ -750,3 +814,4 @@ ib_cm_events_t dapls_ib_get_cm_event(IN DAT_EVENT_NUMBER dat_event_num)
 	}
 	return ib_cm_event;
 }
+

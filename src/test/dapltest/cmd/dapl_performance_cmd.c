@@ -35,15 +35,14 @@ static void DT_Performance_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE: ---- PERFORMANCE TEST ----\n");
 	DT_Mdep_printf("USAGE:     dapltest -T P\n");
 	DT_Mdep_printf("USAGE:              -s <server Name>\n");
+	DT_Mdep_printf("USAGE:              -n <server port number>\n");
 	DT_Mdep_printf("USAGE:              [-m b|p]\n");
 	DT_Mdep_printf("USAGE:              [-D <device Name>]\n");
 	DT_Mdep_printf("USAGE:              [-d] : debug (zero)\n");
-	DT_Mdep_printf
-	    ("USAGE:              [-i <num iterations>]     : (1, 000)\n");
+	DT_Mdep_printf("USAGE:              [-i <num iterations>]     : (1, 000)\n");
 	DT_Mdep_printf("USAGE:              [-p <pipline>]\n");
 	DT_Mdep_printf("USAGE:              [-R <service reliability>]\n");
-	DT_Mdep_printf
-	    ("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
+	DT_Mdep_printf("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
 	DT_Mdep_printf("USAGE:                  (HT == QOS_HIGH_THROUGHPUT)\n");
 	DT_Mdep_printf("USAGE:                  (LL == QOS_LOW_LATENCY)\n");
 	DT_Mdep_printf("USAGE:                  (EC == QOS_ECONOMY)\n");
@@ -145,7 +144,7 @@ DT_Performance_Cmd_Parse(Performance_Cmd_t * cmd,
 	unsigned int len;
 
 	for (;;) {
-		c = DT_mygetopt_r(my_argc, my_argv, "D:dm:i:p:R:s:", opts);
+		c = DT_mygetopt_r(my_argc, my_argv, "D:dm:i:p:R:s:n:", opts);
 
 		if (EOF == c) {
 			break;
@@ -224,6 +223,11 @@ DT_Performance_Cmd_Parse(Performance_Cmd_t * cmd,
 					NAME_SZ);
 				break;
 			}
+		case 'n':
+			{
+				cmd->port = atoi(opts->optarg);
+				break;
+			}
 		default:
 			{
 				DT_Mdep_printf
@@ -260,7 +264,7 @@ bool DT_Performance_Cmd_Init(Performance_Cmd_t * cmd)
 	cmd->debug = false;
 	cmd->num_iterations = 1000;
 	cmd->pipeline_len = ~0;
-
+	cmd->port = SERVER_PORT_NUMBER;
 	cmd->op.transfer_type = RDMA_WRITE;
 	cmd->op.seg_size = 4096;
 	cmd->op.num_segs = 1;
@@ -278,6 +282,8 @@ void DT_Performance_Cmd_Print(Performance_Cmd_t * cmd)
 	DT_Mdep_printf("-------------------------------------\n");
 	DT_Mdep_printf("PerfCmd.server_name              : %s\n",
 		       cmd->server_name);
+	DT_Mdep_printf("PerfCmd.server_port_number       : %d\n",
+		       cmd->port);
 	DT_Mdep_printf("PerfCmd.dapl_name                : %s\n",
 		       cmd->dapl_name);
 	DT_Mdep_printf("PerfCmd.mode                     : %s\n",

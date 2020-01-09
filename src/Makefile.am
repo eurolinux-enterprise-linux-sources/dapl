@@ -20,6 +20,9 @@ XFLAGS = -DDAT_EXTENSIONS
 XPROGRAMS = dapl/openib_common/ib_extensions.c
 XHEADERS =
 XLIBS =
+if DEFINE_COUNTERS
+XFLAGS += -DDAPL_COUNTERS
+endif
 if COLL_TYPE_FCA
 XFLAGS += -DDAT_IB_COLLECTIVES -DDAT_FCA_PROVIDER
 XPROGRAMS += dapl/openib_common/collectives/fca_provider.c
@@ -46,6 +49,8 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DDAPL_DBG -DDAT_CONF="\"$(sysconfdir)/dat.co
 else
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DDAT_CONF="\"$(sysconfdir)/dat.conf\""
 endif
+
+sysconf_DATA = doc/dat.conf
 
 datlibdir = $(libdir)
 if DEFINE_CMA
@@ -556,6 +561,7 @@ EXTRA_DIST = dat/common/dat_dictionary.h \
 	     LICENSE.txt \
 	     LICENSE2.txt \
 	     LICENSE3.txt \
+	     doc/dat.conf \
 	     dapl.spec.in \
 	     $(man_MANS) \
 	     test/dapltest/include/dapl_bpool.h \
@@ -589,37 +595,4 @@ EXTRA_DIST = dat/common/dat_dictionary.h \
 dist-hook: dapl.spec 
 	cp dapl.spec $(distdir)
 	
-install-exec-hook:
-	if ! test -d $(DESTDIR)$(sysconfdir); then \
-		mkdir -p $(DESTDIR)$(sysconfdir); \
-	fi; \
-	if test -e $(DESTDIR)$(sysconfdir)/dat.conf; then \
-		sed -e '/ofa-v2-.* u2/d' < $(DESTDIR)$(sysconfdir)/dat.conf > /tmp/$$$$ofadapl; \
-		cp /tmp/$$$$ofadapl $(DESTDIR)$(sysconfdir)/dat.conf; \
-	fi; \
-	echo ofa-v2-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-ib0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"ib0 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-ib1 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"ib1 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mthca0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mthca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mthca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mthca0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-ipath0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ipath0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-ipath0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ipath0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-ehca0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"ehca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-iwarp u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mlx4_0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mlx4_0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mthca0-1u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-mthca0-2u u2.0 nonthreadsafe default libdaploucm.so.2 dapl.2.0 '"mthca0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-cma-roe-eth2 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth2 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-cma-roe-eth3 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 '"eth3 0" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-scm-roe-mlx4_0-1 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 1" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; \
-	echo ofa-v2-scm-roe-mlx4_0-2 u2.0 nonthreadsafe default libdaploscm.so.2 dapl.2.0 '"mlx4_0 2" ""' >> $(DESTDIR)$(sysconfdir)/dat.conf; 
-
-uninstall-hook:
-	if test -e $(DESTDIR)$(sysconfdir)/dat.conf; then \
-		sed -e '/ofa-v2-.* u2/d' < $(DESTDIR)$(sysconfdir)/dat.conf > /tmp/$$$$ofadapl; \
-		cp /tmp/$$$$ofadapl $(DESTDIR)$(sysconfdir)/dat.conf; \
-	fi;
-
 SUBDIRS = . test/dtest test/dapltest

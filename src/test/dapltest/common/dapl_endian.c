@@ -77,8 +77,6 @@ DAT_UINT64 DT_Endian64(DAT_UINT64 val)
 
 DAT_UINT32 DT_EndianMemHandle(DAT_UINT32 val)
 {
-	if (DT_local_is_little_endian)
-		return val;
 	val = ((val & c1a32) << 8) | ((val & c1b32) >> 8);
 	val = ((val & c2a32) << 16) | ((val & c2b32) >> 16);
 	return (val);
@@ -88,8 +86,6 @@ DAT_UINT64 DT_EndianMemAddress(DAT_UINT64 val)
 {
 	DAT_UINT64 val64;
 
-	if (DT_local_is_little_endian)
-		return val;
 	val64 = val;
 	val64 = ((val64 & c1a64) << 8) | ((val64 & c1b64) >> 8);
 	val64 = ((val64 & c2a64) << 16) | ((val64 & c2b64) >> 16);

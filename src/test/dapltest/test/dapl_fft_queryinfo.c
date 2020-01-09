@@ -227,7 +227,7 @@ int DT_queryinfo_basic(Params_t * params_ptr,
 	/* Test dat_psp_query function */
 	else if (object_to_query == QUERY_PSP) {
 		rc = dat_psp_create(ia_handle,
-				    SERVER_PORT_NUMBER,
+				    params_ptr->server_port,
 				    cr_evd_handle,
 				    DAT_PSP_PROVIDER_FLAG, &psp_handle);
 		DT_assert_dat(phead, rc == DAT_SUCCESS);
@@ -245,7 +245,7 @@ int DT_queryinfo_basic(Params_t * params_ptr,
 	/* Test dat_rsp_query function */
 	else if (object_to_query == QUERY_RSP) {
 		rc = dat_rsp_create(ia_handle,
-				    SERVER_PORT_NUMBER,
+				    params_ptr->server_port,
 				    ep_handle, cr_evd_handle, &rsp_handle);
 		DT_assert_dat(phead, rc == DAT_SUCCESS);
 		rc = dat_rsp_query(rsp_handle, DAT_RSP_FIELD_ALL, &rsp_param);

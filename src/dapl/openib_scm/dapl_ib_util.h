@@ -60,8 +60,8 @@ typedef dp_ib_cm_handle_t	ib_cm_srvc_handle_t;
 #define	INLINE_SEND_DEFAULT	200
 
 /* RC timer - retry count defaults */
-#define SCM_ACK_TIMER 16 /* 5 bits, 4.096us*2^ack_timer. 16== 268ms */
-#define SCM_ACK_RETRY 7  /* 3 bits, 7 * 268ms = 1.8 seconds */
+#define SCM_ACK_TIMER	20 /* 5 bits, 4.096us*2^ack_timer. 16== 268ms, 20==4.2s */
+#define SCM_ACK_RETRY	7  /* 3 bits, 7 * 4.2  == 30 seconds */
 #define SCM_RNR_TIMER 12 /* 5 bits, 12 =.64ms, 28 =163ms, 31 =491ms */
 #define SCM_RNR_RETRY 7  /* 3 bits, 7 == infinite */
 #define SCM_CR_RETRY  5  /* retries for busy server, connect refused */

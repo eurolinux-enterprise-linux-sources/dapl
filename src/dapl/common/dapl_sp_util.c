@@ -226,6 +226,9 @@ void dapl_sp_remove_cr(IN DAPL_SP * sp_ptr, IN DAPL_CR * cr_ptr)
 		return;
 	}
 
+	dapl_log(DAPL_DBG_TYPE_CM, " dapl_sp_remove_cr: SP %p CR %p cnt %d\n",
+		sp_ptr, cr_ptr, sp_ptr->cr_list_count);
+
 	dapl_llist_remove_entry(&sp_ptr->cr_list_head,
 				&cr_ptr->header.ia_list_entry);
 	sp_ptr->cr_list_count--;

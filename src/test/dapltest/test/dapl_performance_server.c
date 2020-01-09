@@ -328,7 +328,7 @@ DT_Performance_Test_Server_Exchange(DT_Tdep_Print_Head * phead,
 	 * we pass to the other side.  The other side cannot (and
 	 * better not) interpret these values.
 	 */
-	if (DT_local_is_little_endian != test_ptr->is_remote_little_endian) {
+	if (DT_local_is_little_endian && !test_ptr->is_remote_little_endian) {
 		rmi->rmr_context = DT_EndianMemHandle(rmi->rmr_context);
 		rmi->mem_address.as_64 =
 		    DT_EndianMemAddress(rmi->mem_address.as_64);

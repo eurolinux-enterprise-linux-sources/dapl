@@ -37,6 +37,7 @@ void DT_Limit_Cmd_Init(Limit_Cmd_t * cmd)
 	cmd->ReliabilityLevel = DAT_QOS_BEST_EFFORT;
 	cmd->width = 1;
 	cmd->maximum = ~0U;
+	cmd->port = SERVER_PORT_NUMBER;
 }
 
 /* --------------------------------------------------- */
@@ -48,7 +49,7 @@ DT_Limit_Cmd_Parse(Limit_Cmd_t * cmd,
 	int i;
 
 	for (;;) {
-		c = DT_mygetopt_r(my_argc, my_argv, "dm:w:D:R:", opts);
+		c = DT_mygetopt_r(my_argc, my_argv, "dm:w:D:R:n:", opts);
 		if (c == EOF) {
 			break;
 		}
@@ -96,6 +97,11 @@ DT_Limit_Cmd_Parse(Limit_Cmd_t * cmd,
 					return (false);
 				}
 				cmd->width = atol(opts->optarg);
+				break;
+			}
+		case 'n':
+			{
+				cmd->port = atoi(opts->optarg);
 				break;
 			}
 		case '?':
@@ -187,25 +193,20 @@ void DT_Limit_Cmd_Usage(void)
 	DT_Mdep_printf("USAGE: ---- LIMIT TEST ----\n");
 	DT_Mdep_printf("USAGE:     dapltest -T L\n");
 	DT_Mdep_printf("USAGE:              [-D <device Name>]\n");
+	DT_Mdep_printf("USAGE:              [-n <server port number>]\n");
 	DT_Mdep_printf("USAGE:              [-d] : debug (zero)\n");
 	DT_Mdep_printf("USAGE:              [-w <width_of_resource_sets>]\n");
-	DT_Mdep_printf
-	    ("USAGE:              [-m <maximum_for_exhaustion_tests>]\n");
+	DT_Mdep_printf("USAGE:              [-m <maximum_for_exhaustion_tests>]\n");
 	DT_Mdep_printf("USAGE:              [-R <service reliability>]\n");
-	DT_Mdep_printf
-	    ("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
+	DT_Mdep_printf("USAGE:                  (BE == QOS_BEST_EFFORT - Default)\n");
 	DT_Mdep_printf("USAGE:                  (HT == QOS_HIGH_THROUGHPUT)\n");
 	DT_Mdep_printf("USAGE:                  (LL == QOS_LOW_LATENCY)\n");
 	DT_Mdep_printf("USAGE:                  (EC == QOS_ECONOMY)\n");
 	DT_Mdep_printf("USAGE:                  (PM == QOS_PREMIUM)\n");
-	DT_Mdep_printf
-	    ("USAGE:              [limit_ia [limit_pz] [limit_evd] ... ]\n");
-	DT_Mdep_printf
-	    ("NOTE: If test is not specified, do all the limit tests\n");
+	DT_Mdep_printf("USAGE:              [limit_ia [limit_pz] [limit_evd] ... ]\n");
+	DT_Mdep_printf("NOTE: If test is not specified, do all the limit tests\n");
 	DT_Mdep_printf("NOTE: Else, just do the specified tests\n");
-	DT_Mdep_printf
-	    ("NOTE: Each test is separated by space, the test can be:\n");
-
+	DT_Mdep_printf("NOTE: Each test is separated by space, the test can be:\n");
 	DT_Mdep_printf("NOTE: [limit_ia]         test max num  of  open IAs\n");
 	DT_Mdep_printf("NOTE: [limit_pz]         test max num  of  PZs\n");
 #ifndef __KDAPLTEST__
@@ -216,7 +217,6 @@ void DT_Limit_Cmd_Usage(void)
 	DT_Mdep_printf("NOTE: [limit_psp]        test max num  of  PSPs\n");
 	DT_Mdep_printf("NOTE: [limit_ep]         test max num  of  EPs\n");
 	DT_Mdep_printf("NOTE: [limit_lmr]        test max num  of  LMRs\n");
-	DT_Mdep_printf
-	    ("NOTE: [limit_rpost]      test max num  of  recvs posted\n");
+	DT_Mdep_printf("NOTE: [limit_rpost]      test max num  of  recvs posted\n");
 	DT_Mdep_printf("NOTE: [limit_size_lmr]   test max size of  LMR\n");
 }

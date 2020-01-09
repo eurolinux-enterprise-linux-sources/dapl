@@ -79,7 +79,7 @@ struct dapl_pdata_hdr {
 
 static void dapli_addr_resolve(struct dapl_cm_id *conn)
 {
-	int ret;
+	int ret, tos;
 #ifdef DAPL_DBG
 	struct rdma_addr *ipaddr = &conn->cm_id->route.addr;
 #endif
@@ -89,6 +89,16 @@ static void dapli_addr_resolve(struct dapl_cm_id *conn)
 					 &ipaddr->src_addr)->sin_addr.s_addr),
 		     ntohl(((struct sockaddr_in *)
 			    &ipaddr->dst_addr)->sin_addr.s_addr));
+
+	tos = dapl_os_get_env_val("DAPL_CM_TOS", 0);
+	if (tos) {
+		ret = rdma_set_option(conn->cm_id,RDMA_OPTION_ID,RDMA_OPTION_ID_TOS,&tos,sizeof(uint8_t));
+		if (ret) {
+			dapl_log(DAPL_DBG_TYPE_ERR,
+				 " dapl_cma_connect: failed to set TOS ERR 0x%x %s\n",
+				 ret, strerror(errno));
+		}
+	}
 
 	ret = rdma_resolve_route(conn->cm_id, conn->route_timeout);
 	if (ret) {
@@ -901,8 +911,9 @@ dapls_ib_accept_connection(IN DAT_CR_HANDLE cr_handle,
 		rdma_destroy_id(ep_conn->cm_id);
 		dapls_cm_release(ep_conn);
 
-		/* add new CM to EP linking, qp_handle unchanged */
-		dapl_ep_link_cm(ep_ptr, cr_conn);
+		/* add new CM to EP linking, qp_handle unchanged, !PSP !RSP */
+		if (!cr_conn->sp->ep_handle && !cr_conn->sp->psp_flags)
+			dapl_ep_link_cm(ep_ptr, cr_conn);
 		cr_conn->ep = ep_ptr;
 	} else {
 		dapl_log(DAPL_DBG_TYPE_ERR,

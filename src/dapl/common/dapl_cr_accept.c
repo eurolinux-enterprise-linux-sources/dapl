@@ -180,11 +180,13 @@ dapl_cr_accept(IN DAT_CR_HANDLE cr_handle,
 	entry_ep_state = ep_ptr->param.ep_state;
 	entry_ep_handle = cr_ptr->param.local_ep_handle;
 	ep_ptr->param.ep_state = DAT_EP_STATE_COMPLETION_PENDING;
-	ep_ptr->cr_ptr = cr_ptr;
-	ep_ptr->param.remote_ia_address_ptr =
-	    cr_ptr->param.remote_ia_address_ptr;
-	cr_ptr->param.local_ep_handle = ep_handle;
 
+	/* UD supports multiple CR's per EP, provider will manage CR's */
+	if (ep_ptr->param.ep_attr.service_type == DAT_SERVICE_TYPE_RC) {
+		ep_ptr->cr_ptr = cr_ptr;
+		ep_ptr->param.remote_ia_address_ptr = cr_ptr->param.remote_ia_address_ptr;
+	}
+	cr_ptr->param.local_ep_handle = ep_handle;
 	dapl_os_unlock(&ep_ptr->header.lock);
 
 	dat_status = dapls_ib_accept_connection(cr_handle,

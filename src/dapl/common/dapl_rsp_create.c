@@ -85,7 +85,7 @@ dapl_rsp_create(IN DAT_IA_HANDLE ia_handle,
 	ia_ptr = (DAPL_IA *) ia_handle;
 
 	dapl_dbg_log(DAPL_DBG_TYPE_CM,
-		     ">>> dapl_rsp_free conn_qual: %x EP: %p\n",
+		     ">>> dapl_rsp_create conn_qual: %x EP: %p\n",
 		     conn_qual, ep_handle);
 
 	if (DAPL_BAD_HANDLE(ia_ptr, DAPL_MAGIC_IA)) {

@@ -656,7 +656,7 @@ dapls_evd_post_overflow_event(IN DAPL_EVD * evd_ptr)
 	DAPL_EVD *async_evd_ptr = evd_ptr->header.owner_ia->async_error_evd;
 	DAT_EVENT *event_ptr;
 
-	dapl_log(DAPL_DBG_TYPE_WARN, " WARNING: overflow event on EVD %p/n", evd_ptr);
+	dapl_log(DAPL_DBG_TYPE_WARN, " WARNING: overflow event on EVD %p\n", evd_ptr);
 
 	dapl_os_lock(&async_evd_ptr->header.lock);
 
@@ -937,16 +937,13 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 {
 	DAPL_CR *cr_ptr;
 	DAPL_EP *ep_ptr;
+	int reason = DAT_CONNECTION_EVENT_BROKEN;
 
 	dapl_os_lock(&sp_ptr->header.lock);
 	if (sp_ptr->listening == DAT_FALSE) {
 		dapl_os_unlock(&sp_ptr->header.lock);
-		dapl_dbg_log(DAPL_DBG_TYPE_CM,
-			     "---> post_cr_event_ext: conn event on down SP\n");
-		(void)dapls_ib_reject_connection(ib_cm_handle,
-						 DAT_CONNECTION_EVENT_UNREACHABLE,
-						 0, NULL);
-		return DAT_CONN_QUAL_UNAVAILABLE;
+		reason = DAT_CONNECTION_EVENT_UNREACHABLE;
+		goto bail;
 	}
 
 	/*
@@ -961,7 +958,7 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 	/* allocate new connect request */
 	cr_ptr = dapls_cr_alloc(sp_ptr->header.owner_ia);
 	if (cr_ptr == NULL)
-		return DAT_INSUFFICIENT_RESOURCES;
+		goto bail;
 
 	/* Set up the CR */
 	cr_ptr->sp_ptr = sp_ptr;	/* maintain sp_ptr in case of reject */
@@ -994,8 +991,7 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 		ep_ptr = dapl_ep_alloc(ia_ptr, NULL);
 		if (ep_ptr == NULL) {
 			dapls_cr_free(cr_ptr);
-			/* Invoking function will call dapls_ib_cm_reject() */
-			return DAT_INSUFFICIENT_RESOURCES;
+			goto bail;
 		}
 		ep_ptr->param.ia_handle = ia_ptr;
 		ep_ptr->param.local_ia_address_ptr =
@@ -1025,8 +1021,25 @@ dapls_evd_post_cr_event_ext(IN DAPL_SP * sp_ptr,
 	/* link the CR onto the SP so we can pick it up later */
 	dapl_sp_link_cr(sp_ptr, cr_ptr);
 
-	return dapls_evd_do_post_cr_event_ext(sp_ptr->evd_handle, event_number,
-					      sp_ptr, cr_ptr, ext_data);
+	if (dapls_evd_do_post_cr_event_ext(sp_ptr->evd_handle,
+					   event_number,
+					   sp_ptr, cr_ptr,
+					   ext_data) == DAT_SUCCESS) {
+		return DAT_SUCCESS;
+	}
+
+	/* error: take CR off the list, we can't use it */
+	dapl_os_lock(&sp_ptr->header.lock);
+	dapl_sp_remove_cr(sp_ptr, cr_ptr);
+	dapl_os_unlock(&sp_ptr->header.lock);
+	dapls_cr_free(cr_ptr);
+bail:
+	dapl_log(DAPL_DBG_TYPE_WARN,
+		" cr_event_ext: ERROR reason = 0x%x\n", reason);
+
+	(void)dapls_ib_reject_connection(ib_cm_handle, reason, 0, NULL);
+
+	return DAT_INTERNAL_ERROR;
 }
 
 DAT_RETURN

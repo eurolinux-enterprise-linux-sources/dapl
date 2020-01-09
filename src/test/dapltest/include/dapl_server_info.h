@@ -45,8 +45,6 @@ typedef struct started_server Started_server_t;
 
 extern Started_server_t *DT_started_server_list;
 
-#define SERVER_PORT_NUMBER ((DAT_CONN_QUAL)0xB0de)
-
 typedef struct
 {
     DAT_UINT32      dapltest_version;
